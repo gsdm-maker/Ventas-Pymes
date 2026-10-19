@@ -385,6 +385,14 @@ control de stock con trazabilidad.
   - Sin datos sensibles en el repositorio: las pruebas SQL usan `{{USUARIO_TIENDA}}` y
     `{{USUARIO_ADMIN}}`, que `scripts/sql-remoto.mjs` toma de `Datakeys.md` («Prueba tienda:» /
     «Prueba admin:») o de `PRUEBAS_USUARIO_*`; `index.html` usa `%VITE_SUPABASE_URL%`.
+- **Publicado en Netlify (18-10-2026):** https://mi-socio-pyme.netlify.app (equipo `gsdm-maker`,
+  proyecto `mi-socio-pyme`). Variables `VITE_SUPABASE_URL` y `VITE_SUPABASE_ANON_KEY` cargadas en
+  Netlify. Supabase Auth: `site_url` = la URL de Netlify y redirecciones permitidas para Netlify y
+  localhost (recuperar clave). CSP: se agregó `blob:` a `img-src` e `images.unsplash.com` a
+  `connect-src` (el service worker descarga las fotos con `fetch` y lo rige `connect-src`; sin eso
+  las fotos de Unsplash no cargaban en producción). Verificado en producción: login, POS, fotos
+  14/14, Mesas, Cocina, Reportes, service worker activo y sin violaciones de CSP.
+  Publicar a mano: `npx netlify-cli deploy --prod --build`.
 - `typecheck`, lint y `vite build` sin errores. Dev server en `http://localhost:5173`.
 
 ## 8. Skills de agente instaladas (`.agents/skills/`)
@@ -410,7 +418,7 @@ control de stock con trazabilidad.
       BD si `Datakeys.md` se compartió; actualizar `Datakeys.md`.
 - [x] Editar ubicaciones autorizadas de un usuario ya creado (`actualizar_ubicaciones`).
 - [x] Repositorio git con commits (falta un remoto de respaldo, p. ej. GitHub privado).
-- [ ] Publicar el front (Netlify) y agregar su URL en Auth de Supabase.
+- [x] Publicar el front (Netlify) y agregar su URL en Auth de Supabase.
 - [x] POS offline confiable y productos sin control de stock (retail/restaurante).
 - [x] Tallas y colores (variantes) y devoluciones/anulaciones auditadas.
 - [ ] Ajuste de inventario por conteo físico (permiso existe, falta pantalla y RPC).
@@ -422,7 +430,7 @@ control de stock con trazabilidad.
 - [ ] (Opcional) Aviso de quiebres por push o correo diario (hoy solo dentro de la app).
 - [x] Recepción de transferencias con cantidades reales (modal en Bodega).
 - [ ] (Opcional) SMTP propio para correos de recuperación confiables.
-- [ ] (Opcional) Deploy a Netlify (build + `netlify.toml` con CSP).
+- [ ] Conectar el repositorio en Netlify para publicar con cada push (requiere autorizar la app de Netlify en GitHub).
 
 ## 10. Archivos de referencia
 
