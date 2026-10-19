@@ -1,0 +1,346 @@
+<!DOCTYPE html>
+
+<html lang="en"><head><meta charset="utf-8"/><meta content="width=device-width, initial-scale=1.0" name="viewport"/><meta content="web_dashboard" name="shell-type"/><style>@layer base{html,body{margin:0;padding:0;}body{overscroll-behavior:none;}main>:first-child{margin-top:0!important;}main>:last-child{margin-bottom:0!important;}}::-webkit-scrollbar{display:none;}</style><script src="https://cdn.tailwindcss.com"></script><script id="tailwind-config">tailwind.config = {"darkMode":"class","theme":{"extend":{"colors":{"inverse-surface":"#31312d","surface":"#fcf9f3","on-tertiary-fixed-variant":"#394d14","on-primary-fixed":"#3a0a00","inverse-primary":"#ffb59f","tertiary-fixed":"#d2eca2","error":"#ba1a1a","on-tertiary-fixed":"#131f00","primary-fixed":"#ffdbd0","on-error":"#ffffff","on-secondary-fixed-variant":"#574500","on-background":"#1c1c18","on-surface":"#1c1c18","surface-container":"#f0eee8","secondary-container":"#fed65b","surface-bright":"#fcf9f3","tertiary-fixed-dim":"#b6d088","on-secondary-fixed":"#241a00","on-error-container":"#93000a","inverse-on-surface":"#f3f0ea","secondary-fixed":"#ffe088","surface-container-high":"#ebe8e2","background":"#fcf9f3","on-secondary":"#ffffff","error-container":"#ffdad6","surface-dim":"#dcdad4","outline":"#88726c","tertiary":"#4d6328","tertiary-container":"#657c3e","outline-variant":"#dbc1ba","on-secondary-container":"#745c00","surface-container-lowest":"#ffffff","on-surface-variant":"#55433e","on-primary":"#ffffff","surface-container-low":"#f6f3ed","secondary":"#735c00","primary-fixed-dim":"#ffb59f","on-primary-fixed-variant":"#793019","on-tertiary":"#ffffff","surface-variant":"#e5e2dc","on-tertiary-container":"#faffe8","primary":"#94452c","secondary-fixed-dim":"#e9c349","surface-container-highest":"#e5e2dc","primary-container":"#b35c41","on-primary-container":"#fffbff","surface-tint":"#97472e"},"borderRadius":{"DEFAULT":"0.25rem","lg":"0.5rem","xl":"0.75rem","full":"9999px"},"spacing":{"margin":"2rem","space-xs":"0.375rem","space-lg":"2.5rem","space-sm":"0.75rem","gutter":"1.5rem","space-md":"1.5rem","space-xl":"4rem"},"fontFamily":{"body-lg":["Plus Jakarta Sans"],"headline-sm":["Playfair Display"],"label-md":["Plus Jakarta Sans"],"label-sm":["Plus Jakarta Sans"],"body-md":["Plus Jakarta Sans"],"body-sm":["Plus Jakarta Sans"],"headline-md":["Playfair Display"],"headline-lg":["Playfair Display"],"headline-xl":["Playfair Display"]},"fontSize":{"body-lg":["18px",{"lineHeight":"28px","fontWeight":"400"}],"headline-sm":["22px",{"lineHeight":"28px","fontWeight":"500"}],"label-md":["12px",{"lineHeight":"16px","letterSpacing":"0.05em","fontWeight":"500"}],"label-sm":["11px",{"lineHeight":"14px","letterSpacing":"0.08em","fontWeight":"500"}],"body-md":["15px",{"lineHeight":"24px","fontWeight":"400"}],"body-sm":["13px",{"lineHeight":"20px","fontWeight":"400"}],"headline-md":["28px",{"lineHeight":"36px","fontWeight":"500"}],"headline-lg":["36px",{"lineHeight":"44px","letterSpacing":"-0.01em","fontWeight":"600"}],"headline-xl":["48px",{"lineHeight":"56px","letterSpacing":"-0.01em","fontWeight":"600"}]}}}};</script><link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@500;600&amp;family=Plus+Jakarta+Sans:wght@400;500&amp;display=swap" rel="stylesheet"/><link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@24,400,0,0" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/></head><body class="bg-surface font-body-md text-on-surface"><aside class="fixed left-0 top-0 h-full w-72 bg-surface-container-low z-50 flex flex-col pt-space-md pb-space-md"><div class="px-gutter mb-space-lg flex items-center gap-space-sm"><img alt="Boutique Nómada Logo" class="h-8 w-auto object-contain" src="https://lh3.googleusercontent.com/aida-public/AB6AXuDb0c76Qju8GvYiJUvi2s3ZMhbM3TPkLnty0-hSU69ZUAfRfyUrF9Mun-7I7zl0kSLg41l8bvWqynYobqggJ7h-DOgWRESn9_8DOt-n0HY1MdyTs5I0wYtgVf4BRVM8ct1KJrHrgL-gt2RKyndCNycTQEEB0C9rmI8dZiMVdMluCJw1LX9c1NfeWolY5RxLjaqwzQdI6yMPwLRBTYr8FhivL8sVW8zFkhPkzZBUdE7TWnPiGiORWX20aA"/><span class="text-headline-sm font-headline-sm text-primary">Nómada</span></div><nav class="flex-1 px-space-sm flex flex-col gap-space-xs" data-active-classes="bg-primary-container text-on-primary-container font-medium"><a aria-current="page" class="flex items-center px-space-sm py-space-sm rounded-lg transition-all bg-primary-container text-on-primary-container font-medium" data-path="punto-de-venta" href="#"><span class="material-symbols-outlined mr-space-sm text-[20px]">point_of_sale</span>Punto de Venta</a><a class="flex items-center px-space-sm py-space-sm rounded-lg text-on-surface-variant hover:bg-surface-container-high hover:text-on-surface transition-all" data-path="inventario-general" href="#"><span class="material-symbols-outlined mr-space-sm text-[20px]">inventory_2</span>Inventario General</a><a class="flex items-center px-space-sm py-space-sm rounded-lg text-on-surface-variant hover:bg-surface-container-high hover:text-on-surface transition-all" data-path="importaciones-y-proveedores" href="#"><span class="material-symbols-outlined mr-space-sm text-[20px]">local_shipping</span>Importaciones y Proveedores</a><a class="flex items-center px-space-sm py-space-sm rounded-lg text-on-surface-variant hover:bg-surface-container-high hover:text-on-surface transition-all" data-path="reportes-y-caja" href="#"><span class="material-symbols-outlined mr-space-sm text-[20px]">analytics</span>Reportes y Caja</a></nav></aside><div class="pl-72"><header class="fixed top-0 left-72 right-0 h-16 bg-surface/80 backdrop-blur-xl shadow-[0_1px_8px_rgba(0,0,0,0.04)] z-40 flex items-center justify-between px-gutter"><div class="flex items-center gap-space-sm bg-surface-container rounded-full px-space-sm py-1.5 w-72"><span class="material-symbols-outlined text-outline text-[20px]">search</span><input class="bg-transparent text-body-sm text-on-surface placeholder:text-outline focus:outline-none w-full" placeholder="Buscar prendas, joyas, importaciones..." type="text"/></div><div class="flex items-center gap-gutter"><div class="flex items-center gap-space-xs text-body-sm text-on-surface-variant bg-surface-container-low px-space-sm py-1 rounded-full"><span class="material-symbols-outlined text-[18px] text-primary">storefront</span><span>Boutique Condesa</span></div><button class="relative text-on-surface-variant hover:text-on-surface transition-colors"><span class="material-symbols-outlined text-[22px]">notifications</span><span class="absolute top-0 right-0 w-2 h-2 rounded-full bg-primary"></span></button><div class="w-8 h-8 rounded-full bg-primary flex items-center justify-center"><span class="material-symbols-outlined text-on-primary text-[18px]">person</span></div></div></header><main class="relative pt-16 bg-surface min-h-screen"><div class="flex flex-col w-full min-h-screen bg-surface">
+<div class="flex flex-col lg:flex-row flex-1 w-full max-w-[1600px] mx-auto p-gutter gap-gutter">
+<!-- Left Panel: Product Catalog & Categories -->
+<div class="flex-1 flex flex-col gap-space-md min-w-0">
+<!-- Category Chips / Filters -->
+<div class="flex items-center gap-space-sm overflow-x-auto pb-space-xs scrollbar-none">
+<button class="category-btn px-space-md py-space-sm rounded-full bg-primary text-on-primary text-body-sm font-medium transition-all shadow-sm" id="cat-all" onclick="filterCategory('all')">
+          Todo el Catálogo
+        </button>
+<button class="category-btn px-space-md py-space-sm rounded-full bg-surface-container-high text-on-surface-variant hover:bg-surface-variant text-body-sm font-medium transition-all" id="cat-ropa" onclick="filterCategory('ropa')">
+          Ropa Artesanal
+        </button>
+<button class="category-btn px-space-md py-space-sm rounded-full bg-surface-container-high text-on-surface-variant hover:bg-surface-variant text-body-sm font-medium transition-all" id="cat-bisuteria" onclick="filterCategory('bisuteria')">
+          Bisutería Fina
+        </button>
+<button class="category-btn px-space-md py-space-sm rounded-full bg-surface-container-high text-on-surface-variant hover:bg-surface-variant text-body-sm font-medium transition-all" id="cat-india" onclick="filterCategory('india')">
+          Importados India
+        </button>
+</div>
+<!-- Catalog Grid -->
+<div class="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-4 gap-space-md">
+<!-- Product Item 1 -->
+<div class="product-card group cursor-pointer bg-surface-container-lowest rounded-xl p-3 flex flex-col justify-between shadow-[0_4px_20px_rgba(44,34,30,0.03)] hover:shadow-[0_8px_30px_rgba(148,69,44,0.12)] transition-all duration-300 relative overflow-hidden" onclick="addToCart('Kimono de Seda Jaipur', 1850, 'ropa')">
+<div class="absolute top-2 right-2 z-10 bg-surface/90 backdrop-blur-sm px-2 py-0.5 rounded-full text-label-sm text-primary font-medium shadow-sm">
+            Stock: 6
+          </div>
+<div class="w-full h-40 rounded-lg overflow-hidden mb-3 bg-surface-container relative">
+<div class="w-full h-full bg-cover bg-center group-hover:scale-105 transition-transform duration-500" data-alt="Luxurious handmade silk kimono featuring intricate Rajasthani block print patterns in rich terracotta and gold tones against a warm beige background, styled in a bohemian artisanal boutique setting with soft dramatic lighting." style="background-image: url('https://lh3.googleusercontent.com/aida-public/AB6AXuCJAHPIIKluQ-0L0BMIBHa3i722CZkiQg7Q_057OlfNv5OaNT5hf4xt68ruEt7ecithGTX6RHB2LGpRgQJal-95krKG2Qf7j6kM08GlyE6Coi_9oZY1f7yLrhTdJEZOm-E7XchepxMLZTdRRSECXmNC7t4TMGRn1RRubw4otHOpZ7K6_kJJCU1FE-tPb2u-Zej6ghTOR-xX4BQ4g5jgVBSgm_Ct1KcIGBTRn3TIhy1XfHhMVmEnoPOXhg')"></div>
+</div>
+<div>
+<span class="text-label-sm text-outline uppercase tracking-wider">Ropa</span>
+<h3 class="text-headline-sm font-headline-sm text-on-surface text-base line-clamp-1 mt-0.5">Kimono de Seda Jaipur</h3>
+<p class="text-body-md font-semibold text-primary mt-1">$1,850.00 <span class="text-label-sm text-outline font-normal">MXN</span></p>
+</div>
+</div>
+<!-- Product Item 2 -->
+<div class="product-card group cursor-pointer bg-surface-container-lowest rounded-xl p-3 flex flex-col justify-between shadow-[0_4px_20px_rgba(44,34,30,0.03)] hover:shadow-[0_8px_30px_rgba(148,69,44,0.12)] transition-all duration-300 relative overflow-hidden" onclick="addToCart('Collar Panchmukhi de Plata', 2400, 'bisuteria')">
+<div class="absolute top-2 right-2 z-10 bg-surface/90 backdrop-blur-sm px-2 py-0.5 rounded-full text-label-sm text-primary font-medium shadow-sm">
+            Stock: 3
+          </div>
+<div class="w-full h-40 rounded-lg overflow-hidden mb-3 bg-surface-container relative">
+<div class="w-full h-full bg-cover bg-center group-hover:scale-105 transition-transform duration-500" data-alt="Exquisite antique silver necklace with intricate ethnic Indian craftsmanship, featuring oxidized details and small bells, laid on a rustic wooden table with warm golden ambient lighting." style="background-image: url('https://lh3.googleusercontent.com/aida-public/AB6AXuAjy2OrdHI27ojdbPm5x69wVug7hXK-t9ZYo55H8ys1JfomdiE5IeLyZHGAp_Dr346wB8hLAkndndnbg5kqOxso8VIBmKW6Pt7OwJstceyaF-5qwu58c3cuOJWaQhL9IbqabC6VYKZei4MVOFoeo0gFs_y18b-pKzS-kTwHwKT8DIvb6ZtDaKAXg61XShhBXV2AbxZ3lP768rxsdAeEemROLhzacX6ApA8sZi9JwKBYt93DY7ZpDbcdnw')"></div>
+</div>
+<div>
+<span class="text-label-sm text-outline uppercase tracking-wider">Bisutería</span>
+<h3 class="text-headline-sm font-headline-sm text-on-surface text-base line-clamp-1 mt-0.5">Collar Panchmukhi Plata</h3>
+<p class="text-body-md font-semibold text-primary mt-1">$2,400.00 <span class="text-label-sm text-outline font-normal">MXN</span></p>
+</div>
+</div>
+<!-- Product Item 3 -->
+<div class="product-card group cursor-pointer bg-surface-container-lowest rounded-xl p-3 flex flex-col justify-between shadow-[0_4px_20px_rgba(44,34,30,0.03)] hover:shadow-[0_8px_30px_rgba(148,69,44,0.12)] transition-all duration-300 relative overflow-hidden" onclick="addToCart('Tapiz Bordado Mandala Rajastán', 1200, 'india')">
+<div class="absolute top-2 right-2 z-10 bg-surface/90 backdrop-blur-sm px-2 py-0.5 rounded-full text-label-sm text-primary font-medium shadow-sm">
+            Stock: 12
+          </div>
+<div class="w-full h-40 rounded-lg overflow-hidden mb-3 bg-surface-container relative">
+<div class="w-full h-full bg-cover bg-center group-hover:scale-105 transition-transform duration-500" data-alt="Vibrant bohemian wall hanging mandala tapestry embroidered with shimmering gold threads and deep terracotta mirrors, shot in a sunlit artisanal boutique corner." style="background-image: url('https://lh3.googleusercontent.com/aida-public/AB6AXuBubkPYXGpIlbksP_sVwnYFW1QipOu9jBFJmdesgW4PuLYmLtOeaaJ27HQO37_y4Lvuw2PLbDeVnzSuXvh7XvjtGpoySjOR9UbF8R9B6MFprjKvFC5cZ4cf7tC5NjvLvELTpu7Z3RK76F68nxmhQ4G-r03fLqBRConyHFfaWWJbIfKsa0_fhWhCT5BLd5c5s5dVVTGrPCBdxCgLJ6w3tC96x-nON0vQF6Ca_lihGvnu5YuY4Y_qCoyMkA')"></div>
+</div>
+<div>
+<span class="text-label-sm text-outline uppercase tracking-wider">Importados</span>
+<h3 class="text-headline-sm font-headline-sm text-on-surface text-base line-clamp-1 mt-0.5">Tapiz Mandala Rajastán</h3>
+<p class="text-body-md font-semibold text-primary mt-1">$1,200.00 <span class="text-label-sm text-outline font-normal">MXN</span></p>
+</div>
+</div>
+<!-- Product Item 4 -->
+<div class="product-card group cursor-pointer bg-surface-container-lowest rounded-xl p-3 flex flex-col justify-between shadow-[0_4px_20px_rgba(44,34,30,0.03)] hover:shadow-[0_8px_30px_rgba(148,69,44,0.12)] transition-all duration-300 relative overflow-hidden" onclick="addToCart('Pashmina de Cachemira Pura', 2900, 'india')">
+<div class="absolute top-2 right-2 z-10 bg-surface/90 backdrop-blur-sm px-2 py-0.5 rounded-full text-label-sm text-primary font-medium shadow-sm">
+            Stock: 4
+          </div>
+<div class="w-full h-40 rounded-lg overflow-hidden mb-3 bg-surface-container relative">
+<div class="w-full h-full bg-cover bg-center group-hover:scale-105 transition-transform duration-500" data-alt="Luxurious pure cashmere pashmina shawl in warm terracotta hue with delicate hand-knotted tassels, folded neatly on an antique wooden chest." style="background-image: url('https://lh3.googleusercontent.com/aida-public/AB6AXuC16F416Lu0IACdjQoJ8xMXbr2oRVeM2gM4eCWO0MEhWnkedIjZqAMZH_1q-gdqBjlQcB29sabfkHcJHrt9rpnVFzUnfRdUJpZEcvnOHu5G-5fIvj_ziMoemKFPs8akO3OHOnlIqTyL4EDPJHHhUQWe4tUAjFh5zcGaPHQsgF_uHcYK-xhnK4xjxnRYQKlBiZPkLSGaVmLBvWfhddj1FAuh8sdb9o6kf9ONoag8NGcLcnDtlQcJV9l9Sw')"></div>
+</div>
+<div>
+<span class="text-label-sm text-outline uppercase tracking-wider">Importados</span>
+<h3 class="text-headline-sm font-headline-sm text-on-surface text-base line-clamp-1 mt-0.5">Pashmina Cachemira Pura</h3>
+<p class="text-body-md font-semibold text-primary mt-1">$2,900.00 <span class="text-label-sm text-outline font-normal">MXN</span></p>
+</div>
+</div>
+<!-- Product Item 5 -->
+<div class="product-card group cursor-pointer bg-surface-container-lowest rounded-xl p-3 flex flex-col justify-between shadow-[0_4px_20px_rgba(44,34,30,0.03)] hover:shadow-[0_8px_30px_rgba(148,69,44,0.12)] transition-all duration-300 relative overflow-hidden" onclick="addToCart('Vestido Lino Bordado Goa', 1650, 'ropa')">
+<div class="absolute top-2 right-2 z-10 bg-surface/90 backdrop-blur-sm px-2 py-0.5 rounded-full text-label-sm text-primary font-medium shadow-sm">
+            Stock: 8
+          </div>
+<div class="w-full h-40 rounded-lg overflow-hidden mb-3 bg-surface-container relative">
+<div class="w-full h-full bg-cover bg-center group-hover:scale-105 transition-transform duration-500" data-alt="Bohemian natural linen dress with delicate floral embroidery around the neckline, sunlit atmosphere with warm earthen tones." style="background-image: url('https://lh3.googleusercontent.com/aida-public/AB6AXuCi_dudd4wI0Fn__v4gGQRq7ATEe_DOVkU54hTBGIJdmKJD39_7Clkbl-rRbOt0zsbSTD1Rhya3JXGh22w-zefajZgurGFd5upQMT2kq3DI7DTYxiFy_jS4IaXAthivL5r0grTWdq5RGsuWIsKtbBNWwJLx1d85ZzIeJ_nV3CSHDkr81saAnyoNQ9-y-oJHE_lztsqoPt_rDVPEn-CqimWn_l9QU6E8lIFrFRvQZ_AH_PMjJFqH6V2-eg')"></div>
+</div>
+<div>
+<span class="text-label-sm text-outline uppercase tracking-wider">Ropa</span>
+<h3 class="text-headline-sm font-headline-sm text-on-surface text-base line-clamp-1 mt-0.5">Vestido Lino Goa</h3>
+<p class="text-body-md font-semibold text-primary mt-1">$1,650.00 <span class="text-label-sm text-outline font-normal">MXN</span></p>
+</div>
+</div>
+<!-- Product Item 6 -->
+<div class="product-card group cursor-pointer bg-surface-container-lowest rounded-xl p-3 flex flex-col justify-between shadow-[0_4px_20px_rgba(44,34,30,0.03)] hover:shadow-[0_8px_30px_rgba(148,69,44,0.12)] transition-all duration-300 relative overflow-hidden" onclick="addToCart('Aretes Jhumka con Baño de Oro', 890, 'bisuteria')">
+<div class="absolute top-2 right-2 z-10 bg-surface/90 backdrop-blur-sm px-2 py-0.5 rounded-full text-label-sm text-primary font-medium shadow-sm">
+            Stock: 15
+          </div>
+<div class="w-full h-40 rounded-lg overflow-hidden mb-3 bg-surface-container relative">
+<div class="w-full h-full bg-cover bg-center group-hover:scale-105 transition-transform duration-500" data-alt="Traditional Indian bell-shaped Jhumka earrings with ornate gold plating and ruby-colored stones on a soft silk backdrop." style="background-image: url('https://lh3.googleusercontent.com/aida-public/AB6AXuCD_LZnCjVHoyh1j-1MLBJBE6j1wkL-_-rSYzg6L7a1Ajmdul8yKM4Q_rZQxP9yoS5nx7MXOcjce1F2CKJsuHUhIa85FvnSa3JPHq4kJvHdSSUY1Jhiah9525CJWnpQUJBzF-_PDef_5be32ivKEVF9uLmqVz5aCBnSPRqBpdntsZw1GvjoJbkbEnzFZP63GPZOlYYRt8QL8DnYrBtpNDrd641hANi6QryuiKeovYVSXwJ-1rMgOPBw-Q')"></div>
+</div>
+<div>
+<span class="text-label-sm text-outline uppercase tracking-wider">Bisutería</span>
+<h3 class="text-headline-sm font-headline-sm text-on-surface text-base line-clamp-1 mt-0.5">Aretes Jhumka Oro</h3>
+<p class="text-body-md font-semibold text-primary mt-1">$890.00 <span class="text-label-sm text-outline font-normal">MXN</span></p>
+</div>
+</div>
+<!-- Product Item 7 -->
+<div class="product-card group cursor-pointer bg-surface-container-lowest rounded-xl p-3 flex flex-col justify-between shadow-[0_4px_20px_rgba(44,34,30,0.03)] hover:shadow-[0_8px_30px_rgba(148,69,44,0.12)] transition-all duration-300 relative overflow-hidden" onclick="addToCart('Incienso Artesanal Sándalo (Caja)', 350, 'india')">
+<div class="absolute top-2 right-2 z-10 bg-surface/90 backdrop-blur-sm px-2 py-0.5 rounded-full text-label-sm text-primary font-medium shadow-sm">
+            Stock: 25
+          </div>
+<div class="w-full h-40 rounded-lg overflow-hidden mb-3 bg-surface-container relative">
+<div class="w-full h-full bg-cover bg-center group-hover:scale-105 transition-transform duration-500" data-alt="Artisanal sandalwood incense sticks in handcrafted paper packaging with gold foil botanical stamps." style="background-image: url('https://lh3.googleusercontent.com/aida-public/AB6AXuDl9_IGISfo0wMXrk7Ae3ReGFOZmfhFKBxAo5K7TMm-YVPQAhJ7-1CL-fp0rNZTkcvsZN64u_RlZhnsQID_8nWyEPVr5JWQyrojGV8-3mwQ8655d5VkNP1WxibuGf-wLBMzjnEntSNJt7eBhJAuuwaYRhOTGI6CtfTI7LGiC6zSythap7WNswvdQU61pI8_TdT8Og15bmBav9ufaSV7lds8u7yBHyfBEJ-IE5PgFeR2ujayfklL9Bq_fg')"></div>
+</div>
+<div>
+<span class="text-label-sm text-outline uppercase tracking-wider">Importados</span>
+<h3 class="text-headline-sm font-headline-sm text-on-surface text-base line-clamp-1 mt-0.5">Incienso Sándalo</h3>
+<p class="text-body-md font-semibold text-primary mt-1">$350.00 <span class="text-label-sm text-outline font-normal">MXN</span></p>
+</div>
+</div>
+<!-- Product Item 8 -->
+<div class="product-card group cursor-pointer bg-surface-container-lowest rounded-xl p-3 flex flex-col justify-between shadow-[0_4px_20px_rgba(44,34,30,0.03)] hover:shadow-[0_8px_30px_rgba(148,69,44,0.12)] transition-all duration-300 relative overflow-hidden" onclick="addToCart('Brazaletes Banjaar (Set de 12)', 650, 'bisuteria')">
+<div class="absolute top-2 right-2 z-10 bg-surface/90 backdrop-blur-sm px-2 py-0.5 rounded-full text-label-sm text-primary font-medium shadow-sm">
+            Stock: 9
+          </div>
+<div class="w-full h-40 rounded-lg overflow-hidden mb-3 bg-surface-container relative">
+<div class="w-full h-full bg-cover bg-center group-hover:scale-105 transition-transform duration-500" data-alt="Stack of 12 traditional Indian glass and metal bangles in rich metallic gold and terracotta shades." style="background-image: url('https://lh3.googleusercontent.com/aida-public/AB6AXuAaKM6VK2UFmQ3yvN9sS7BuKSL5yF3RPZFVstS9jGxBHSKSNoEk27BAToksnreMn1vFurNhgYayNxxhJSvczm2lGYZLVEdWt237-MFaVMDKUS30dNJFXi-ckKUUkkZP24zqZKn65wO0AcvAtAQxr4DHJf3d9oxxFGpqR_D7k8UY9V_K4XNMCQggqL6xc6OkZhsih2CzojPvwGotwpw2SnX_Fx08ouPSIjVSjwt4CdxZaGTSAicDnAWYRQ')"></div>
+</div>
+<div>
+<span class="text-label-sm text-outline uppercase tracking-wider">Bisutería</span>
+<h3 class="text-headline-sm font-headline-sm text-on-surface text-base line-clamp-1 mt-0.5">Set Brazaletes Banjaar</h3>
+<p class="text-body-md font-semibold text-primary mt-1">$650.00 <span class="text-label-sm text-outline font-normal">MXN</span></p>
+</div>
+</div>
+</div>
+</div>
+<!-- Right Panel: Cart & Checkout -->
+<div class="w-full lg:w-[420px] flex flex-col bg-surface-container-lowest rounded-2xl shadow-[0_8px_30px_rgba(44,34,30,0.04)] p-space-md justify-between">
+<!-- Cart Header & Barcode Scanner Simulator -->
+<div class="flex flex-col gap-space-sm">
+<div class="flex items-center justify-between pb-space-xs">
+<h2 class="text-headline-sm font-headline-sm text-on-surface flex items-center gap-space-xs">
+<span class="material-symbols-outlined text-primary">receipt_long</span>
+            Ticket Activo
+          </h2>
+<span class="text-label-md text-outline font-medium bg-surface-container px-2.5 py-1 rounded-full">#NOM-8492</span>
+</div>
+<!-- Simulated Barcode Quick Scan Input -->
+<div class="relative flex items-center bg-surface-container rounded-xl px-space-sm py-2">
+<span class="material-symbols-outlined text-outline text-[20px] mr-2">barcode_scanner</span>
+<input class="bg-transparent text-body-sm text-on-surface placeholder:text-outline focus:outline-none w-full" id="barcode-input" onkeypress="handleBarcode(event)" placeholder="Escanear código o buscar..." type="text"/>
+<button class="text-primary hover:text-on-primary-fixed-variant text-label-sm font-medium bg-primary-fixed px-2.5 py-1 rounded-lg transition-colors" onclick="simulateScan()">Escanear</button>
+</div>
+</div>
+<!-- Cart Items List (Scrollable) -->
+<div class="flex-1 my-space-md overflow-y-auto max-h-[340px] flex flex-col gap-space-sm pr-1" id="cart-items">
+<!-- Initial Empty State / Pre-populated items -->
+<div class="flex items-center justify-between bg-surface-container-low p-3 rounded-xl">
+<div class="flex-1 pr-2">
+<h4 class="text-body-md font-medium text-on-surface line-clamp-1">Kimono de Seda Jaipur</h4>
+<p class="text-body-sm text-primary font-medium">$1,850.00</p>
+</div>
+<div class="flex items-center gap-2">
+<button class="w-7 h-7 rounded-lg bg-surface-container flex items-center justify-center text-on-surface hover:bg-surface-variant" onclick="updateQty(1, -1)">-</button>
+<span class="text-body-md font-medium w-5 text-center" id="qty-1">1</span>
+<button class="w-7 h-7 rounded-lg bg-surface-container flex items-center justify-center text-on-surface hover:bg-surface-variant" onclick="updateQty(1, 1)">+</button>
+</div>
+</div>
+<div class="flex items-center justify-between bg-surface-container-low p-3 rounded-xl">
+<div class="flex-1 pr-2">
+<h4 class="text-body-md font-medium text-on-surface line-clamp-1">Aretes Jhumka Oro</h4>
+<p class="text-body-sm text-primary font-medium">$890.00</p>
+</div>
+<div class="flex items-center gap-2">
+<button class="w-7 h-7 rounded-lg bg-surface-container flex items-center justify-center text-on-surface hover:bg-surface-variant" onclick="updateQty(2, -1)">-</button>
+<span class="text-body-md font-medium w-5 text-center" id="qty-2">1</span>
+<button class="w-7 h-7 rounded-lg bg-surface-container flex items-center justify-center text-on-surface hover:bg-surface-variant" onclick="updateQty(2, 1)">+</button>
+</div>
+</div>
+</div>
+<!-- Financial Totals & Payment Section -->
+<div class="flex flex-col gap-space-sm pt-space-sm border-t border-surface-container">
+<!-- Discount Code row -->
+<div class="flex gap-2">
+<input class="bg-surface-container px-3 py-2 rounded-xl text-body-sm text-on-surface placeholder:text-outline focus:outline-none flex-1" placeholder="Cupón o Descuento" type="text"/>
+<button class="bg-surface-container-high hover:bg-surface-variant text-on-surface text-body-sm px-3 py-2 rounded-xl font-medium transition-colors">Aplicar</button>
+</div>
+<!-- Payment Method Selector -->
+<div class="flex flex-col gap-space-xs">
+<span class="text-label-md text-outline font-medium uppercase tracking-wider">Método de Pago</span>
+<div class="grid grid-cols-3 gap-2">
+<button class="payment-btn flex flex-col items-center justify-center py-2 px-1 rounded-xl bg-primary-container text-on-primary-container text-label-md font-medium transition-all shadow-sm" id="pay-efectivo" onclick="setPaymentMethod('efectivo')">
+<span class="material-symbols-outlined text-[18px] mb-1">payments</span>
+              Efectivo
+            </button>
+<button class="payment-btn flex flex-col items-center justify-center py-2 px-1 rounded-xl bg-surface-container text-on-surface-variant hover:bg-surface-container-high text-label-md font-medium transition-all" id="pay-tarjeta" onclick="setPaymentMethod('tarjeta')">
+<span class="material-symbols-outlined text-[18px] mb-1">credit_card</span>
+              Tarjeta
+            </button>
+<button class="payment-btn flex flex-col items-center justify-center py-2 px-1 rounded-xl bg-surface-container text-on-surface-variant hover:bg-surface-container-high text-label-md font-medium transition-all" id="pay-transferencia" onclick="setPaymentMethod('transferencia')">
+<span class="material-symbols-outlined text-[18px] mb-1">account_balance</span>
+              Transfer
+            </button>
+</div>
+</div>
+<!-- Summary Totals -->
+<div class="flex flex-col gap-1 py-2 text-body-sm">
+<div class="flex justify-between text-on-surface-variant">
+<span>Subtotal</span>
+<span id="subtotal-val">$2,740.00 MXN</span>
+</div>
+<div class="flex justify-between text-on-surface-variant">
+<span>IVA (16%) incl.</span>
+<span id="tax-val">$377.93 MXN</span>
+</div>
+<div class="flex justify-between text-on-surface text-body-lg font-semibold mt-1">
+<span>Total a Cobrar</span>
+<span class="text-primary" id="total-val">$2,740.00 MXN</span>
+</div>
+</div>
+<!-- Big Checkout Action Button -->
+<button class="w-full bg-primary hover:bg-primary-container text-on-primary py-4 rounded-xl font-headline-sm text-lg shadow-[0_8px_25px_rgba(148,69,44,0.25)] hover:shadow-[0_12px_35px_rgba(148,69,44,0.35)] transition-all flex items-center justify-center gap-space-sm group" onclick="finalizeSale()">
+<span class="material-symbols-outlined text-[24px] group-hover:scale-110 transition-transform">point_of_sale</span>
+          Cobrar / Finalizar Venta
+        </button>
+</div>
+</div>
+</div>
+<!-- Client-side Interactive Script -->
+<script>
+    let currentCategory = 'all';
+    let currentPayment = 'efectivo';
+    let cart = [
+      { id: 1, name: 'Kimono de Seda Jaipur', price: 1850, qty: 1 },
+      { id: 2, name: 'Aretes Jhumka Oro', price: 890, qty: 1 }
+    ];
+
+    function filterCategory(cat) {
+      currentCategory = cat;
+      document.querySelectorAll('.category-btn').forEach(btn => {
+        btn.classList.remove('bg-primary', 'text-on-primary', 'shadow-sm');
+        btn.classList.add('bg-surface-container-high', 'text-on-surface-variant');
+      });
+      const activeBtn = document.getElementById('cat-' + cat);
+      if(activeBtn) {
+        activeBtn.classList.remove('bg-surface-container-high', 'text-on-surface-variant');
+        activeBtn.classList.add('bg-primary', 'text-on-primary', 'shadow-sm');
+      }
+    }
+
+    function setPaymentMethod(method) {
+      currentPayment = method;
+      document.querySelectorAll('.payment-btn').forEach(btn => {
+        btn.classList.remove('bg-primary-container', 'text-on-primary-container', 'shadow-sm');
+        btn.classList.add('bg-surface-container', 'text-on-surface-variant');
+      });
+      const activePay = document.getElementById('pay-' + method);
+      if(activePay) {
+        activePay.classList.remove('bg-surface-container', 'text-on-surface-variant');
+        activePay.classList.add('bg-primary-container', 'text-on-primary-container', 'shadow-sm');
+      }
+    }
+
+    function addToCart(name, price, category) {
+      const existing = cart.find(item => item.name === name);
+      if(existing) {
+        existing.qty += 1;
+      } else {
+        cart.push({ id: Date.now(), name, price, qty: 1 });
+      }
+      renderCart();
+    }
+
+    function updateQty(id, delta) {
+      const item = cart.find(i => i.id === id);
+      if(item) {
+        item.qty += delta;
+        if(item.qty <= 0) {
+          cart = cart.filter(i => i.id !== id);
+        }
+      }
+      renderCart();
+    }
+
+    function renderCart() {
+      const container = document.getElementById('cart-items');
+      container.innerHTML = '';
+      
+      if(cart.length === 0) {
+        container.innerHTML = '<div class="text-center py-12 text-outline text-body-md">El ticket está vacío. Seleccione productos del catálogo.</div>';
+        document.getElementById('subtotal-val').innerText = '$0.00 MXN';
+        document.getElementById('tax-val').innerText = '$0.00 MXN';
+        document.getElementById('total-val').innerText = '$0.00 MXN';
+        return;
+      }
+
+      let subtotal = 0;
+      cart.forEach(item => {
+        subtotal += item.price * item.qty;
+        const div = document.createElement('div');
+        div.className = 'flex items-center justify-between bg-surface-container-low p-3 rounded-xl';
+        div.innerHTML = `
+          <div class="flex-1 pr-2">
+            <h4 class="text-body-md font-medium text-on-surface line-clamp-1">${item.name}</h4>
+            <p class="text-body-sm text-primary font-medium">$${(item.price * item.qty).toLocaleString('es-MX', {minimumFractionDigits: 2})}</p>
+          </div>
+          <div class="flex items-center gap-2">
+            <button onclick="updateQty(${item.id}, -1)" class="w-7 h-7 rounded-lg bg-surface-container flex items-center justify-center text-on-surface hover:bg-surface-variant">-</button>
+            <span class="text-body-md font-medium w-5 text-center">${item.qty}</span>
+            <button onclick="updateQty(${item.id}, 1)" class="w-7 h-7 rounded-lg bg-surface-container flex items-center justify-center text-on-surface hover:bg-surface-variant">+</button>
+          </div>
+        `;
+        container.appendChild(div);
+      });
+
+      const tax = subtotal * 0.16;
+      document.getElementById('subtotal-val').innerText = `$${subtotal.toLocaleString('es-MX', {minimumFractionDigits: 2})} MXN`;
+      document.getElementById('tax-val').innerText = `$${tax.toLocaleString('es-MX', {minimumFractionDigits: 2})} MXN`;
+      document.getElementById('total-val').innerText = `$${subtotal.toLocaleString('es-MX', {minimumFractionDigits: 2})} MXN`;
+    }
+
+    function simulateScan() {
+      const input = document.getElementById('barcode-input');
+      addToCart('Pashmina de Cachemira Pura', 2900, 'india');
+      input.value = '';
+    }
+
+    function handleBarcode(e) {
+      if(e.key === 'Enter') {
+        simulateScan();
+      }
+    }
+
+    function finalizeSale() {
+      if(cart.length === 0) {
+        alert('No hay productos en el ticket actual.');
+        return;
+      }
+      alert('¡Venta cobrada con éxito! Generando comprobante y actualizando inventario de Boutique Nómada...');
+      cart = [];
+      renderCart();
+    }
+  </script>
+</div></main></div></body></html>

@@ -1,0 +1,261 @@
+@import 'tailwindcss';
+
+/* Modo oscuro por atributo en <html> (data-theme="dark"), no por clase .dark */
+@custom-variant dark (&:where([data-theme='dark'], [data-theme='dark'] *));
+
+/* ------------------------------------------------------------------ *
+ * Tokens de color: canales RGB crudos. El tema se cambia en runtime.  *
+ * Paleta "terracota / beige" (Material 3) de Mi Socio Pyme.           *
+ * ------------------------------------------------------------------ */
+:root {
+  color-scheme: light;
+  /* Series de gráficos (una por tienda, orden fijo; validada para daltonismo) */
+  --serie-1: #2a78d6;
+  --serie-2: #eb6834;
+  --serie-3: #1baf7a;
+  --serie-4: #eda100;
+  --serie-5: #e87ba4;
+  --serie-6: #008300;
+  --serie-7: #6250d6;
+  --serie-8: #e34948;
+  /* Superficies */
+  --shell: 252 249 243;
+  --panel: 255 255 255;
+  --surface: 246 243 237;
+  --surface-2: 235 232 226;
+  --surface-soft: 240 238 232;
+  --field: 255 255 255;
+
+  /* Bordes */
+  --border: 223 209 204;
+  --border-strong: 136 114 108;
+
+  /* Texto */
+  --fg: 28 28 24;
+  --fg-body: 85 67 62;
+  --fg-muted: 136 114 108;
+  --fg-faint: 172 154 149;
+
+  /* Acento (primario terracota) */
+  --accent: 148 69 44;
+  --accent-container: 179 92 65;
+  --accent-soft: 255 219 208;
+  --on-accent: 255 255 255;
+  --on-accent-container: 255 251 255;
+
+  /* Semánticos */
+  --success: 77 99 40;
+  --success-soft: 210 236 162;
+  --warning: 150 110 0;
+  --warning-soft: 255 224 136;
+  --danger: 186 26 26;
+  --danger-soft: 255 218 214;
+  --blocked: 110 110 116;
+  --blocked-soft: 226 226 230;
+  --info: 52 90 138;
+  --info-soft: 214 228 247;
+}
+
+[data-theme='dark'] {
+  color-scheme: dark;
+  --serie-1: #3987e5;
+  --serie-2: #d95926;
+  --serie-3: #199e70;
+  --serie-4: #c98500;
+  --serie-5: #d55181;
+  --serie-6: #008300;
+  --serie-7: #9085e9;
+  --serie-8: #e66767;
+  --shell: 24 22 20;
+  --panel: 33 30 28;
+  --surface: 40 36 34;
+  --surface-2: 51 46 43;
+  --surface-soft: 46 42 39;
+  --field: 37 33 31;
+
+  --border: 66 58 54;
+  --border-strong: 148 128 120;
+
+  --fg: 244 240 235;
+  --fg-body: 214 205 200;
+  --fg-muted: 172 158 151;
+  --fg-faint: 128 116 110;
+
+  --accent: 255 181 159;
+  --accent-container: 122 48 25;
+  --accent-soft: 73 33 22;
+  --on-accent: 60 20 8;
+  --on-accent-container: 255 219 208;
+
+  --success: 182 208 136;
+  --success-soft: 46 58 24;
+  --warning: 233 195 73;
+  --warning-soft: 66 52 0;
+  --danger: 255 180 171;
+  --danger-soft: 87 20 18;
+  --blocked: 190 190 196;
+  --blocked-soft: 54 54 58;
+  --info: 168 199 240;
+  --info-soft: 30 44 68;
+}
+
+/* Acentos alternativos (se mapean a --accent-*) */
+[data-accent='azul'] {
+  --accent: 37 99 235;
+  --accent-container: 29 78 216;
+  --accent-soft: 219 234 254;
+  --on-accent: 255 255 255;
+  --on-accent-container: 219 234 254;
+}
+[data-theme='dark'][data-accent='azul'] {
+  --accent: 147 187 252;
+  --accent-container: 30 64 175;
+  --accent-soft: 23 37 84;
+  --on-accent: 10 25 60;
+  --on-accent-container: 219 234 254;
+}
+
+/* ------------------------------------------------------------------ *
+ * Mapeo a colores de Tailwind (@theme inline = runtime, no "horneado") *
+ * ------------------------------------------------------------------ */
+@theme inline {
+  --color-shell: rgb(var(--shell));
+  --color-panel: rgb(var(--panel));
+  --color-surface: rgb(var(--surface));
+  --color-surface-2: rgb(var(--surface-2));
+  --color-surface-soft: rgb(var(--surface-soft));
+  --color-field: rgb(var(--field));
+
+  --color-border: rgb(var(--border));
+  --color-border-strong: rgb(var(--border-strong));
+
+  --color-fg: rgb(var(--fg));
+  --color-fg-body: rgb(var(--fg-body));
+  --color-fg-muted: rgb(var(--fg-muted));
+  --color-fg-faint: rgb(var(--fg-faint));
+
+  --color-accent: rgb(var(--accent));
+  --color-accent-container: rgb(var(--accent-container));
+  --color-accent-soft: rgb(var(--accent-soft));
+  --color-on-accent: rgb(var(--on-accent));
+  --color-on-accent-container: rgb(var(--on-accent-container));
+
+  --color-success: rgb(var(--success));
+  --color-success-soft: rgb(var(--success-soft));
+  --color-warning: rgb(var(--warning));
+  --color-warning-soft: rgb(var(--warning-soft));
+  --color-danger: rgb(var(--danger));
+  --color-danger-soft: rgb(var(--danger-soft));
+  --color-blocked: rgb(var(--blocked));
+  --color-blocked-soft: rgb(var(--blocked-soft));
+  --color-info: rgb(var(--info));
+  --color-info-soft: rgb(var(--info-soft));
+
+  --font-sans: 'Geist', ui-sans-serif, system-ui, sans-serif;
+
+  --shadow-card: var(--shadow-card);
+  --shadow-card-hover: var(--shadow-card-hover);
+  --shadow-popover: var(--shadow-popover);
+
+  --radius-lg: 0.5rem;
+  --radius-xl: 0.75rem;
+  --radius-2xl: 1rem;
+
+  --shadow-card: 0 4px 20px rgba(44 34 30 / 0.04);
+  --shadow-card-hover: 0 12px 32px rgba(44 34 30 / 0.08);
+  --shadow-popover: 0 16px 48px rgba(44 34 30 / 0.12);
+}
+
+[data-theme='dark'] {
+  --shadow-card: 0 4px 20px rgba(0 0 0 / 0.22);
+  --shadow-card-hover: 0 12px 32px rgba(0 0 0 / 0.32);
+  --shadow-popover: 0 16px 48px rgba(0 0 0 / 0.42);
+}
+
+@layer base {
+  html,
+  body,
+  #root {
+    height: 100%;
+  }
+  html {
+    scroll-behavior: smooth;
+  }
+  * {
+    border-color: rgb(var(--border));
+  }
+  body {
+    margin: 0;
+    background-color: rgb(var(--shell));
+    color: rgb(var(--fg));
+    font-family: var(--font-sans);
+    -webkit-font-smoothing: antialiased;
+  }
+  @media (pointer: fine) {
+    body {
+      overscroll-behavior: none;
+    }
+  }
+  /* Tamaño base en inputs móviles para evitar zoom en iOS */
+  input,
+  select,
+  textarea,
+  button {
+    font-size: 16px;
+    touch-action: manipulation;
+  }
+  button {
+    cursor: pointer;
+  }
+  a,
+  [role='button'] {
+    touch-action: manipulation;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.001ms !important;
+    transition-duration: 0.001ms !important;
+  }
+}
+
+/* Entrada de paneles y overlays (prefers-reduced-motion la anula arriba) */
+@keyframes sf-fade-in {
+  from {
+    opacity: 0;
+  }
+}
+@keyframes sf-sheet-in {
+  from {
+    opacity: 0;
+    transform: translateY(24px);
+  }
+}
+@keyframes sf-panel-in {
+  from {
+    opacity: 0;
+    transform: translateX(32px);
+  }
+}
+.anim-fade-in {
+  animation: sf-fade-in 200ms ease-out both;
+}
+.anim-panel-in {
+  animation: sf-sheet-in 280ms cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+@media (min-width: 640px) {
+  .anim-panel-in {
+    animation-name: sf-panel-in;
+  }
+}
+
+/* Utilidades propias */
+.scrollbar-none::-webkit-scrollbar {
+  display: none;
+}
+.scrollbar-none {
+  scrollbar-width: none;
+}
