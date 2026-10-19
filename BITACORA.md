@@ -392,7 +392,7 @@ control de stock con trazabilidad.
   `connect-src` (el service worker descarga las fotos con `fetch` y lo rige `connect-src`; sin eso
   las fotos de Unsplash no cargaban en producción). Verificado en producción: login, POS, fotos
   14/14, Mesas, Cocina, Reportes, service worker activo y sin violaciones de CSP.
-  Publicar a mano: `npx netlify-cli deploy --prod --build`.
+  Cada push a `main` publica solo (repositorio conectado); a mano: `npx netlify-cli deploy --prod --build`.
 - `typecheck`, lint y `vite build` sin errores. Dev server en `http://localhost:5173`.
 
 ## 8. Skills de agente instaladas (`.agents/skills/`)
@@ -430,7 +430,7 @@ control de stock con trazabilidad.
 - [ ] (Opcional) Aviso de quiebres por push o correo diario (hoy solo dentro de la app).
 - [x] Recepción de transferencias con cantidades reales (modal en Bodega).
 - [ ] (Opcional) SMTP propio para correos de recuperación confiables.
-- [ ] Conectar el repositorio en Netlify para publicar con cada push (requiere autorizar la app de Netlify en GitHub).
+- [x] Repositorio conectado en Netlify: cada push a `main` publica automáticamente.
 
 ## 10. Archivos de referencia
 
