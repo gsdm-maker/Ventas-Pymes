@@ -79,7 +79,7 @@ export function SyncProvider({ children }: { children: ReactNode }) {
   const [errores, setErrores] = useState(0)
   const [sincronizando, setSincronizando] = useState(false)
   const [ultimaSync, setUltimaSync] = useState<string | null>(
-    localStorage.getItem('stockflow:ultimaSync')
+    localStorage.getItem('misociopyme:ultimaSync')
   )
   const corriendo = useRef(false)
 
@@ -114,7 +114,7 @@ export function SyncProvider({ children }: { children: ReactNode }) {
       }
       const ahora = new Date().toISOString()
       setUltimaSync(ahora)
-      localStorage.setItem('stockflow:ultimaSync', ahora)
+      localStorage.setItem('misociopyme:ultimaSync', ahora)
     } finally {
       await refrescarEstado()
       setSincronizando(false)

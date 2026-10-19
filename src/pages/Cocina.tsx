@@ -20,7 +20,7 @@ const ANTERIOR: Partial<Record<EstadoComanda, EstadoComanda>> = { preparando: 'p
 
 function leerSonido() {
   try {
-    return localStorage.getItem('cocina:sonido') !== 'no'
+    return localStorage.getItem('misociopyme:cocina:sonido') !== 'no'
   } catch {
     return true
   }
@@ -87,7 +87,7 @@ export function Cocina() {
     const v = !sonido
     setSonido(v)
     try {
-      localStorage.setItem('cocina:sonido', v ? 'si' : 'no')
+      localStorage.setItem('misociopyme:cocina:sonido', v ? 'si' : 'no')
     } catch {
       // Preferencia solo para esta sesión
     }

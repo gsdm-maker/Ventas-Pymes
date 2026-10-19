@@ -376,6 +376,15 @@ control de stock con trazabilidad.
     llegó sola a Cocina, «Lista» apareció en el salón, cobro $104.970 + propina $10.500, reporte y
     comprobante correctos, móvil sin desborde; venta y cuentas de prueba borradas.
   - Demo: módulos activos en la empresa de prueba y 8 mesas en Tienda Centro (Salón 1–6, Terraza 7–8).
+- **Nombre nuevo y repositorio público (18-10-2026):**
+  - El sistema pasa a llamarse **Mi Socio Pyme** (antes StockFlow): título, login, menú, PWA
+    («Socio Pyme» en el ícono), README y documentos. Claves del navegador con prefijo
+    `misociopyme:` y base offline `misociopyme` (sin usuarios reales, no hubo que migrar nada).
+  - Código publicado en `github.com/gsdm-maker/Ventas-Pymes` (público) con un historial limpio;
+    el historial completo queda en un repositorio privado de respaldo.
+  - Sin datos sensibles en el repositorio: las pruebas SQL usan `{{USUARIO_TIENDA}}` y
+    `{{USUARIO_ADMIN}}`, que `scripts/sql-remoto.mjs` toma de `Datakeys.md` («Prueba tienda:» /
+    «Prueba admin:») o de `PRUEBAS_USUARIO_*`; `index.html` usa `%VITE_SUPABASE_URL%`.
 - `typecheck`, lint y `vite build` sin errores. Dev server en `http://localhost:5173`.
 
 ## 8. Skills de agente instaladas (`.agents/skills/`)

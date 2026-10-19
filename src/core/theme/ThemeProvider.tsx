@@ -32,14 +32,14 @@ function aplicar(tema: Tema, acento: Acento) {
 }
 
 function leerAcento(): Acento {
-  const guardado = localStorage.getItem('stockflow:acento') as Acento | null
+  const guardado = localStorage.getItem('misociopyme:acento') as Acento | null
   // Acentos retirados (índigo/violeta) vuelven a terracota
   return guardado && ACENTOS.includes(guardado) ? guardado : 'terracota'
 }
 
 export function ThemeProvider({ children }: { children: ReactNode }) {
   const [tema, setTemaState] = useState<Tema>(
-    () => (localStorage.getItem('stockflow:tema') as Tema) || 'light'
+    () => (localStorage.getItem('misociopyme:tema') as Tema) || 'light'
   )
   const [acento, setAcentoState] = useState<Acento>(
     leerAcento
@@ -47,8 +47,8 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     aplicar(tema, acento)
-    localStorage.setItem('stockflow:tema', tema)
-    localStorage.setItem('stockflow:acento', acento)
+    localStorage.setItem('misociopyme:tema', tema)
+    localStorage.setItem('misociopyme:acento', acento)
   }, [tema, acento])
 
   const setTema = useCallback((t: Tema) => setTemaState(t), [])

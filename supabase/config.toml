@@ -1,4 +1,4 @@
-project_id = "stockflow"
+project_id = "misociopyme"
 
 [api]
 enabled = true

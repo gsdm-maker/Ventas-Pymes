@@ -1,8 +1,8 @@
 // Aplica tema y acento antes de cargar React para evitar el destello del tema equivocado.
 ;(function () {
   try {
-    var t = localStorage.getItem('stockflow:tema') || 'light'
-    var a = localStorage.getItem('stockflow:acento')
+    var t = localStorage.getItem('misociopyme:tema') || 'light'
+    var a = localStorage.getItem('misociopyme:acento')
     if (a !== 'azul') a = 'terracota'
     var html = document.documentElement
     html.setAttribute('data-theme', t)

@@ -182,12 +182,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const setUbicacionActiva = useCallback((id: string) => {
     setUbicacionActivaState(id)
-    localStorage.setItem('stockflow:ubicacion', id)
+    localStorage.setItem('misociopyme:ubicacion', id)
   }, [])
 
   useEffect(() => {
     if (!ubicacionActiva && ubicaciones.length) {
-      const guardada = localStorage.getItem('stockflow:ubicacion')
+      const guardada = localStorage.getItem('misociopyme:ubicacion')
       const valida = ubicaciones.find((u) => u.id === guardada)
       setUbicacionActivaState(valida ? valida.id : ubicaciones[0].id)
     }

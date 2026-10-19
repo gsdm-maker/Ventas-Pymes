@@ -389,7 +389,7 @@ constraint venta_referencia_pago check (
   Con `@theme` **inline** el valor no se "hornea": el cambio de tema funciona en runtime.
 - El tema/acento se aplica escribiendo atributos en `<html>` (`data-theme`, `data-accent`)
   **antes** de React (`public/tema-inicial.js`) y luego los mantiene `ThemeProvider`.
-- Claves de `localStorage`: `stockflow:tema`, `stockflow:acento`.
+- Claves de `localStorage`: `misociopyme:tema`, `misociopyme:acento`.
 
 | Token | Uso |
 |---|---|
@@ -427,7 +427,7 @@ Convenciones: variantes como **mapas `Record<Variant, string>`**; clases unidas 
 - `AppShell` (`src/components/layout/AppShell.tsx`): **sidebar** en escritorio, **bottom-nav**
   en móvil, selector de empresa/ubicación, `SyncBadge`, toggle de tema y menú de usuario.
 - Una sola fuente de navegación (`nav.ts`) filtrada por `can(cap)`.
-- Selección de **ubicación activa** persistida (`stockflow:ubicacion`).
+- Selección de **ubicación activa** persistida (`misociopyme:ubicacion`).
 
 ### 10.6 Escala, esquinas y movimiento
 

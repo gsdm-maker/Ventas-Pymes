@@ -24,13 +24,12 @@ interface CacheEntry {
   ts: number
 }
 
-interface StockFlowDB extends DBSchema {
+interface MiSocioPymeDB extends DBSchema {
   cola: { key: string; value: OperacionPendiente; indexes: { porFecha: number } }
   cache: { key: string; value: CacheEntry }
 }
 
-// Nombre interno heredado: cambiarlo dejaría huérfana la cola offline de los equipos en uso
-const dbp = openDB<StockFlowDB>('stockflow', 1, {
+const dbp = openDB<MiSocioPymeDB>('misociopyme', 1, {
   upgrade(db) {
     const cola = db.createObjectStore('cola', { keyPath: 'key' })
     cola.createIndex('porFecha', 'creado')
