@@ -37,3 +37,7 @@ supabase/.branches
 
 # Local Netlify folder
 .netlify
+
+# Pruebas e2e (Python)
+__pycache__/
+.pytest_cache/

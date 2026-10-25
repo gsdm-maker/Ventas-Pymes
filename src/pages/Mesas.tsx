@@ -32,8 +32,9 @@ import { useToast } from '@/components/ui/Toast'
 import { useConfirm } from '@/components/ui/confirm'
 import { ModalCobroCuenta } from '@/components/mesas/ModalCobroCuenta'
 import { GestorMesas } from '@/components/mesas/GestorMesas'
+import { documentoTicket, esc, imprimirDocumento, leerConfigImpresion, ticketVentaHtml } from '@/lib/impresion'
 import { cn } from '@/lib/cn'
-import { formatCLP, formatHora } from '@/lib/format'
+import { desglosarIVA, formatCLP, formatHora } from '@/lib/format'
 import { etiquetaVariante } from '@/lib/variantes'
 
 /** Línea del pedido que aún no se envía a cocina. */
@@ -55,10 +56,9 @@ const ESTADO_COMANDA: Record<Comanda['estado'], { label: string; tone: 'warning'
   anulada: { label: 'Anulada', tone: 'danger' }
 }
 
-const esc = (s: string) => s.replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' })[c]!)
 
 export function Mesas() {
-  const { ubicacionActiva, ubicaciones, empresa, can } = useAuth()
+  const { ubicacionActiva, ubicaciones, empresa, can, profile } = useAuth()
   const { online } = useSync()
   const toast = useToast()
   const confirmar = useConfirm()
@@ -261,30 +261,47 @@ export function Mesas() {
       agrupados.set(k, { d: a.d, c: a.c + i.cantidad, t: a.t + i.cantidad * i.precio_unitario })
     }
     const sugerida = Math.round((totalCuenta * 0.1) / 10) * 10
-    const w = window.open('', '_blank', 'width=380,height=600')
-    if (!w) return
-    w.document.write(`<!doctype html><html lang="es"><head><meta charset="utf-8"><title>Precuenta ${esc(mesa.nombre)}</title>
-<style>body{font-family:ui-monospace,monospace;font-size:12px;margin:0;padding:4mm;width:72mm}h1{font-size:14px;margin:0 0 1mm;text-align:center}
-p{margin:0 0 1mm;text-align:center}table{width:100%;border-collapse:collapse;margin:3mm 0}td{padding:.6mm 0;vertical-align:top}td:last-child{text-align:right;white-space:nowrap}
-.t td{border-top:1px dashed #000;padding-top:1.5mm;font-weight:700}.s{color:#444}@page{size:80mm auto;margin:0}</style></head>
-<body><h1>${esc(empresa?.nombre ?? '')}</h1><p>${esc(ubicacion?.nombre ?? '')}</p><p><b>PRECUENTA · ${esc(mesa.nombre)}</b></p>
-<p class="s">${new Date().toLocaleString('es-CL')}</p><table>
+    const cuerpo = `<h1>${esc(empresa?.nombre ?? '')}</h1><p>${esc(ubicacion?.nombre ?? '')}</p><p><b>PRECUENTA · ${esc(mesa.nombre)}</b></p>
+<p class="s">${esc(new Date().toLocaleString('es-CL', { dateStyle: 'short', timeStyle: 'short' }))}</p><table>
 ${[...agrupados.values()].map((a) => `<tr><td>${a.c} × ${esc(a.d)}</td><td>${esc(formatCLP(a.t))}</td></tr>`).join('')}
-<tr class="t"><td>Total consumo</td><td>${esc(formatCLP(totalCuenta))}</td></tr>
+<tr class="sep fuerte"><td>Total consumo</td><td>${esc(formatCLP(totalCuenta))}</td></tr>
 <tr><td class="s">Propina sugerida 10%</td><td class="s">${esc(formatCLP(sugerida))}</td></tr>
 <tr><td><b>Total con propina</b></td><td><b>${esc(formatCLP(totalCuenta + sugerida))}</b></td></tr></table>
-<p class="s">La propina es voluntaria.<br>Documento no válido como boleta.</p></body></html>`)
-    w.document.close()
-    // La CSP no permite scripts en la ventana: se imprime desde aquí
-    w.focus()
-    setTimeout(() => {
-      w.print()
-      w.close()
-    }, 250)
+<p class="s">La propina es voluntaria.<br>Documento no válido como boleta.</p>`
+    imprimirDocumento(documentoTicket(`Precuenta ${mesa.nombre}`, cuerpo, leerConfigImpresion().ancho))
   }
 
   async function alCobrar(v: Venta) {
     const nombre = mesa?.nombre ?? ''
+    // Comprobante automático al cobrar (como en el POS); reimprimir desde el voucher
+    const config = leerConfigImpresion()
+    if (config.alCobrar) {
+      const bruto = vigentes.reduce((a, i) => a + i.cantidad * i.precio_unitario, 0)
+      const desglose = desglosarIVA(v.total)
+      imprimirDocumento(
+        ticketVentaHtml(
+          {
+            empresa: empresa?.nombre ?? '',
+            ubicacion: ubicacion?.nombre ?? '',
+            folio: v.folio,
+            fecha: new Date(v.created_at),
+            cajero: profile?.nombre || '',
+            lineas: vigentes.map((i) => ({ descripcion: i.descripcion, cantidad: i.cantidad, precio_unitario: i.precio_unitario })),
+            bruto,
+            descuento: Math.max(0, bruto - v.total),
+            total: v.total,
+            neto: desglose.neto,
+            iva: desglose.iva,
+            medio: v.medio_pago,
+            referencia: v.referencia_pago ?? null,
+            recibido: 0,
+            mesa: nombre,
+            propina: v.propina ?? 0
+          },
+          config.ancho
+        )
+      )
+    }
     setCobrando(false)
     setSel(null)
     const { data } = await supabase.from('vouchers').select('id').eq('referencia_id', v.id).eq('tipo', 'venta').maybeSingle()

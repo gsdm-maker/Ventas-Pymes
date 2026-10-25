@@ -474,11 +474,26 @@ control de stock con trazabilidad.
   sección «Directo a la cuenta» en Mesas, se quitan sin motivo). Patrones: medios de pago en
   `src/lib/mediosPago.ts`, cola offline con tabla `EJECUTORES`, `npm run verificar:catalogo` y §16 de
   `BUENAS_PRACTICAS_LUMIX.md`.
+- **Pruebas de punta a punta (25-10-2026):** Playwright para Python + pytest en `e2e/`
+  (`npm run test:e2e`, con `npm run dev` corriendo). 13 pruebas: ingreso y rutas protegidas, menú por
+  puesto, POS (ticket, débito con voucher, efectivo insuficiente, descuento, sin conexión), Socio IA y
+  Ayuda. Como la app local usa la base de producción, por defecto solo leen; opcionales:
+  `E2E_ESCRITURA=1` (venta offline → sincroniza → se anula sola) y `E2E_IA=1` (1 mensaje real).
+  Skill `webapp-testing` (anthropics/skills, commit `dbd4588`) copiada en `.agents/skills/`.
+  Resultado: 11 pasan (incluida la de permisos de tienda) + 2 opcionales verificadas.
+- **Impresión de comprobantes (25-10-2026):** al cobrar (POS y Mesas) el comprobante se imprime solo, sin
+  botones en el POS (pedido del dueño); reimprimir desde el voucher (sale «COPIA»). Ticket térmico de 80 o
+  58 mm; encendido/apagado y ancho por equipo en Configuración → «Impresión en este equipo» (localStorage
+  `misociopyme:impresion`, encendido por defecto). Funciona sin conexión. Se imprime desde un iframe
+  oculto (`src/lib/impresion.ts`), sin ventanas emergentes. Para imprimir sin el diálogo del navegador, el
+  equipo de caja abre Chrome con `--kiosk-printing` (pasos en esa misma tarjeta). Comprobante interno, no
+  boleta SII. Pruebas e2e: sin botones en el POS, configuración por equipo e impresión al cobrar (opcional).
 - `typecheck`, lint y `vite build` sin errores. Dev server en `http://localhost:5173`.
 
 ## 8. Skills de agente instaladas (`.agents/skills/`)
 
-- **13 skills** vía `npx skills` (CLI de Vercel Labs):
+- **13 skills** vía `npx skills` (CLI de Vercel Labs) + `webapp-testing` (copiada a mano de
+  `anthropics/skills`, commit `dbd4588`, revisada):
   - De `Leonxlnx/taste-skill` (12): `redesign-existing-projects`, `minimalist-ui`,
     `high-end-visual-design`, `full-output-enforcement`, `design-taste-frontend`,
     `gpt-taste`, `industrial-brutalist-ui`, `stitch-design-taste`,
@@ -519,7 +534,7 @@ control de stock con trazabilidad.
 - [ ] (Opcional) Historial de recepciones y «cargar compra sugerida» desde Reposición.
 - [x] Módulo restaurante: mesas, comandas a cocina y propina.
 - [ ] (Opcional) Restaurante: modificadores con precio (agregados, término) y dividir la cuenta.
-- [ ] Actualizar en `Datakeys.md` la clave de el usuario de tienda de prueba.
+- [x] Actualizar en `Datakeys.md` la clave de el usuario de tienda de prueba (25-10-2026).
 - [ ] (Opcional) Aviso de quiebres por push o correo diario (hoy solo dentro de la app).
 - [x] Recepción de transferencias con cantidades reales (modal en Bodega).
 - [ ] (Opcional) SMTP propio para correos de recuperación confiables.

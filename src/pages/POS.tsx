@@ -29,6 +29,7 @@ import { useToast } from '@/components/ui/Toast'
 import { cn } from '@/lib/cn'
 import { SelectorVista, type OpcionVista } from '@/components/ui/SelectorVista'
 import { desglosarIVA, formatCLP } from '@/lib/format'
+import { imprimirDocumento, leerConfigImpresion, ticketVentaHtml, type TicketVenta } from '@/lib/impresion'
 
 interface Linea {
   producto_id: string
@@ -43,6 +44,13 @@ interface Linea {
 
 type VistaPos = 'lista' | 'botones'
 
+interface UltimaVenta {
+  folio: string
+  total: number
+  offline: boolean
+  ticket: TicketVenta
+}
+
 // Con conexión, la copia local del catálogo se renueva cada 5 minutos aunque no se venda:
 // si se corta internet, el POS vende con un stock de hace como máximo ese tiempo
 const RENOVAR_COPIA_MS = 5 * 60 * 1000
@@ -53,7 +61,7 @@ const VISTAS_POS: OpcionVista<VistaPos>[] = [
 ]
 
 export function POS() {
-  const { ubicacionActiva, ubicaciones, profile } = useAuth()
+  const { ubicacionActiva, ubicaciones, profile, empresa } = useAuth()
   const { online, encolarOperacion } = useSync()
   const toast = useToast()
   const [productos, setProductos] = useState<ProductoConStock[]>([])
@@ -104,7 +112,7 @@ export function POS() {
   const [referencia, setReferencia] = useState('')
   const [enviando, setEnviando] = useState(false)
   // Última venta: aviso sin bloquear, la caja queda lista para la siguiente
-  const [ultima, setUltima] = useState<{ folio: string; total: number; offline: boolean } | null>(null)
+  const [ultima, setUltima] = useState<UltimaVenta | null>(null)
   const [ticketAbierto, setTicketAbierto] = useState(false)
 
   const ubicacionNombre = ubicaciones.find((u) => u.id === ubicacionActiva)?.nombre ?? ''
@@ -250,6 +258,14 @@ export function POS() {
     referenciaCompleta(medio, referencia) &&
     !enviando
 
+  // El comprobante se imprime solo al cobrar (configurable por equipo en Configuración).
+  // Para reimprimir: Salidas y vouchers → abrir la venta → Imprimir.
+  function registrarUltima(u: UltimaVenta) {
+    setUltima(u)
+    const config = leerConfigImpresion()
+    if (config.alCobrar) imprimirDocumento(ticketVentaHtml(u.ticket, config.ancho))
+  }
+
   async function finalizar() {
     if (!ubicacionActiva) return
     setEnviando(true)
@@ -271,10 +287,27 @@ export function POS() {
       referencia: referenciaPara(medio, referencia)
     }
 
+    const ticket: TicketVenta = {
+      empresa: empresa?.nombre ?? '',
+      ubicacion: ubicacionNombre,
+      folio: null,
+      fecha: new Date(),
+      cajero: profile?.nombre || profile?.email || '',
+      lineas: items,
+      bruto,
+      descuento: descMonto,
+      total,
+      neto,
+      iva,
+      medio,
+      referencia: referenciaPara(medio, referencia),
+      recibido: MEDIO_PAGO[medio].daVuelto ? recibido : 0
+    }
+
     const guardarOffline = async () => {
       await encolarOperacion('venta', payload, uuidLocal)
       void recargarProductos()
-      setUltima({ folio: 'Pendiente de sincronización', total, offline: true })
+      registrarUltima({ folio: 'Pendiente de sincronización', total, offline: true, ticket })
       toast('Venta guardada sin conexión')
       setLineas([])
       setDescuentoValor(0)
@@ -304,7 +337,13 @@ export function POS() {
     }
     const venta = data as { folio: string; total: number }
     invalidarAlertas()
-    setUltima({ folio: venta.folio, total: venta.total, offline: false })
+    // El total lo confirma el servidor (precio del catálogo)
+    registrarUltima({
+      folio: venta.folio,
+      total: venta.total,
+      offline: false,
+      ticket: { ...ticket, folio: venta.folio, total: venta.total, neto: desglosarIVA(venta.total).neto, iva: desglosarIVA(venta.total).iva }
+    })
     toast(`Venta ${venta.folio} registrada`)
     setLineas([])
     setDescuentoValor(0)
@@ -577,7 +616,7 @@ interface TicketPanelProps {
   enviando: boolean
   finalizar: () => void
   online: boolean
-  ultima: { folio: string; total: number; offline: boolean } | null
+  ultima: UltimaVenta | null
   recibido: number
   setRecibido: (n: number) => void
 }

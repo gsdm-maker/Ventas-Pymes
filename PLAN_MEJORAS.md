@@ -126,9 +126,10 @@ Anthropic, los patrones de diseño (Refactoring.Guru) y los pendientes anteriore
 - [ ] 🤖 (Opcional) Respuestas en streaming (que se vayan escribiendo) para que no se sienta la espera de ~6 s.
 
 ## F5. Calidad: pruebas automáticas
-- [ ] 👤 ok para instalar `webapp-testing` (Anthropic, commit `dbd4588`) + Playwright para Python.
-- [ ] 🤖 Pruebas de punta a punta: login, venta en POS, venta sin conexión y sincronización,
-      permisos por puesto, chat de Socio IA.
+- [x] 👤 ok para instalar `webapp-testing` (Anthropic, commit `dbd4588`) + Playwright para Python.
+- [x] 🤖 Pruebas de punta a punta en `e2e/` (`npm run test:e2e`): login, POS, venta sin conexión y
+      sincronización (opcional), permisos por puesto, Socio IA y Ayuda. 11/11 + 2 opcionales OK.
+- [x] 👤 Actualizar en `Datakeys.md` la clave de la cuenta de tienda de prueba (`juan@…`) — 25-10-2026; 11/11 e2e.
 
 ## F6. Patrones de diseño y orden del código (prioridad media)
 - [x] 🤖 Sección «Patrones de diseño» en `BUENAS_PRACTICAS_LUMIX.md` (§16) (Command en la cola offline,

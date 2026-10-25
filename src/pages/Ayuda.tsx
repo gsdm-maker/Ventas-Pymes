@@ -147,6 +147,15 @@ const TEMAS: Tema[] = [
           'Si recargas la página o se cierra el navegador, el ticket en curso se conserva.',
           'Arriba del ticket se muestra el folio y el total de la última venta.'
         ]
+      },
+      {
+        titulo: 'Comprobante impreso',
+        pasos: [
+          'Al cobrar, el comprobante se imprime solo (también en Mesas y sin conexión; sin conexión sale como «Venta sin conexión»).',
+          'Para reimprimir: Salidas y vouchers → abre la venta → «Imprimir» (sale marcado como COPIA).',
+          'El ancho del papel (80 o 58 mm) y apagar la impresión en un equipo sin impresora se configuran en Configuración → «Impresión en este equipo». Cada caja guarda lo suyo.'
+        ],
+        nota: 'Para que imprima directo sin la ventana de elegir impresora, el computador de caja abre Chrome con un acceso directo con --kiosk-printing y la térmica como predeterminada (pasos en Configuración → Impresión en este equipo). Es un comprobante interno, no una boleta del SII.'
       }
     ]
   },

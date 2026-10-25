@@ -12,6 +12,7 @@ import { Badge } from '@/components/ui/Badge'
 import { LoadingState } from '@/components/ui/Feedback'
 import { desglosarIVA, formatCLP, formatFechaHora } from '@/lib/format'
 import { etiquetaMedio } from '@/lib/mediosPago'
+import { imprimirDocumento, leerConfigImpresion, ticketVentaHtml } from '@/lib/impresion'
 
 export function Voucher() {
   const { id } = useParams()
@@ -25,7 +26,7 @@ export function Voucher() {
   const [ventaDeDevolucion, setVentaDeDevolucion] = useState<{ folio: string; voucher_id?: string } | null>(null)
   const [cargando, setCargando] = useState(true)
   const [devolviendo, setDevolviendo] = useState(false)
-  const { can } = useAuth()
+  const { can, empresa } = useAuth()
   const { online } = useSync()
 
   async function cargar() {
@@ -75,6 +76,42 @@ export function Voucher() {
     void cargar()
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [id])
+
+  // Venta: reimprime el mismo ticket del POS (marcado COPIA). Otros comprobantes: la página.
+  async function imprimir() {
+    if (!venta || !voucher) return window.print()
+    const [{ data: ubi }, { data: cajero }] = await Promise.all([
+      supabase.from('ubicaciones').select('nombre').eq('id', venta.ubicacion_id).maybeSingle(),
+      supabase.from('profiles').select('nombre').eq('id', venta.usuario_id).maybeSingle()
+    ])
+    const det = voucher.detalle as { propina?: number; mesa?: string }
+    const bruto = items.reduce((a, it) => a + it.cantidad * it.precio_unitario, 0)
+    const iva = desglosarIVA(venta.total)
+    imprimirDocumento(
+      ticketVentaHtml(
+        {
+          empresa: empresa?.nombre ?? '',
+          ubicacion: ubi?.nombre ?? '',
+          folio: venta.folio,
+          fecha: new Date(venta.created_at),
+          cajero: cajero?.nombre ?? '',
+          lineas: items.map((it) => ({ descripcion: it.descripcion, cantidad: it.cantidad, precio_unitario: it.precio_unitario })),
+          bruto,
+          descuento: Math.max(0, bruto - venta.total),
+          total: venta.total,
+          neto: iva.neto,
+          iva: iva.iva,
+          medio: venta.medio_pago,
+          referencia: venta.referencia_pago ?? null,
+          recibido: 0,
+          mesa: det.mesa,
+          propina: det.propina ?? 0,
+          copia: true
+        },
+        leerConfigImpresion().ancho
+      )
+    )
+  }
 
   if (cargando) return <LoadingState />
   if (!voucher) return <p className="text-sm text-fg-muted">Voucher no encontrado.</p>
@@ -252,7 +289,7 @@ export function Voucher() {
             <p className="text-sm text-fg-body">Cantidad: {d.cantidad} unidad(es)</p>
           )}
 
-          <Button variant="secondary" block onClick={() => window.print()}>
+          <Button variant="secondary" block onClick={() => void imprimir()}>
             <Printer size={16} /> Imprimir
           </Button>
         </CardBody>

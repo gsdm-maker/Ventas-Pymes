@@ -15,6 +15,7 @@ import { PageHeader } from '@/components/ui/Feedback'
 import { useToast } from '@/components/ui/Toast'
 import { useConfirm } from '@/components/ui/confirm'
 import { ConfigReposicion } from '@/components/reposicion/ConfigReposicion'
+import { ConfigImpresionEquipo } from '@/components/impresion/ConfigImpresionEquipo'
 import { cn } from '@/lib/cn'
 import { formatFecha, hace } from '@/lib/format'
 
@@ -331,6 +332,8 @@ export function Configuracion() {
         </Card>
 
         <ConfigReposicion />
+
+        <ConfigImpresionEquipo />
 
         <Card>
           <CardHeader title="Apariencia" subtitle="Tema y color de acento" />
