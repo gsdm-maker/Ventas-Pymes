@@ -1,4 +1,4 @@
-import type { Puesto } from '@/core/types'
+import type { Puesto, TipoNegocio } from '@/core/types'
 
 export const MODULOS = [
   'dashboard',
@@ -17,6 +17,28 @@ export const MODULOS = [
 ] as const
 
 export type Modulo = (typeof MODULOS)[number]
+
+export const MODULO_LABEL: Record<Modulo, string> = {
+  dashboard: 'Dashboard', pos: 'Punto de Venta', mesas: 'Mesas (restaurante)', cocina: 'Cocina (comandas)', salidas: 'Salidas', ingreso: 'Ingreso',
+  inventario: 'Inventario', productos: 'Productos', bodega: 'Bodega y transferencias',
+  movimientos: 'Movimientos', reportes: 'Reportes', usuarios: 'Usuarios', configuracion: 'Configuración'
+}
+
+// Rubro de la empresa (lo define el administrador general): sugiere los módulos iniciales
+export const RUBRO_LABEL: Record<TipoNegocio, string> = {
+  retail: 'Tienda',
+  restaurante: 'Restaurante',
+  mixto: 'Tienda y restaurante'
+}
+
+const MODULOS_RESTAURANTE: Modulo[] = ['mesas', 'cocina']
+
+/** Módulos sugeridos para un rubro: Tienda apaga Mesas y Cocina; Restaurante y mixto los encienden. */
+export function modulosPorRubro(rubro: TipoNegocio, actuales: readonly string[] = MODULOS): Modulo[] {
+  const base = MODULOS.filter((m) => actuales.includes(m) && !MODULOS_RESTAURANTE.includes(m))
+  const resto = rubro === 'retail' ? [] : MODULOS_RESTAURANTE
+  return MODULOS.filter((m) => base.includes(m) || resto.includes(m))
+}
 
 export type Capability =
   | `modulos.${Modulo}`
@@ -61,6 +83,34 @@ export const CAPABILITY_LABELS: Record<Capability, { label: string; group: strin
     'reportes.ver': { label: 'Ver reportes', group: 'Acciones' },
     'ventas.devolver': { label: 'Devolver o anular ventas', group: 'Acciones' }
   }
+
+/** Módulo al que pertenece cada acción: si la empresa no lo tiene, la acción no se ofrece. */
+export const MODULO_DE_ACCION: Partial<Record<Capability, Modulo>> = {
+  'pos.vender': 'pos',
+  'mesas.atender': 'mesas',
+  'cocina.gestionar': 'cocina',
+  'salidas.registrar': 'salidas',
+  'ingreso.registrar': 'ingreso',
+  'transferencias.gestionar': 'bodega',
+  'inventario.ajustar': 'inventario',
+  'productos.gestionar': 'productos',
+  'usuarios.gestionar': 'usuarios',
+  'config.gestionar': 'configuracion',
+  'reportes.ver': 'reportes',
+  'ventas.devolver': 'pos'
+}
+
+/** Deja solo ajustes sobre capacidades conocidas (la base rechaza claves desconocidas). */
+export function limpiarPermisos(permisos: Record<string, boolean> | null | undefined): Record<string, boolean> {
+  return Object.fromEntries(
+    Object.entries(permisos ?? {}).filter(([cap, v]) => cap in CAPABILITY_LABELS && typeof v === 'boolean')
+  )
+}
+
+/** Módulo del que depende una capacidad (el propio para `modulos.*`). */
+export function moduloDe(cap: Capability): Modulo | undefined {
+  return cap.startsWith('modulos.') ? (cap.slice('modulos.'.length) as Modulo) : MODULO_DE_ACCION[cap]
+}
 
 const MODULOS_POR_PUESTO: Record<Puesto, Modulo[]> = {
   admin: [...MODULOS],
@@ -117,19 +167,17 @@ export function evaluarCapacidad(
 ): boolean {
   const { esOwner, role, puesto, modulosHabilitados, overrides } = opts
 
-  // 1) Módulo apagado => nadie lo ve (ni admin, ni owner)
+  // 1) Módulo apagado para la empresa => nadie lo ve (ni admin, ni owner)
   if (cap.startsWith('modulos.')) {
     const m = cap.slice('modulos.'.length) as Modulo
     if (!modulosHabilitados.includes(m)) return false
-    if (esOwner || role === 'admin') return true
-    return ROLE_DEFAULTS[puesto].includes(cap)
   }
 
   // owner ve todo
   if (esOwner) return true
-  // 3) override explícito (permite sumar o revocar)
+  // 2) ajuste explícito del usuario (suma o revoca, también módulos)
   if (cap in overrides) return overrides[cap]
-  // 2) admin de empresa: todas las acciones de módulos habilitados
+  // 3) admin de empresa: todo lo de los módulos habilitados
   if (role === 'admin') return true
   // 4) defaults por puesto
   return ROLE_DEFAULTS[puesto].includes(cap)

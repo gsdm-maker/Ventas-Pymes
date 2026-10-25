@@ -18,7 +18,7 @@ export type EstadoTransferencia =
   | 'recibida_con_diferencias'
   | 'cancelada'
 export type MedioPago = 'efectivo' | 'transferencia' | 'debito'
-export type TipoNegocio = 'retail' | 'restaurante'
+export type TipoNegocio = 'retail' | 'restaurante' | 'mixto'
 export type EstadoStock = 'ok' | 'bajo' | 'sin' | 'exceso'
 
 export interface Empresa {

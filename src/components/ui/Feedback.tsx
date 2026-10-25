@@ -1,6 +1,8 @@
-import type { ReactNode } from 'react'
+import { useContext, type ReactNode } from 'react'
+import { createPortal } from 'react-dom'
 import { Loader2 } from 'lucide-react'
 import { cn } from '@/lib/cn'
+import { TituloSlotContext } from '@/components/layout/tituloSlot'
 
 export function Spinner({ className }: { className?: string }) {
   return <Loader2 className={cn('size-5 animate-spin text-accent', className)} />
@@ -54,13 +56,31 @@ export function PageHeader({
   subtitle?: ReactNode
   actions?: ReactNode
 }) {
+  // En escritorio el título va a la barra superior (ahorra alto en todas las pantallas);
+  // aquí quedan solo las acciones. En móvil todo sigue dentro de la página.
+  const slot = useContext(TituloSlotContext)
   return (
-    <div className="mb-5 flex flex-wrap items-end justify-between gap-3">
-      <div>
-        <h1 className="text-balance text-xl font-semibold tracking-tight text-fg">{title}</h1>
-        {subtitle && <p className="mt-1 text-sm text-fg-muted">{subtitle}</p>}
+    <>
+      {slot &&
+        createPortal(
+          <div className="flex min-w-0 items-baseline gap-2">
+            <h1 className="shrink-0 text-base font-semibold tracking-tight text-fg">{title}</h1>
+            {subtitle && <p className="truncate text-sm text-fg-muted">{subtitle}</p>}
+          </div>,
+          slot
+        )}
+      <div
+        className={cn(
+          'mb-5 flex flex-wrap items-end justify-between gap-3',
+          slot && (actions ? 'lg:mb-4 lg:justify-end' : 'lg:hidden')
+        )}
+      >
+        <div className={cn(slot && 'lg:hidden')}>
+          <h1 className="text-balance text-xl font-semibold tracking-tight text-fg">{title}</h1>
+          {subtitle && <p className="mt-1 text-sm text-fg-muted">{subtitle}</p>}
+        </div>
+        {actions && <div className="flex items-center gap-2">{actions}</div>}
       </div>
-      {actions && <div className="flex items-center gap-2">{actions}</div>}
-    </div>
+    </>
   )
 }

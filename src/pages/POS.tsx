@@ -35,6 +35,8 @@ import { desglosarIVA, formatCLP } from '@/lib/format'
 interface Linea {
   producto_id: string
   variante_id: string | null
+  /** SKU de la variante o del producto */
+  codigo: string
   descripcion: string
   precio_unitario: number
   cantidad: number
@@ -156,6 +158,7 @@ export function POS() {
         {
           producto_id: p.id,
           variante_id: varianteId,
+          codigo: p.variantes?.find((v) => v.id === varianteId)?.sku ?? p.sku,
           descripcion: etiqueta ? `${p.nombre} · ${etiqueta}` : p.nombre,
           precio_unitario: p.precio_venta,
           cantidad,
@@ -275,9 +278,10 @@ export function POS() {
     <>
       <PageHeader title="Punto de Venta" subtitle={`Vendiendo en ${ubicacionNombre}`} />
 
-      <div className="flex flex-col gap-5 lg:h-[calc(100vh-6rem)] lg:flex-row lg:items-start lg:overflow-hidden">
+      {/* En escritorio todo cabe en la pantalla: barra con el título (4rem) + márgenes (3.25rem) */}
+      <div className="flex flex-col gap-4 lg:h-[calc(100dvh-7.25rem)] lg:min-h-[30rem] lg:flex-row lg:overflow-hidden">
         {/* Catálogo */}
-        <div className="flex min-w-0 flex-1 flex-col pb-24 lg:pb-0 lg:pr-2">
+        <div className="flex min-w-0 flex-1 flex-col pb-24 lg:min-h-0 lg:pb-0">
           <div className="sticky top-16 z-20 -mx-4 mb-3 border-b border-border bg-shell/95 px-4 py-2 shadow-sm backdrop-blur lg:static lg:mx-0 lg:mb-0 lg:rounded-t-2xl lg:border lg:border-b-0 lg:bg-panel lg:p-3 lg:shadow-none">
             <div className="mb-3 flex items-center gap-2">
               <div className="relative flex-1">
@@ -326,13 +330,13 @@ export function POS() {
             {filtrados.length === 0 ? (
               <p className="py-10 text-center text-sm text-fg-muted">No se encontraron productos.</p>
             ) : vista === 'botones' ? (
-              <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 xl:grid-cols-4">
+              <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-2 xl:grid-cols-3 min-[1400px]:grid-cols-4">
                 {filtrados.map((p) => (
                   <button
                     key={p.id}
                     onClick={() => agregar(p)}
                     className={cn(
-                      'flex min-h-24 flex-col justify-between rounded-xl border border-border bg-panel p-3 text-left transition-colors hover:border-accent/50 active:scale-[0.98]',
+                      'flex min-h-20 flex-col justify-between rounded-xl border border-border bg-panel p-2.5 text-left transition-colors hover:border-accent/50 active:scale-[0.98]',
                       agotado(p) && 'opacity-50'
                     )}
                   >
@@ -340,10 +344,13 @@ export function POS() {
                       {p.foto_url && (
                         <img src={p.foto_url} alt="" width={36} height={36} loading="lazy" className="size-9 shrink-0 rounded-lg object-cover" />
                       )}
-                      <span className="line-clamp-2 text-sm font-medium leading-snug text-fg">{p.nombre}</span>
+                      <span className="min-w-0">
+                        <span className="line-clamp-2 text-sm font-medium leading-snug text-fg">{p.nombre}</span>
+                        <span className="block font-mono text-[11px] text-fg-faint">{p.sku}</span>
+                      </span>
                     </span>
-                    <span className="mt-2 flex items-end justify-between gap-1">
-                      <span className="text-base font-semibold tabular-nums text-fg">{formatCLP(p.precio_venta)}</span>
+                    <span className="mt-1.5 flex items-end justify-between gap-1">
+                      <span className="text-sm font-semibold tabular-nums text-fg">{formatCLP(p.precio_venta)}</span>
                       <AvisoStock p={p} />
                     </span>
                   </button>
@@ -356,17 +363,20 @@ export function POS() {
                     key={p.id}
                     onClick={() => agregar(p)}
                     className={cn(
-                      'flex w-full items-center gap-3 px-4 py-3.5 text-left transition-colors hover:bg-surface active:bg-surface-2',
+                      'flex w-full items-center gap-3 px-4 py-2.5 text-left transition-colors hover:bg-surface active:bg-surface-2',
                       i === 0 && termino && 'bg-accent-soft/40',
                       agotado(p) && 'opacity-50'
                     )}
                   >
                     <span className="min-w-0 flex-1">
-                      <span className="block truncate text-[15px] font-medium text-fg">{p.nombre}</span>
+                      <span className="flex min-w-0 items-baseline gap-2">
+                        <span className="truncate text-sm font-medium text-fg">{p.nombre}</span>
+                        <span className="shrink-0 font-mono text-[11px] text-fg-faint">{p.sku}</span>
+                      </span>
                       {p.variantes?.length > 0 && <span className="text-xs text-fg-muted">{p.variantes.length} tallas/colores</span>}
                     </span>
                     <AvisoStock p={p} />
-                    <span className="w-24 text-right text-[15px] font-semibold tabular-nums text-fg">{formatCLP(p.precio_venta)}</span>
+                    <span className="w-24 text-right text-sm font-semibold tabular-nums text-fg">{formatCLP(p.precio_venta)}</span>
                   </button>
                 ))}
               </div>
@@ -375,34 +385,32 @@ export function POS() {
         </div>
 
         {/* Ticket */}
-        <div className="hidden w-full flex-col rounded-2xl border border-border bg-panel p-4 lg:flex lg:h-full lg:w-[400px] lg:overflow-hidden">
-          <div className="lg:flex-1 lg:overflow-y-auto">
-            <TicketPanel
-              lineas={lineas}
-              cambiarCantidad={cambiarCantidad}
-              eliminarLinea={(k) => setLineas((prev) => prev.filter((x) => clave(x.producto_id, x.variante_id) !== k))}
-              bruto={bruto}
-              descMonto={descMonto}
-              total={total}
-              neto={neto}
-              iva={iva}
-              descuentoTipo={descuentoTipo}
-              setDescuentoTipo={setDescuentoTipo}
-              descuentoValor={descuentoValor}
-              setDescuentoValor={setDescuentoValor}
-              medio={medio}
-              setMedio={setMedio}
-              referencia={referencia}
-              setReferencia={setReferencia}
-              puedeCobrar={puedeCobrar}
-              enviando={enviando}
-              finalizar={finalizar}
-              online={online}
-              ultima={ultima}
-              recibido={recibido}
-              setRecibido={setRecibido}
-            />
-          </div>
+        <div className="hidden w-full flex-col rounded-2xl border border-border bg-panel p-4 lg:flex lg:h-full lg:w-[380px] lg:shrink-0 lg:overflow-hidden xl:w-[420px]">
+          <TicketPanel
+            lineas={lineas}
+            cambiarCantidad={cambiarCantidad}
+            eliminarLinea={(k) => setLineas((prev) => prev.filter((x) => clave(x.producto_id, x.variante_id) !== k))}
+            bruto={bruto}
+            descMonto={descMonto}
+            total={total}
+            neto={neto}
+            iva={iva}
+            descuentoTipo={descuentoTipo}
+            setDescuentoTipo={setDescuentoTipo}
+            descuentoValor={descuentoValor}
+            setDescuentoValor={setDescuentoValor}
+            medio={medio}
+            setMedio={setMedio}
+            referencia={referencia}
+            setReferencia={setReferencia}
+            puedeCobrar={puedeCobrar}
+            enviando={enviando}
+            finalizar={finalizar}
+            online={online}
+            ultima={ultima}
+            recibido={recibido}
+            setRecibido={setRecibido}
+          />
         </div>
 
         {/* Resumen flotante del ticket en móvil */}
@@ -416,7 +424,7 @@ export function POS() {
         <Modal
           open={ticketAbierto}
           onClose={() => setTicketAbierto(false)}
-          title="Ticket activo"
+          title={`Ticket activo · ${lineas.length} ítem(s)`}
         >
           <TicketPanel
             lineas={lineas}
@@ -552,7 +560,7 @@ function TicketPanel({
   return (
     <>
       {ultima && (
-        <div className={cn('mb-3 flex items-center justify-between gap-2 rounded-xl px-3 py-2 text-xs', ultima.offline ? 'bg-warning-soft text-warning' : 'bg-success-soft text-success')}>
+        <div className={cn('mb-2.5 flex shrink-0 items-center justify-between gap-2 rounded-lg px-3 py-1.5 text-xs', ultima.offline ? 'bg-warning-soft text-warning' : 'bg-success-soft text-success')}>
           <span className="flex items-center gap-1.5">
             {ultima.offline ? <CloudOff size={13} aria-hidden /> : <CheckCircle2 size={13} aria-hidden />}
             Última venta: <strong className="font-semibold">{ultima.folio}</strong>
@@ -560,95 +568,107 @@ function TicketPanel({
           <span className="font-semibold tabular-nums">{formatCLP(ultima.total)}</span>
         </div>
       )}
-      <div className="flex items-center justify-between">
+      {/* En móvil el título lo pone el modal */}
+      <div className="hidden shrink-0 items-center justify-between lg:flex">
         <h2 className="flex items-center gap-2 text-sm font-semibold text-fg">
           <ShoppingCart size={16} className="text-accent" />
           Ticket activo
         </h2>
-        <span className="rounded-full bg-surface px-2.5 py-1 text-xs text-fg-muted">
+        <span className="rounded-full bg-surface px-2.5 py-0.5 text-xs text-fg-muted">
           {lineas.length} ítem(s)
         </span>
       </div>
 
-      <div className="my-3 space-y-2">
+      {/* Detalle: en escritorio se desplaza y el cobro queda siempre a la vista */}
+      <div className="my-3 space-y-2 lg:-mr-2 lg:min-h-0 lg:flex-1 lg:overflow-y-auto lg:pr-2">
         {lineas.length === 0 ? (
-          <p className="py-10 text-center text-sm text-fg-muted">
+          <p className="py-8 text-center text-sm text-fg-muted">
             El ticket está vacío. Selecciona productos del catálogo.
           </p>
         ) : (
           lineas.map((l) => (
             <div
               key={clave(l.producto_id, l.variante_id)}
-              className="flex items-center justify-between gap-2 rounded-xl bg-surface p-3"
+              className="flex items-center gap-2 rounded-xl bg-surface py-2 pl-3 pr-1.5"
             >
               <div className="min-w-0 flex-1">
-                <p className="line-clamp-1 text-sm font-medium text-fg">{l.descripcion}</p>
-                <p className="tabular-nums text-xs text-accent">
-                  {formatCLP(l.precio_unitario * l.cantidad)}
+                <p className="line-clamp-2 text-sm font-medium leading-snug text-fg">{l.descripcion}</p>
+                <p className="mt-0.5 truncate text-xs tabular-nums text-fg-muted">
+                  <span className="font-mono">{l.codigo}</span> · {formatCLP(l.precio_unitario)} c/u
                 </p>
               </div>
-              <div className="flex items-center gap-1.5">
+              <div className="flex items-center">
                 <button
                   onClick={() => cambiarCantidad(clave(l.producto_id, l.variante_id), -1)}
                   aria-label={`Disminuir cantidad de ${l.descripcion}`}
-                  className="grid size-7 place-items-center rounded-lg bg-surface-2 hover:bg-border"
+                  className="grid size-7 place-items-center rounded-md text-fg-muted hover:bg-surface-2 hover:text-fg"
                 >
-                  <Minus size={14} />
+                  <Minus size={13} />
                 </button>
-                <span className="w-6 text-center text-sm tabular-nums">{l.cantidad}</span>
+                <span className="w-6 text-center text-sm font-medium tabular-nums">{l.cantidad}</span>
                 <button
                   onClick={() => cambiarCantidad(clave(l.producto_id, l.variante_id), 1)}
                   aria-label={`Aumentar cantidad de ${l.descripcion}`}
-                  className="grid size-7 place-items-center rounded-lg bg-surface-2 hover:bg-border"
+                  className="grid size-7 place-items-center rounded-md text-fg-muted hover:bg-surface-2 hover:text-fg"
                 >
-                  <Plus size={14} />
-                </button>
-                <button
-                  onClick={() => eliminarLinea(clave(l.producto_id, l.variante_id))}
-                  aria-label={`Eliminar ${l.descripcion} del ticket`}
-                  className="grid size-7 place-items-center rounded-lg text-fg-muted hover:bg-danger-soft hover:text-danger"
-                >
-                  <Trash2 size={14} />
+                  <Plus size={13} />
                 </button>
               </div>
+              <span className="w-20 text-right text-sm font-semibold tabular-nums text-fg">
+                {formatCLP(l.precio_unitario * l.cantidad)}
+              </span>
+              <button
+                onClick={() => eliminarLinea(clave(l.producto_id, l.variante_id))}
+                aria-label={`Eliminar ${l.descripcion} del ticket`}
+                className="grid size-7 place-items-center rounded-md text-fg-faint hover:bg-danger-soft hover:text-danger"
+              >
+                <Trash2 size={13} />
+              </button>
             </div>
           ))
         )}
       </div>
 
-      <div className="space-y-3 border-t border-border pt-3">
-        {/* Descuento */}
-        <div className="flex items-center gap-2">
-          <div className="flex overflow-hidden rounded-lg border border-border">
-            <button
-              onClick={() => setDescuentoTipo('porcentaje')}
-              className={cn('px-2.5 py-1.5 text-xs', descuentoTipo === 'porcentaje' ? 'bg-accent text-on-accent' : 'bg-field text-fg-muted')}
-            >
-              %
-            </button>
-            <button
-              onClick={() => setDescuentoTipo('monto')}
-              className={cn('px-2.5 py-1.5 text-xs', descuentoTipo === 'monto' ? 'bg-accent text-on-accent' : 'bg-field text-fg-muted')}
-            >
-              $
-            </button>
-          </div>
-          <Input
+      <div className="shrink-0 space-y-3 border-t border-border pt-3">
+        {/* Descuento: valor y tipo (% o $) en un solo control */}
+        <div className="flex h-10 items-stretch overflow-hidden rounded-xl border border-border bg-field focus-within:border-accent focus-within:ring-2 focus-within:ring-accent/40">
+          <label htmlFor="pos-descuento" className="flex items-center pl-3 text-xs font-medium text-fg-muted">
+            Descuento
+          </label>
+          <input
+            id="pos-descuento"
             type="number"
+            inputMode="numeric"
             min={0}
-            placeholder="Descuento"
+            step={1}
+            placeholder="0"
             value={descuentoValor || ''}
-            onChange={(e) => setDescuentoValor(Number(e.target.value) || 0)}
-            className="py-2"
+            // La base recibe un entero: un "12.5" haría fallar la venta (y la cola offline)
+            onChange={(e) => setDescuentoValor(Math.max(0, Math.round(Number(e.target.value) || 0)))}
+            className="min-w-0 flex-1 bg-transparent px-2 text-right text-sm tabular-nums text-fg outline-none placeholder:text-fg-faint"
           />
+          <div role="group" aria-label="Tipo de descuento" className="flex border-l border-border">
+            {(['porcentaje', 'monto'] as const).map((t) => (
+              <button
+                key={t}
+                type="button"
+                onClick={() => setDescuentoTipo(t)}
+                aria-pressed={descuentoTipo === t}
+                aria-label={t === 'porcentaje' ? 'Descuento en porcentaje' : 'Descuento en pesos'}
+                className={cn(
+                  'w-10 text-sm font-semibold transition-colors',
+                  descuentoTipo === t ? 'bg-accent text-on-accent' : 'text-fg-muted hover:bg-surface'
+                )}
+              >
+                {t === 'porcentaje' ? '%' : '$'}
+              </button>
+            ))}
+          </div>
         </div>
 
         {/* Medio de pago */}
         <div>
-          <p className="mb-1.5 text-[11px] font-semibold uppercase tracking-wider text-fg-muted">
-            Medio de pago
-          </p>
-          <div className="grid grid-cols-3 gap-2">
+          <div role="group" aria-label="Medio de pago" className="grid grid-cols-3 gap-1.5">
             {medios.map((m) => (
               <button
                 key={m.key}
@@ -656,37 +676,38 @@ function TicketPanel({
                   setMedio(m.key)
                   setReferencia('')
                 }}
+                aria-pressed={medio === m.key}
                 className={cn(
-                  'flex flex-col items-center gap-1 rounded-xl py-2 text-[11px] font-medium transition-colors duration-200',
+                  'flex h-10 items-center justify-center gap-1.5 rounded-xl px-1 text-xs font-medium transition-colors duration-200',
                   medio === m.key
-                    ? 'bg-accent-soft text-accent shadow-sm'
+                    ? 'bg-accent-soft text-accent ring-1 ring-accent/30'
                     : 'bg-surface text-fg-muted hover:bg-surface-2'
                 )}
               >
-                <m.icon size={16} />
-                {m.label}
+                <m.icon size={14} className="shrink-0" />
+                <span className="truncate">{m.label}</span>
               </button>
             ))}
           </div>
           {referenciaRequerida && (
             <Input
-              className="mt-2 py-2"
+              className="mt-2 h-10 py-0"
               placeholder={medioInfo.refLabel}
               value={referencia}
               onChange={(e) => setReferencia(e.target.value)}
             />
           )}
           {medio === 'efectivo' && total > 0 && (
-            <div className="mt-2 space-y-2">
-              <div className="flex flex-wrap gap-1.5">
-                {billetes.map((b) => (
+            <div className="mt-2 flex items-center gap-1.5">
+              <div className="flex shrink-0 gap-1">
+                {billetes.slice(0, 3).map((b) => (
                   <button
                     key={b}
                     type="button"
                     onClick={() => setRecibido(b)}
                     aria-pressed={recibido === b}
                     className={cn(
-                      'rounded-lg border px-2.5 py-1.5 text-xs font-medium tabular-nums transition-colors',
+                      'h-10 rounded-xl border px-2.5 text-xs font-medium tabular-nums transition-colors',
                       recibido === b ? 'border-accent bg-accent-soft text-accent' : 'border-border text-fg-body hover:bg-surface'
                     )}
                   >
@@ -694,55 +715,51 @@ function TicketPanel({
                   </button>
                 ))}
               </div>
-              <div className="flex items-center gap-2">
-                <Input
-                  type="number"
-                  inputMode="numeric"
-                  placeholder="Paga con…"
-                  aria-label="Monto recibido en efectivo"
-                  value={recibido || ''}
-                  onChange={(e) => setRecibido(Number(e.target.value) || 0)}
-                  className="py-2"
-                />
-                {recibido > 0 && (
-                  <span className={cn('shrink-0 text-sm font-semibold tabular-nums', vuelto < 0 ? 'text-danger' : 'text-fg')}>
-                    {vuelto < 0 ? `Faltan ${formatCLP(-vuelto)}` : `Vuelto ${formatCLP(vuelto)}`}
-                  </span>
-                )}
-              </div>
+              <Input
+                type="number"
+                inputMode="numeric"
+                placeholder="Paga con…"
+                aria-label="Monto recibido en efectivo"
+                value={recibido || ''}
+                onChange={(e) => setRecibido(Number(e.target.value) || 0)}
+                className="h-10 min-w-0 px-2.5 py-0 text-right tabular-nums"
+              />
             </div>
           )}
         </div>
 
         {/* Totales */}
-        <div className="space-y-1 text-sm">
-          <div className="flex justify-between text-fg-muted">
+        <div className="space-y-1 text-sm text-fg-muted">
+          <div className="flex justify-between">
             <span>Subtotal</span>
             <span className="tabular-nums">{formatCLP(bruto)}</span>
           </div>
           {descMonto > 0 && (
-            <div className="flex justify-between text-fg-muted">
+            <div className="flex justify-between">
               <span>Descuento</span>
               <span className="tabular-nums">-{formatCLP(descMonto)}</span>
             </div>
           )}
-          <div className="flex justify-between text-fg-muted">
-            <span>Neto (IVA 19% incl.)</span>
-            <span className="tabular-nums">{formatCLP(neto)}</span>
+          <div className="flex justify-between">
+            <span>Neto · IVA 19% incluido</span>
+            <span className="tabular-nums">{formatCLP(neto)} · {formatCLP(iva)}</span>
           </div>
-          <div className="flex justify-between text-fg-muted">
-            <span>IVA (19%)</span>
-            <span className="tabular-nums">{formatCLP(iva)}</span>
-          </div>
-          <div className="flex justify-between pt-1 text-base font-semibold text-fg">
-            <span>Total a cobrar</span>
-            <span className="tabular-nums text-accent">{formatCLP(total)}</span>
+          {medio === 'efectivo' && recibido > 0 && (
+            <div className={cn('flex justify-between font-semibold', vuelto < 0 ? 'text-danger' : 'text-fg')}>
+              <span>{vuelto < 0 ? 'Faltan' : 'Vuelto'}</span>
+              <span className="tabular-nums">{formatCLP(Math.abs(vuelto))}</span>
+            </div>
+          )}
+          <div className="flex items-baseline justify-between pt-1 text-fg">
+            <span className="text-base font-semibold">Total a cobrar</span>
+            <span className="text-2xl font-semibold tabular-nums text-accent">{formatCLP(total)}</span>
           </div>
         </div>
 
-        <Button block size="xl" disabled={!puedeCobrar} onClick={() => void finalizar()}>
-          <ShoppingCart size={20} />
-          {enviando ? 'Registrando…' : `Cobrar ${total > 0 ? formatCLP(total) : ''}`}
+        <Button block size="lg" disabled={!puedeCobrar} onClick={() => void finalizar()}>
+          <ShoppingCart size={18} />
+          {enviando ? 'Registrando…' : 'Cobrar'}
+          <kbd className="ml-1 hidden rounded border border-current/30 px-1 text-[10px] font-normal opacity-70 lg:inline">F9</kbd>
         </Button>
         {!online && (
           <p className="flex items-center justify-center gap-1.5 text-[11px] text-warning">

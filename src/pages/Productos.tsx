@@ -183,14 +183,18 @@ export function Productos() {
       <PageHeader
         title="Productos"
         subtitle="Mantenedor del catálogo: datos, precios y configuración de cada producto. El stock se ve en Inventario."
-        actions={
-          puedeEditar && (
-            <Button onClick={nuevo}>
-              <Plus size={16} /> Nuevo producto
-            </Button>
-          )
-        }
       />
+
+      {/* Acción principal flotante (sobre la barra inferior en móvil); se oculta con la ficha abierta */}
+      {puedeEditar && !open && (
+        <Button
+          onClick={nuevo}
+          aria-label="Nuevo producto"
+          className="fixed bottom-[calc(5rem+env(safe-area-inset-bottom))] right-4 z-30 h-12 rounded-full px-4 shadow-lg sm:px-5 lg:bottom-8 lg:right-8"
+        >
+          <Plus size={18} /> <span className="hidden sm:inline">Nuevo producto</span>
+        </Button>
+      )}
 
       <div className="mb-4 space-y-3">
         <div className="flex flex-wrap items-center gap-2">
@@ -346,6 +350,8 @@ export function Productos() {
           </CardBody>
         </Card>
       )}
+      {/* Espacio para que el botón flotante no tape la última fila */}
+      {puedeEditar && <div aria-hidden className="h-16" />}
 
       <SidePanel
         open={open}

@@ -8,10 +8,11 @@ interface Estado {
   filas: FilaReposicion[]
   cargando: boolean
   ts: number
-  empresaId: string | null
+  /** usuario:empresa — cada usuario ve solo las tiendas que tiene autorizadas */
+  clave: string | null
 }
 
-let estado: Estado = { filas: [], cargando: false, ts: 0, empresaId: null }
+let estado: Estado = { filas: [], cargando: false, ts: 0, clave: null }
 const oyentes = new Set<() => void>()
 let enCurso: Promise<void> | null = null
 
@@ -22,13 +23,14 @@ function emitir(parcial: Partial<Estado>) {
   oyentes.forEach((o) => o())
 }
 
-async function cargar(empresaId: string, forzar = false) {
-  const vigente = estado.empresaId === empresaId && Date.now() - estado.ts < VIGENCIA_MS
+async function cargar(clave: string, forzar = false) {
+  const vigente = estado.clave === clave && Date.now() - estado.ts < VIGENCIA_MS
   if (!forzar && vigente) return
   if (enCurso) return enCurso
-  emitir({ cargando: true, empresaId })
+  emitir({ cargando: true, clave, filas: estado.clave === clave ? estado.filas : [] })
   enCurso = proyeccionReposicion()
-    .then((filas) => emitir({ filas, ts: Date.now() }))
+    // Si entretanto cambió el usuario, el resultado ya no es suyo
+    .then((filas) => estado.clave === clave && emitir({ filas, ts: Date.now() }))
     .catch(() => emitir({ ts: Date.now() }))
     .finally(() => {
       enCurso = null
@@ -44,9 +46,9 @@ export function invalidarAlertas() {
 
 /** Alertas de quiebre para la proyección por defecto (hasta el próximo domingo). */
 export function useAlertasStock() {
-  const { empresa, can } = useAuth()
-  const habilitado = !!empresa && can('modulos.inventario')
-  const empresaId = habilitado ? empresa!.id : null
+  const { empresa, profile, can } = useAuth()
+  const habilitado = !!empresa && !!profile && can('modulos.inventario')
+  const clave = habilitado ? `${profile!.id}:${empresa!.id}` : null
 
   const snap = useSyncExternalStore(
     (o) => {
@@ -57,20 +59,20 @@ export function useAlertasStock() {
   )
 
   useEffect(() => {
-    if (!empresaId) return
-    void cargar(empresaId)
-    const id = window.setInterval(() => void cargar(empresaId), VIGENCIA_MS)
-    const alVolver = () => document.visibilityState === 'visible' && void cargar(empresaId)
+    if (!clave) return
+    void cargar(clave)
+    const id = window.setInterval(() => void cargar(clave), VIGENCIA_MS)
+    const alVolver = () => document.visibilityState === 'visible' && void cargar(clave)
     document.addEventListener('visibilitychange', alVolver)
     return () => {
       window.clearInterval(id)
       document.removeEventListener('visibilitychange', alVolver)
     }
-  }, [empresaId, snap.ts])
+  }, [clave, snap.ts])
 
-  const recargar = useCallback(() => (empresaId ? cargar(empresaId, true) : Promise.resolve()), [empresaId])
+  const recargar = useCallback(() => (clave ? cargar(clave, true) : Promise.resolve()), [clave])
 
-  const filas = empresaId && snap.empresaId === empresaId ? snap.filas : []
+  const filas = clave && snap.clave === clave ? snap.filas : []
   return {
     habilitado,
     filas,

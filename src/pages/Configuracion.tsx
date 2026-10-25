@@ -1,13 +1,12 @@
 import { useEffect, useState } from 'react'
-import { Plus, Trash2, Store, Sparkles, Palette, Cloud, X } from 'lucide-react'
+import { Plus, Trash2, Store, Sparkles, Palette, Cloud, X, Check, Lock } from 'lucide-react'
 import { useAuth } from '@/core/auth/AuthProvider'
 import { useSync } from '@/core/offline/SyncProvider'
 import { useTheme } from '@/core/theme/ThemeProvider'
 import { ACENTOS } from '@/core/theme/acentos'
 import { supabase } from '@/core/supabase/client'
 import { listarCategorias, listarMotivos, listarProveedores, listarUbicaciones } from '@/core/data/api'
-import { MODULOS, type Modulo } from '@/core/auth/capabilities'
-import type { TipoNegocio } from '@/core/types'
+import { MODULOS, MODULO_LABEL, RUBRO_LABEL } from '@/core/auth/capabilities'
 import { Card, CardBody, CardHeader } from '@/components/ui/Card'
 import { Button } from '@/components/ui/Button'
 import { Badge } from '@/components/ui/Badge'
@@ -19,12 +18,6 @@ import { ConfigReposicion } from '@/components/reposicion/ConfigReposicion'
 import { cn } from '@/lib/cn'
 import { formatFecha, hace } from '@/lib/format'
 
-const MODULO_LABEL: Record<Modulo, string> = {
-  dashboard: 'Dashboard', pos: 'Punto de Venta', mesas: 'Mesas (restaurante)', cocina: 'Cocina (comandas)', salidas: 'Salidas', ingreso: 'Ingreso',
-  inventario: 'Inventario', productos: 'Productos', bodega: 'Bodega y transferencias',
-  movimientos: 'Movimientos', reportes: 'Reportes', usuarios: 'Usuarios', configuracion: 'Configuración'
-}
-
 export function Configuracion() {
   const { empresa, can, refrescar } = useAuth()
   const { ultimaSync, pendientes, online } = useSync()
@@ -33,20 +26,18 @@ export function Configuracion() {
   const confirmar = useConfirm()
   const [nombre, setNombre] = useState(empresa?.nombre ?? '')
   const [moneda, setMoneda] = useState(empresa?.moneda ?? 'CLP')
-  const [tipoNegocio, setTipoNegocio] = useState<TipoNegocio>(empresa?.tipo_negocio ?? 'retail')
   const [usaVariantes, setUsaVariantes] = useState(empresa?.usa_variantes ?? false)
-  const [modulos, setModulos] = useState<string[]>(empresa?.modulos ?? [])
   const [categorias, setCategorias] = useState<{ id: string; nombre: string }[]>([])
   const [motivos, setMotivos] = useState<{ id: string; nombre: string }[]>([])
   const [proveedores, setProveedores] = useState<{ id: string; nombre: string }[]>([])
-  const [ubicaciones, setUbicaciones] = useState<{ id: string; nombre: string; tipo: string }[]>([])
+  const [ubicaciones, setUbicaciones] = useState<{ id: string; nombre: string; tipo: string; activa: boolean }[]>([])
   const [nuevo, setNuevo] = useState('')
   const [nuevaUbi, setNuevaUbi] = useState({ nombre: '', tipo: 'tienda' })
 
   async function recargar() {
     const [c, m, p, u] = await Promise.all([listarCategorias(), listarMotivos(), listarProveedores(), listarUbicaciones()])
     setCategorias(c); setMotivos(m); setProveedores(p)
-    setUbicaciones(u.map((x: { id: string; nombre: string; tipo: string }) => x))
+    setUbicaciones(u.map((x: { id: string; nombre: string; tipo: string; activa: boolean }) => x))
   }
 
   useEffect(() => {
@@ -57,7 +48,7 @@ export function Configuracion() {
     if (!empresa) return
     const { error } = await supabase
       .from('empresas')
-      .update({ nombre, moneda, modulos, tipo_negocio: tipoNegocio, usa_variantes: usaVariantes })
+      .update({ nombre, moneda, usa_variantes: usaVariantes })
       .eq('id', empresa.id)
     if (error) {
       // Lo rechazado no quedó guardado: la pantalla vuelve al valor real
@@ -100,6 +91,25 @@ export function Configuracion() {
     void recargar()
   }
 
+  // Las ubicaciones no se borran (perderían su historial): se desactivan. La base exige que
+  // no tengan stock, transferencias sin recibir ni cuentas de mesa abiertas.
+  async function cambiarEstadoUbicacion(u: { id: string; nombre: string; activa: boolean }) {
+    if (u.activa) {
+      const ok = await confirmar({
+        titulo: `Desactivar ${u.nombre}`,
+        mensaje:
+          'Dejará de aparecer para vender, recibir o transferir. Su historial de ventas y movimientos se conserva y puedes reactivarla cuando quieras. Los usuarios asignados solo a esta ubicación quedarán sin acceso hasta que les asignes otra.',
+        accion: 'Desactivar'
+      })
+      if (!ok) return
+    }
+    const { error } = await supabase.from('ubicaciones').update({ activa: !u.activa }).eq('id', u.id)
+    if (error) return toast(error.message, 'error')
+    toast(u.activa ? `${u.nombre} desactivada` : `${u.nombre} reactivada`)
+    await refrescar()
+    void recargar()
+  }
+
   async function cargarDemo() {
     if (!empresa) return
     const { error } = await supabase.rpc('sembrar_demo', { p_empresa: empresa.id })
@@ -110,6 +120,8 @@ export function Configuracion() {
   }
 
   const admin = can('config.gestionar')
+  const modulosActivos = MODULOS.filter((m) => empresa?.modulos.includes(m))
+  const modulosNoIncluidos = MODULOS.filter((m) => !empresa?.modulos.includes(m))
 
   return (
     <>
@@ -129,12 +141,9 @@ export function Configuracion() {
             </Field>
             <Field
               label="Tipo de negocio"
-              hint="Define si los productos nuevos controlan stock por defecto. Siempre puedes cambiarlo producto a producto."
+              hint="Lo define el administrador general. En restaurante, los productos nuevos parten sin control de stock; siempre puedes cambiarlo producto a producto."
             >
-              <Select value={tipoNegocio} onChange={(e) => setTipoNegocio(e.target.value as TipoNegocio)} disabled={!admin}>
-                <option value="retail">Tienda / retail (productos con inventario)</option>
-                <option value="restaurante">Restaurante / café (platos sin inventario)</option>
-              </Select>
+              <Input value={RUBRO_LABEL[empresa?.tipo_negocio ?? 'retail']} disabled />
             </Field>
             <label className="flex items-start gap-2 rounded-xl border border-border p-3 text-sm text-fg-body">
               <input
@@ -162,27 +171,28 @@ export function Configuracion() {
           <CardHeader title="Módulos habilitados" subtitle="Funcionalidades activas para la empresa" />
           <CardBody>
             <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
-              {MODULOS.map((m) => (
-                <label key={m} className="flex items-center gap-2 rounded-lg border border-border px-3 py-2 text-sm">
-                  <input
-                    type="checkbox"
-                    checked={modulos.includes(m)}
-                    disabled={!admin}
-                    onChange={(e) =>
-                      setModulos((prev) => (e.target.checked ? [...prev, m] : prev.filter((x) => x !== m)))
-                    }
-                    className="size-4 accent-[rgb(var(--accent))]"
-                  />
-                  <span className="text-fg-body">{MODULO_LABEL[m]}</span>
-                </label>
+              {modulosActivos.map((m) => (
+                <div key={m} className="flex items-center gap-2 rounded-lg border border-border px-3 py-2 text-sm text-fg-body">
+                  <Check size={15} className="text-success" />
+                  <span>{MODULO_LABEL[m]}</span>
+                </div>
               ))}
             </div>
-            <Button className="mt-3" onClick={() => void guardarEmpresa()} disabled={!admin}>Guardar módulos</Button>
+            {modulosNoIncluidos.length > 0 && (
+              <p className="mt-3 text-xs text-fg-muted">
+                No incluidos: {modulosNoIncluidos.map((m) => MODULO_LABEL[m]).join(', ')}.
+              </p>
+            )}
+            <p className="mt-3 flex items-start gap-1.5 text-xs text-fg-muted">
+              <Lock size={13} className="mt-0.5 shrink-0" />
+              Los módulos los habilita el administrador general. A cada usuario le das acceso desde
+              Usuarios y permisos.
+            </p>
           </CardBody>
         </Card>
 
         <Card>
-          <CardHeader title="Tiendas y bodegas" subtitle="Agrega tantas ubicaciones como necesites" />
+          <CardHeader title="Tiendas y bodegas" subtitle="Agrega o desactiva ubicaciones (no se borran, para conservar su historial)" />
           <CardBody className="space-y-3">
             <div className="flex gap-2">
               <Input placeholder="Nombre de la ubicación" value={nuevaUbi.nombre} onChange={(e) => setNuevaUbi({ ...nuevaUbi, nombre: e.target.value })} />
@@ -194,9 +204,19 @@ export function Configuracion() {
             </div>
             <div className="divide-y divide-border">
               {ubicaciones.map((u) => (
-                <div key={u.id} className="flex items-center justify-between py-2 text-sm">
-                  <span className="flex items-center gap-2 text-fg"><Store size={14} className="text-fg-muted" />{u.nombre}</span>
-                  <Badge tone="neutral">{u.tipo}</Badge>
+                <div key={u.id} className="flex items-center justify-between gap-2 py-2 text-sm">
+                  <span className={cn('flex items-center gap-2', u.activa ? 'text-fg' : 'text-fg-faint')}>
+                    <Store size={14} className="text-fg-muted" />{u.nombre}
+                  </span>
+                  <span className="flex items-center gap-2">
+                    {!u.activa && <Badge tone="blocked">inactiva</Badge>}
+                    <Badge tone="neutral">{u.tipo}</Badge>
+                    {admin && (
+                      <Button size="sm" variant="ghost" onClick={() => void cambiarEstadoUbicacion(u)}>
+                        {u.activa ? 'Desactivar' : 'Reactivar'}
+                      </Button>
+                    )}
+                  </span>
                 </div>
               ))}
             </div>

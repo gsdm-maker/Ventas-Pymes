@@ -1,3 +1,4 @@
+import { Suspense, useState } from 'react'
 import { NavLink, Outlet, useNavigate } from 'react-router-dom'
 import {
   Moon,
@@ -6,7 +7,6 @@ import {
   CloudOff,
   RefreshCw,
   Check,
-  Building2,
   ShieldCheck
 } from 'lucide-react'
 import { useAuth } from '@/core/auth/AuthProvider'
@@ -18,11 +18,13 @@ import { hace } from '@/lib/format'
 import { Select } from '@/components/ui/Input'
 import { PLAN_LABEL } from '@/core/auth/plan'
 import { CampanaAlertas } from '@/components/reposicion/AlertasStock'
+import { TituloSlotContext } from '@/components/layout/tituloSlot'
+import { LoadingState } from '@/components/ui/Feedback'
 
 function Logo({ compact }: { compact?: boolean }) {
   return (
     <div className="flex items-center gap-2">
-      <span className="grid size-8 place-items-center rounded-lg bg-accent text-on-accent">
+      <span className="grid size-8 shrink-0 place-items-center rounded-lg bg-accent text-on-accent">
         <svg viewBox="0 0 24 24" className="size-5" fill="none" stroke="currentColor" strokeWidth="2">
           <path d="M4 16 8 6h8l4 10" strokeLinecap="round" strokeLinejoin="round" />
           <path d="M6 12h12" strokeLinecap="round" />
@@ -101,6 +103,7 @@ export function AppShell() {
   const { profile, empresa, cerrarSesion, can } = useAuth()
   const { tema, toggleTema } = useTheme()
   const navigate = useNavigate()
+  const [tituloSlot, setTituloSlot] = useState<HTMLElement | null>(null)
 
   const visibles = NAV.filter((item) => !item.cap || can(item.cap))
   const mobileItems = visibles.filter((i) => i.mobile).slice(0, 5)
@@ -116,8 +119,15 @@ export function AppShell() {
     <div className="flex min-h-screen bg-shell">
       {/* Sidebar escritorio */}
       <aside className="fixed inset-y-0 left-0 z-40 hidden w-64 flex-col border-r border-border bg-panel lg:flex">
-        <div className="flex h-16 items-center px-5">
-          <Logo />
+        {/* La empresa reemplaza al nombre del producto: el logo ya identifica la app */}
+        <div className="flex h-16 items-center gap-2.5 px-5" title="Mi Socio Pyme">
+          <Logo compact />
+          <div className="min-w-0">
+            <p className="truncate text-sm font-semibold leading-tight text-fg">{empresa?.nombre ?? 'Mi Socio Pyme'}</p>
+            {empresa && (
+              <p className="mt-0.5 text-[11px] leading-tight text-fg-muted">Plan {PLAN_LABEL[empresa.plan].toLowerCase()}</p>
+            )}
+          </div>
         </div>
         <nav className="flex-1 space-y-5 overflow-y-auto px-3 py-2">
           {GRUPOS.map((g) => {
@@ -204,15 +214,8 @@ export function AppShell() {
             <Logo compact />
             <span className="hidden text-base font-semibold text-fg sm:inline">Mi Socio Pyme</span>
           </div>
-          <div className="hidden items-center gap-2 lg:flex">
-            <Building2 size={16} className="text-fg-muted" />
-            <span className="text-sm font-medium text-fg">{empresa?.nombre ?? 'Sin empresa'}</span>
-            {empresa && (
-              <span className="rounded-full bg-surface-2 px-2 py-0.5 text-[11px] text-fg-muted">
-                {PLAN_LABEL[empresa.plan]}
-              </span>
-            )}
-          </div>
+          {/* Título de la pantalla (lo coloca PageHeader); en móvil queda dentro de la página */}
+          <div ref={setTituloSlot} className="hidden min-w-0 flex-1 lg:flex" />
           <div className="flex items-center gap-2">
             <UbicacionSelector />
             <CampanaAlertas />
@@ -243,7 +246,12 @@ export function AppShell() {
           Saltar al contenido
         </a>
         <main id="contenido-principal" className="flex-1 px-4 py-5 pb-24 lg:px-6 lg:pb-8">
-          <Outlet />
+          <TituloSlotContext.Provider value={tituloSlot}>
+            {/* Mientras baja el código de una pantalla, la barra lateral y la superior quedan fijas */}
+            <Suspense fallback={<LoadingState />}>
+              <Outlet />
+            </Suspense>
+          </TituloSlotContext.Provider>
         </main>
       </div>
 

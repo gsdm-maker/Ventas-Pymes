@@ -82,20 +82,20 @@ export async function listarProductosConStock(
 }
 
 async function cargarProductosConStock(ubicacionId: string | null): Promise<ProductoConStock[]> {
-  const { data: productos, error: e1 } = await supabase
-    .from('productos')
-    .select('*')
-    .order('nombre')
-  const { data: categorias, error: e2 } = await supabase.from('categorias').select('id, nombre')
-
   let stockQuery = supabase.from('stock').select('*')
   if (ubicacionId) stockQuery = stockQuery.eq('ubicacion_id', ubicacionId)
-  const { data: stock, error: e3 } = await stockQuery
-  const { data: variantes, error: e4 } = await supabase
-    .from('producto_variantes')
-    .select('*')
-    .eq('activa', true)
-    .order('sku')
+  // Las cuatro consultas son independientes: en paralelo, un solo viaje de espera
+  const [
+    { data: productos, error: e1 },
+    { data: categorias, error: e2 },
+    { data: stock, error: e3 },
+    { data: variantes, error: e4 }
+  ] = await Promise.all([
+    supabase.from('productos').select('*').order('nombre'),
+    supabase.from('categorias').select('id, nombre'),
+    stockQuery,
+    supabase.from('producto_variantes').select('*').eq('activa', true).order('sku')
+  ])
   const error = e1 ?? e2 ?? e3 ?? e4
   if (error) throw error
 
@@ -162,26 +162,27 @@ export interface ResumenDashboard {
 }
 
 export async function resumenDashboard(ubicacionId: string | null): Promise<ResumenDashboard> {
-  const productos = await listarProductosConStock(ubicacionId)
+  // Todas las consultas son independientes: en paralelo
+  const [
+    productos,
+    { data: transf },
+    { data: pendSync },
+    { count: conDiferencia },
+    { data: ubicaciones },
+    { data: stockAll }
+  ] = await Promise.all([
+    listarProductosConStock(ubicacionId),
+    supabase.from('transferencias').select('estado').in('estado', ['pendiente_despacho', 'en_transito']),
+    supabase.from('movimientos').select('id').eq('estado_sync', 'local'),
+    supabase
+      .from('ventas')
+      .select('id', { count: 'exact', head: true })
+      .eq('con_diferencia', true)
+      .gte('created_at', new Date(Date.now() - 7 * 86400000).toISOString()),
+    supabase.from('ubicaciones').select('id, nombre'),
+    supabase.from('stock').select('ubicacion_id, disponible')
+  ])
   const activos = productos.filter((p) => p.activo)
-
-  const { data: transf } = await supabase
-    .from('transferencias')
-    .select('estado')
-    .in('estado', ['pendiente_despacho', 'en_transito'])
-  const { data: pendSync } = await supabase
-    .from('movimientos')
-    .select('id')
-    .eq('estado_sync', 'local')
-
-  const { count: conDiferencia } = await supabase
-    .from('ventas')
-    .select('id', { count: 'exact', head: true })
-    .eq('con_diferencia', true)
-    .gte('created_at', new Date(Date.now() - 7 * 86400000).toISOString())
-
-  const { data: ubicaciones } = await supabase.from('ubicaciones').select('id, nombre')
-  const { data: stockAll } = await supabase.from('stock').select('ubicacion_id, disponible')
   const ubiMap = new globalThis.Map((ubicaciones ?? []).map((u) => [u.id, u.nombre]))
   const acc = new globalThis.Map<string, number>()
   for (const s of stockAll ?? []) {

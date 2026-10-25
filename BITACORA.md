@@ -56,6 +56,8 @@ control de stock con trazabilidad.
 | `0007_fix_service_role.sql` | `auth.role()` en triggers/guardas |
 | `0008_rls_activo_ubicacion.sql` | RLS exige `es_activo()` y aplica `puede_ver_ubicacion()` |
 | `0009_ubicaciones_acceso.sql` | La tabla `ubicaciones` respeta `ubicacion_acceso`: un usuario solo ve las ubicaciones asignadas |
+| `0021_desactivar_ubicaciones.sql` | **Aplicada 24-10-2026.** Tiendas y bodegas no se borran vía API: se desactivan; el trigger exige sin stock, sin transferencias sin recibir, sin cuentas de mesa abiertas y otra ubicación activa. Quien estaba asignado solo a una desactivada queda sin acceso (no «ve todas») |
+| `0020_modulos_y_permisos.sql` | **Aplicada 24-10-2026** (Edge Function `admin-users` v8 desplegada el mismo día). Rubro (`tipo_negocio` + `mixto`) y módulos solo los cambia el administrador general; ajustes por usuario también en módulos (`_evaluar_cap`); sin escalada de privilegios (`proteger_perfil`, `validar_permisos_nuevos`); referencias dentro de la misma empresa (variantes, categorías, ubicaciones, mesas); `registrar_salida` con bloqueo por `uuid_local` |
 | `0017_ranking_pos.sql` | `ranking_ventas(ubicación, días)`: más vendidos por tienda para ordenar el POS |
 | `0019_restaurante.sql` | Restaurante: mesas, cuentas abiertas, comandas a cocina (tiempo real), propina por garzón; módulos `mesas` y `cocina`, capacidades `mesas.atender` y `cocina.gestionar` |
 | `0018_recepcion_documento.sql` | Recepción: tipo/número/fecha del documento del proveedor (opcional) y opción de actualizar el costo del producto con lo pagado |
@@ -393,6 +395,39 @@ control de stock con trazabilidad.
   las fotos de Unsplash no cargaban en producción). Verificado en producción: login, POS, fotos
   14/14, Mesas, Cocina, Reportes, service worker activo y sin violaciones de CSP.
   Cada push a `main` publica solo (repositorio conectado); a mano: `npx netlify-cli deploy --prod --build`.
+- **Revisión completa y plan de mejoras (24-10-2026)** — ver `PLAN_MEJORAS.md`:
+  - **Rubro y módulos los define el administrador general** (Consola → detalle de empresa → «Rubro y
+    módulos»; acción auditada `actualizar_modulos` en la Edge Function). En Configuración el admin de
+    empresa los ve en solo lectura; el aviso del plan/prueba se mantiene.
+  - **Permisos por usuario:** al crear o editar, vienen marcados según el puesto y el admin los ajusta,
+    solo dentro de los módulos habilitados. Antes, marcar un *módulo* extra a un usuario no tenía
+    efecto (front y base lo ignoraban). Un admin no puede otorgar lo que no tiene.
+  - Correcciones: variantes/categorías apuntando a otra empresa; cerrar sesión sin conexión; la cola
+    offline ya no marca como rechazadas las ventas enviadas sin sesión (401) ni envía operaciones con
+    el token de otro usuario; descuento con decimales; alertas de stock por usuario; salida offline
+    reenviada en paralelo.
+  - Probado con `--antes` (revertido): suite nueva `modulos_permisos.sql` (24 casos) y todas las
+    anteriores. `reportes.sql` «reporte coincide…» ya fallaba antes de 0020 (pendiente revisar).
+- **POS más compacto (24-10-2026):** en escritorio todo cabe en la pantalla (antes, a 1280×720 el botón
+  Cobrar quedaba fuera de la vista); el detalle del ticket se desplaza y descuento, medio de pago, totales y
+  Cobrar quedan fijos abajo. Descuento en un solo control alineado (valor + %/$), medios de pago en una fila,
+  neto e IVA en una línea, vuelto junto a los totales, filas y tarjetas del catálogo más bajas. Revisado con
+  capturas a 1440×900, 1280×720 y 390×844 (lista, tarjetas y ticket en móvil).
+- **Encabezado más bajo en todas las pantallas (24-10-2026):** en escritorio, la empresa y su plan pasan a la
+  barra lateral (en lugar de «Mi Socio Pyme», el logo se mantiene) y el título de cada pantalla con su subtítulo
+  va en la barra superior (`PageHeader` lo coloca con un portal en `TituloSlotContext`); en la página quedan solo
+  las acciones. En móvil no cambia. POS: código (SKU) junto al nombre en catálogo y ticket, ticket más ancho
+  (380–420 px) y con más aire.
+- **Reposición y Productos (24-10-2026):** «Transferir desde bodega» pasa a la fila de cifras (más compactas) en
+  vez de ir en el encabezado; «Nuevo producto» es un botón flotante abajo a la derecha (sobre la barra inferior en
+  móvil, se oculta con la ficha abierta).
+- **Carga más rápida (24-10-2026)**, medido en la versión de producción (mediana de 3, 1280×720):
+  - Consultas en paralelo: catálogo (4 → 1 viaje), resumen del Dashboard (6 → 1) y datos de sesión (perfil con su
+    empresa embebida + ubicaciones: 3 → 1).
+  - Pantallas con `React.lazy` (salvo login, cambiar y restablecer clave); recharts queda en su propio archivo.
+    JS principal 313 → 143 KB comprimido; el service worker sigue guardando todo (62 archivos) para usar sin conexión.
+  - Datos listos: Dashboard 2,7 → 0,85 s · POS 1,7 → 0,8 s · Productos 1,7 → 0,9 s · Inventario 1,7 → 0,8 s ·
+    Reposición 1,2 → 0,8 s.
 - `typecheck`, lint y `vite build` sin errores. Dev server en `http://localhost:5173`.
 
 ## 8. Skills de agente instaladas (`.agents/skills/`)
@@ -421,6 +456,10 @@ control de stock con trazabilidad.
 - [x] Publicar el front (Netlify) y agregar su URL en Auth de Supabase.
 - [x] POS offline confiable y productos sin control de stock (retail/restaurante).
 - [x] Tallas y colores (variantes) y devoluciones/anulaciones auditadas.
+- [x] `supabase db push` (0020) y despliegue de `admin-users` (24-10-2026).
+- [x] Front publicado (commit y push a `main`, 24-10-2026).
+- [x] `0021` (desactivar ubicaciones) aplicada (24-10-2026).
+- [ ] Revisar `reportes.sql` «reporte coincide con ventas, ítems y movimientos» (falla desde antes de 0020).
 - [ ] Ajuste de inventario por conteo físico (permiso existe, falta pantalla y RPC).
 - [ ] Cierre de caja diario por cajero y tienda.
 - [ ] (Opcional) Historial de recepciones y «cargar compra sugerida» desde Reposición.

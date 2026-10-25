@@ -2,7 +2,8 @@ import { useEffect, useState } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
 import { ArrowLeft, UserPlus, Sparkles, KeyRound, MapPin } from 'lucide-react'
 import { supabase } from '@/core/supabase/client'
-import type { Empresa, Profile, Ubicacion } from '@/core/types'
+import type { Empresa, Profile, TipoNegocio, Ubicacion } from '@/core/types'
+import { MODULOS, MODULO_LABEL, RUBRO_LABEL, modulosPorRubro } from '@/core/auth/capabilities'
 import { AdminTabs } from '@/pages/admin/AdminTabs'
 import { Card, CardBody, CardHeader } from '@/components/ui/Card'
 import { Button } from '@/components/ui/Button'
@@ -15,7 +16,8 @@ import { formatFecha } from '@/lib/format'
 import { PLAN_LABEL } from '@/core/auth/plan'
 import { accesosPorUsuario, actualizarUbicacionesUsuario } from '@/core/data/api'
 import { SelectorUbicaciones } from '@/components/usuarios/SelectorUbicaciones'
-import { resumenUbicaciones } from '@/lib/ubicaciones'
+import { asignadasActivas, resumenUbicaciones, sinUbicacionActiva } from '@/lib/ubicaciones'
+import { cn } from '@/lib/cn'
 
 export function AdminEmpresaDetalle() {
   const { id } = useParams()
@@ -30,12 +32,17 @@ export function AdminEmpresaDetalle() {
   const [accesos, setAccesos] = useState<Record<string, string[]>>({})
   const [editUbi, setEditUbi] = useState<{ usuario: Profile; valor: string[] | null } | null>(null)
   const [resultado, setResultado] = useState<{ email: string; clave: string } | null>(null)
+  const [rubro, setRubro] = useState<TipoNegocio>('retail')
+  const [modulos, setModulos] = useState<string[]>([])
+  const [guardandoModulos, setGuardandoModulos] = useState(false)
 
   async function cargar() {
     if (!id) return
     setCargando(true)
     const { data: e } = await supabase.from('empresas').select('*').eq('id', id).single()
     setEmpresa((e as Empresa) ?? null)
+    setRubro((e as Empresa | null)?.tipo_negocio ?? 'retail')
+    setModulos((e as Empresa | null)?.modulos ?? [])
     const { data: u } = await supabase.from('profiles').select('*').eq('empresa_id', id).order('nombre')
     setUsuarios((u as Profile[]) ?? [])
     const { data: ub } = await supabase.from('ubicaciones').select('*').eq('empresa_id', id).order('nombre')
@@ -62,6 +69,21 @@ export function AdminEmpresaDetalle() {
     const r = await invocar({ accion: 'actualizar_plan', empresa_id: id, plan, prueba_dias: dias })
     if (r) {
       toast('Plan actualizado')
+      void cargar()
+    }
+  }
+
+  function elegirRubro(r: TipoNegocio) {
+    setRubro(r)
+    setModulos((prev) => modulosPorRubro(r, prev))
+  }
+
+  async function guardarModulos() {
+    setGuardandoModulos(true)
+    const r = await invocar({ accion: 'actualizar_modulos', empresa_id: id, tipo_negocio: rubro, modulos })
+    setGuardandoModulos(false)
+    if (r) {
+      toast('Rubro y módulos actualizados')
       void cargar()
     }
   }
@@ -123,6 +145,8 @@ export function AdminEmpresaDetalle() {
     }
   }
 
+  const ubicacionesActivas = ubicaciones.filter((u) => u.activa)
+
   if (cargando) return <><AdminTabs /><LoadingState /></>
   if (!empresa) return <><AdminTabs /><p className="text-sm text-fg-muted">Empresa no encontrada.</p></>
 
@@ -140,22 +164,59 @@ export function AdminEmpresaDetalle() {
       />
 
       <div className="grid gap-5 lg:grid-cols-3">
-        <Card>
-          <CardHeader title="Plan y período de prueba" />
-          <CardBody className="space-y-3">
-            <div className="flex gap-2">
-              {(['prueba', 'gratis', 'pago'] as const).map((p) => (
-                <Button key={p} size="sm" variant={empresa.plan === p ? 'primary' : 'secondary'} onClick={() => void cambiarPlan(p)}>
-                  {PLAN_LABEL[p]}
-                </Button>
-              ))}
-            </div>
-            {empresa.prueba_hasta && <p className="text-xs text-fg-muted">Prueba hasta {formatFecha(empresa.prueba_hasta)}</p>}
-            <Button variant="secondary" block onClick={() => void cargarDemo()}>
-              <Sparkles size={16} /> Cargar datos de ejemplo
-            </Button>
-          </CardBody>
-        </Card>
+        <div className="space-y-5">
+          <Card>
+            <CardHeader title="Plan y período de prueba" />
+            <CardBody className="space-y-3">
+              <div className="flex gap-2">
+                {(['prueba', 'gratis', 'pago'] as const).map((p) => (
+                  <Button key={p} size="sm" variant={empresa.plan === p ? 'primary' : 'secondary'} onClick={() => void cambiarPlan(p)}>
+                    {PLAN_LABEL[p]}
+                  </Button>
+                ))}
+              </div>
+              {empresa.prueba_hasta && <p className="text-xs text-fg-muted">Prueba hasta {formatFecha(empresa.prueba_hasta)}</p>}
+              <Button variant="secondary" block onClick={() => void cargarDemo()}>
+                <Sparkles size={16} /> Cargar datos de ejemplo
+              </Button>
+            </CardBody>
+          </Card>
+
+          <Card>
+            <CardHeader title="Rubro y módulos" subtitle="Lo que la empresa puede usar" />
+            <CardBody className="space-y-3">
+              <div className="flex flex-wrap gap-2">
+                {(Object.keys(RUBRO_LABEL) as TipoNegocio[]).map((r) => (
+                  <Button key={r} size="sm" variant={rubro === r ? 'primary' : 'secondary'} onClick={() => elegirRubro(r)}>
+                    {RUBRO_LABEL[r]}
+                  </Button>
+                ))}
+              </div>
+              <p className="text-xs text-fg-muted">
+                El rubro enciende o apaga Mesas y Cocina. En restaurante, los productos nuevos parten sin
+                control de stock.
+              </p>
+              <div className="grid grid-cols-1 gap-2">
+                {MODULOS.map((m) => (
+                  <label key={m} className="flex items-center gap-2 rounded-lg border border-border px-3 py-2 text-sm">
+                    <input
+                      type="checkbox"
+                      checked={modulos.includes(m)}
+                      onChange={(e) =>
+                        setModulos((prev) => (e.target.checked ? [...prev, m] : prev.filter((x) => x !== m)))
+                      }
+                      className="size-4 accent-[rgb(var(--accent))]"
+                    />
+                    <span className="text-fg-body">{MODULO_LABEL[m]}</span>
+                  </label>
+                ))}
+              </div>
+              <Button block disabled={guardandoModulos} onClick={() => void guardarModulos()}>
+                {guardandoModulos ? 'Guardando…' : 'Guardar rubro y módulos'}
+              </Button>
+            </CardBody>
+          </Card>
+        </div>
 
         <Card className="lg:col-span-2">
           <CardHeader
@@ -174,7 +235,11 @@ export function AdminEmpresaDetalle() {
                   <div>
                     <p className="text-sm font-medium text-fg">{u.nombre}</p>
                     <p className="text-xs text-fg-muted">{u.email}</p>
-                    {!u.es_owner && <p className="mt-0.5 text-xs text-fg-faint">{resumenUbicaciones(accesos[u.id], ubicaciones)}</p>}
+                    {!u.es_owner && (
+                      <p className={cn('mt-0.5 text-xs', sinUbicacionActiva(accesos[u.id], ubicaciones) ? 'text-warning' : 'text-fg-faint')}>
+                        {resumenUbicaciones(accesos[u.id], ubicaciones)}
+                      </p>
+                    )}
                   </div>
                   <div className="flex items-center gap-2">
                     <Badge tone="neutral">{u.puesto}</Badge>
@@ -184,7 +249,7 @@ export function AdminEmpresaDetalle() {
                         <Button
                           size="sm"
                           variant="secondary"
-                          onClick={() => setEditUbi({ usuario: u, valor: accesos[u.id]?.length ? [...accesos[u.id]] : null })}
+                          onClick={() => setEditUbi({ usuario: u, valor: accesos[u.id]?.length ? asignadasActivas(accesos[u.id], ubicaciones) : null })}
                         >
                           <MapPin size={13} /> Ubicaciones
                         </Button>
@@ -240,9 +305,9 @@ export function AdminEmpresaDetalle() {
               </Select>
             </Field>
           </div>
-          {ubicaciones.length > 0 && (
+          {ubicacionesActivas.length > 0 && (
             <SelectorUbicaciones
-              ubicaciones={ubicaciones}
+              ubicaciones={ubicacionesActivas}
               valor={form.ubicaciones}
               onChange={(v) => setForm((prev) => ({ ...prev, ubicaciones: v }))}
             />
@@ -263,7 +328,7 @@ export function AdminEmpresaDetalle() {
       >
         {editUbi && (
           <SelectorUbicaciones
-            ubicaciones={ubicaciones}
+            ubicaciones={ubicacionesActivas}
             valor={editUbi.valor}
             onChange={(v) => setEditUbi({ ...editUbi, valor: v })}
           />

@@ -19,6 +19,8 @@
     "test:variantes-opcionales": "node scripts/sql-remoto.mjs supabase/pruebas/variantes_opcionales.sql",
     "test:fotos": "node scripts/sql-remoto.mjs supabase/pruebas/fotos_codigos.sql",
     "test:restaurante": "node scripts/sql-remoto.mjs supabase/pruebas/restaurante.sql",
+    "test:permisos": "node scripts/sql-remoto.mjs supabase/pruebas/modulos_permisos.sql",
+    "test:ubicaciones": "node scripts/sql-remoto.mjs supabase/pruebas/ubicaciones.sql",
     "fn:serve": "supabase functions serve admin-users --env-file ./supabase/.env.local"
   },
   "dependencies": {

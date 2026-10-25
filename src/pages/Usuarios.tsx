@@ -1,16 +1,14 @@
 import { useEffect, useState } from 'react'
-import { Users as UsersIcon, Info, Save, UserPlus, KeyRound } from 'lucide-react'
+import { Info, Save, UserPlus, KeyRound } from 'lucide-react'
 import { useAuth } from '@/core/auth/AuthProvider'
 import { supabase } from '@/core/supabase/client'
 import { accesosPorUsuario, actualizarUbicacionesUsuario, listarUsuarios } from '@/core/data/api'
 import { SelectorUbicaciones } from '@/components/usuarios/SelectorUbicaciones'
-import { resumenUbicaciones } from '@/lib/ubicaciones'
+import { EditorPermisos } from '@/components/usuarios/EditorPermisos'
+import { limpiarPermisos } from '@/core/auth/capabilities'
+import { cn } from '@/lib/cn'
+import { asignadasActivas, resumenUbicaciones, sinUbicacionActiva } from '@/lib/ubicaciones'
 import type { Puesto, Profile } from '@/core/types'
-import {
-  CAPABILITY_LABELS,
-  ROLE_DEFAULTS,
-  type Capability
-} from '@/core/auth/capabilities'
 import { Card, CardBody } from '@/components/ui/Card'
 import { Badge } from '@/components/ui/Badge'
 import { Button } from '@/components/ui/Button'
@@ -33,13 +31,15 @@ export function Usuarios() {
   const [ubiSel, setUbiSel] = useState<string[] | null>(null)
   const [guardando, setGuardando] = useState(false)
   const [crearOpen, setCrearOpen] = useState(false)
-  const [form, setForm] = useState({
+  const formVacio = {
     email: '',
     nombre: '',
     role: 'integrante' as 'integrante' | 'admin',
     puesto: 'tienda' as Puesto,
+    permisos: {} as Record<string, boolean>,
     ubicaciones: null as string[] | null
-  })
+  }
+  const [form, setForm] = useState(formVacio)
   const [resultado, setResultado] = useState<{ email: string; clave: string } | null>(null)
 
   const ubicacionesEmpresa = ubicaciones.filter((u) => u.empresa_id === empresa?.id)
@@ -57,8 +57,9 @@ export function Usuarios() {
   function abrir(u: Profile) {
     setEditando(u)
     setPuesto(u.puesto)
-    setPermisos(u.permissions ?? {})
-    setUbiSel(accesos[u.id]?.length ? [...accesos[u.id]] : null)
+    setPermisos(limpiarPermisos(u.permissions))
+    // Las desactivadas no se ofrecen: si solo tenía esas, el admin debe elegir otra
+    setUbiSel(accesos[u.id]?.length ? asignadasActivas(accesos[u.id], ubicacionesEmpresa) : null)
   }
 
   async function toggleActivo(u: Profile) {
@@ -123,12 +124,13 @@ export function Usuarios() {
       nombre: form.nombre.trim(),
       role: form.role,
       puesto: form.puesto,
+      permissions: form.permisos,
       ubicaciones: form.ubicaciones ?? []
     })
     if (r) {
       setResultado({ email: r.email as string, clave: r.clave_temporal as string })
       setCrearOpen(false)
-      setForm({ email: '', nombre: '', role: 'integrante', puesto: 'tienda', ubicaciones: null })
+      setForm(formVacio)
       void recargar()
     }
   }
@@ -139,6 +141,7 @@ export function Usuarios() {
   }
 
   const gestiona = can('usuarios.gestionar')
+  const modulosEmpresa = empresa?.modulos ?? []
   // Un admin de empresa no puede modificarse a sí mismo ni a otro admin (solo el Admin general)
   const editable = (u: Profile) =>
     !u.es_owner && (!!yo?.es_owner || (u.role !== 'admin' && u.id !== yo?.id))
@@ -185,7 +188,9 @@ export function Usuarios() {
                       </p>
                       <p className="text-xs text-fg-muted">{u.email}</p>
                       {!u.es_owner && (
-                        <p className="mt-0.5 text-xs text-fg-faint">{resumenUbicaciones(accesos[u.id], ubicacionesEmpresa)}</p>
+                        <p className={cn('mt-0.5 text-xs', sinUbicacionActiva(accesos[u.id], ubicacionesEmpresa) ? 'text-warning' : 'text-fg-faint')}>
+                          {resumenUbicaciones(accesos[u.id], ubicacionesEmpresa)}
+                        </p>
                       )}
                     </div>
                   </div>
@@ -231,36 +236,16 @@ export function Usuarios() {
             </Select>
           </label>
 
-          {(['Módulos', 'Acciones'] as const).map((grupo) => (
-            <div key={grupo}>
-              <p className="mb-2 text-xs font-semibold uppercase tracking-wider text-fg-muted">{grupo}</p>
-              <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
-                {(Object.keys(CAPABILITY_LABELS) as Capability[])
-                  .filter((c) => CAPABILITY_LABELS[c].group === grupo)
-                  .map((cap) => {
-                    const defaultActivo = ROLE_DEFAULTS[puesto].includes(cap)
-                    const override = permisos[cap]
-                    const valor = override === undefined ? defaultActivo : override
-                    return (
-                      <label key={cap} className="flex items-center gap-2 rounded-lg border border-border px-3 py-2 text-sm">
-                        <input
-                          type="checkbox"
-                          checked={valor}
-                          onChange={(e) => setPermisos((prev) => ({ ...prev, [cap]: e.target.checked }))}
-                          className="size-4 accent-[rgb(var(--accent))]"
-                        />
-                        <span className="flex-1 text-fg-body">{CAPABILITY_LABELS[cap].label}</span>
-                        {override !== undefined && <Badge tone="accent">override</Badge>}
-                      </label>
-                    )
-                  })}
-              </div>
-            </div>
-          ))}
-          <p className="flex items-center gap-1.5 text-xs text-fg-muted">
-            <UsersIcon size={13} /> Los checked reflejan el default del puesto; si los cambias, se
-            guarda un override (suma o revoca) para este usuario.
-          </p>
+          {editando && (
+            <EditorPermisos
+              role={editando.role}
+              puesto={puesto}
+              permisos={permisos}
+              onChange={setPermisos}
+              modulosEmpresa={modulosEmpresa}
+              puedeOtorgar={can}
+            />
+          )}
 
           {ubicacionesEmpresa.length > 0 && (
             <div className="border-t border-border pt-4">
@@ -274,6 +259,7 @@ export function Usuarios() {
         open={crearOpen}
         onClose={() => setCrearOpen(false)}
         title="Crear usuario"
+        size="lg"
         footer={
           <>
             <Button variant="secondary" onClick={() => setCrearOpen(false)}>Cancelar</Button>
@@ -301,7 +287,7 @@ export function Usuarios() {
             <Field label="Rol de empresa">
               <Select
                 value={form.role}
-                onChange={(e) => setForm((prev) => ({ ...prev, role: e.target.value as 'integrante' | 'admin' }))}
+                onChange={(e) => setForm((prev) => ({ ...prev, role: e.target.value as 'integrante' | 'admin', permisos: {} }))}
               >
                 <option value="integrante">Integrante</option>
                 <option value="admin">Administrador de empresa</option>
@@ -310,7 +296,7 @@ export function Usuarios() {
             <Field label="Puesto">
               <Select
                 value={form.puesto}
-                onChange={(e) => setForm((prev) => ({ ...prev, puesto: e.target.value as Puesto }))}
+                onChange={(e) => setForm((prev) => ({ ...prev, puesto: e.target.value as Puesto, permisos: {} }))}
               >
                 <option value="admin">Administrador</option>
                 <option value="bodega">Encargado de bodega</option>
@@ -318,6 +304,16 @@ export function Usuarios() {
                 <option value="auditor">Auditor / supervisor</option>
               </Select>
             </Field>
+          </div>
+          <div className="border-t border-border pt-4">
+            <EditorPermisos
+              role={form.role}
+              puesto={form.puesto}
+              permisos={form.permisos}
+              onChange={(permisos) => setForm((prev) => ({ ...prev, permisos }))}
+              modulosEmpresa={modulosEmpresa}
+              puedeOtorgar={can}
+            />
           </div>
           {ubicacionesEmpresa.length > 0 && (
             <SelectorUbicaciones

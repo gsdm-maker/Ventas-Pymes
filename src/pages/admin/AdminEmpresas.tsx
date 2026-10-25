@@ -3,7 +3,7 @@ import { Link } from 'react-router-dom'
 import { Plus, Building2, ChevronRight } from 'lucide-react'
 import { supabase } from '@/core/supabase/client'
 import { listarEmpresas } from '@/core/data/api'
-import type { Empresa } from '@/core/types'
+import type { Empresa, TipoNegocio } from '@/core/types'
 import { AdminTabs } from '@/pages/admin/AdminTabs'
 import { Card, CardBody } from '@/components/ui/Card'
 import { Button } from '@/components/ui/Button'
@@ -14,6 +14,7 @@ import { LoadingState, PageHeader } from '@/components/ui/Feedback'
 import { useToast } from '@/components/ui/Toast'
 import { formatFecha, hace } from '@/lib/format'
 import { PLAN_LABEL } from '@/core/auth/plan'
+import { RUBRO_LABEL, modulosPorRubro } from '@/core/auth/capabilities'
 
 export function AdminEmpresas() {
   const toast = useToast()
@@ -23,7 +24,7 @@ export function AdminEmpresas() {
   const [form, setForm] = useState({
     nombre: '',
     prueba_dias: 15,
-    tipo_negocio: 'retail',
+    tipo_negocio: 'retail' as TipoNegocio,
     admin_email: '',
     admin_nombre: ''
   })
@@ -51,6 +52,7 @@ export function AdminEmpresas() {
         nombre: form.nombre.trim(),
         prueba_dias: Number(form.prueba_dias) || 0,
         tipo_negocio: form.tipo_negocio,
+        modulos: modulosPorRubro(form.tipo_negocio),
         admin_email: form.admin_email.trim().toLowerCase(),
         admin_nombre: form.admin_nombre.trim()
       }
@@ -132,10 +134,11 @@ export function AdminEmpresas() {
           <Field label="Nombre de la empresa" required>
             <Input value={form.nombre} onChange={(e) => setForm({ ...form, nombre: e.target.value })} placeholder="Boutique Aurora" />
           </Field>
-          <Field label="Tipo de negocio" hint="Solo el valor por defecto de «controla stock» en productos nuevos">
-            <Select value={form.tipo_negocio} onChange={(e) => setForm({ ...form, tipo_negocio: e.target.value })}>
-              <option value="retail">Tienda / retail</option>
-              <option value="restaurante">Restaurante / café</option>
+          <Field label="Rubro" hint="Define los módulos iniciales (Mesas y Cocina para restaurante). Luego puedes ajustarlos en el detalle de la empresa.">
+            <Select value={form.tipo_negocio} onChange={(e) => setForm({ ...form, tipo_negocio: e.target.value as TipoNegocio })}>
+              {(Object.keys(RUBRO_LABEL) as TipoNegocio[]).map((r) => (
+                <option key={r} value={r}>{RUBRO_LABEL[r]}</option>
+              ))}
             </Select>
           </Field>
           <Field label="Período de prueba (días)" hint="0 = sin prueba">

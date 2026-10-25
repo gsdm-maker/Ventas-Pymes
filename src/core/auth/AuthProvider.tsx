@@ -9,7 +9,7 @@ import {
   type ReactNode
 } from 'react'
 import type { Session } from '@supabase/supabase-js'
-import { supabase, supabaseConfigurado } from '@/core/supabase/client'
+import { CLAVE_SESION, supabase, supabaseConfigurado } from '@/core/supabase/client'
 import type { Empresa, Profile, Ubicacion } from '@/core/types'
 import { guardarCache, leerCache } from '@/core/offline/db'
 import { sesionGuardada } from '@/core/offline/respaldo'
@@ -58,15 +58,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     try {
       // Sin red ni se intenta: Supabase esperaría renovar el token antes de fallar
       if (!navigator.onLine) throw new Error('sin conexión')
-      const { data: perfil, error } = await supabase
-        .from('profiles')
-        .select('*')
-        .eq('id', userId)
-        .single()
+      // Un solo viaje: el perfil trae su empresa y las ubicaciones se piden a la vez
+      const [{ data: fila, error }, { data: ubis, error: e2 }] = await Promise.all([
+        supabase.from('profiles').select('*, empresa:empresas(*)').eq('id', userId).single(),
+        supabase.from('ubicaciones').select('*').eq('activa', true).order('tipo').order('nombre')
+      ])
       if (error) throw error
 
       // Cuenta desactivada: se corta la sesión de inmediato.
-      if (perfil && !perfil.activo) {
+      if (fila && !fila.activo) {
         await supabase.auth.signOut()
         setProfile(null)
         setEmpresa(null)
@@ -74,21 +74,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         return
       }
 
-      datos = { perfil: (perfil as Profile) ?? null, empresa: null, ubicaciones: [] }
-      if (perfil?.empresa_id) {
-        const { data: emp, error: e1 } = await supabase
-          .from('empresas')
-          .select('*')
-          .eq('id', perfil.empresa_id)
-          .single()
-        const { data: ubis, error: e2 } = await supabase
-          .from('ubicaciones')
-          .select('*')
-          .eq('activa', true)
-          .order('tipo')
-          .order('nombre')
-        if (e1 || e2) throw e1 ?? e2
-        datos.empresa = (emp as Empresa) ?? null
+      const { empresa: emp, ...perfil } = (fila ?? {}) as Profile & { empresa: Empresa | null }
+      datos = { perfil: fila ? (perfil as Profile) : null, empresa: null, ubicaciones: [] }
+      if (perfil.empresa_id) {
+        if (e2) throw e2
+        datos.empresa = emp ?? null
         datos.ubicaciones = (ubis as Ubicacion[]) ?? []
       }
       await guardarCache(clave, datos)
@@ -158,8 +148,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const cerrarSesion = useCallback(async () => {
     saliendo.current = true
-    await supabase.auth.signOut()
+    // Sin red, signOut intenta renovar el token, falla y deja la sesión guardada: al recargar
+    // volvería a entrar el mismo usuario. Se borra a mano en ese caso.
+    const { error } = navigator.onLine ? await supabase.auth.signOut() : { error: true }
+    if (error) localStorage.removeItem(CLAVE_SESION)
     setSession(null)
+    setProfile(null)
+    setEmpresa(null)
+    setUbicaciones([])
   }, [])
 
   const refrescar = useCallback(async () => {

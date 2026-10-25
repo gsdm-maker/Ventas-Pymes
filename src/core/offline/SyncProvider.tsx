@@ -101,6 +101,10 @@ export function SyncProvider({ children }: { children: ReactNode }) {
     try {
       const ops = (await listarCola(userId)).filter((op) => op.estado !== 'rechazado')
       for (const op of ops) {
+        // Si la sesión cambió (otro usuario entró o se cerró), lo pendiente espera a su dueño:
+        // enviarlo con otro token lo registraría a nombre de otra persona
+        const { data } = await supabase.auth.getSession()
+        if (data.session?.user.id !== (op.user_id ?? userId)) break
         try {
           const { rpc, args } = argumentos(op)
           // Las RPC son idempotentes por uuid_local: reenviar no duplica

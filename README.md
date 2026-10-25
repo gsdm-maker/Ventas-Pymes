@@ -72,9 +72,10 @@ npm run dev
 
 Entra con el usuario creado. Como Admin general verás **Consola general** en el menú:
 
-- **Empresas:** crear empresa + su administrador + período de prueba (7/15/30/60/90 días).
-- **Detalle de empresa:** cambiar plan, crear cuentas (con clave temporal), ubicaciones
-  autorizadas, y *"Cargar datos de ejemplo"* (Boutique Aurora).
+- **Empresas:** crear empresa + su administrador + rubro + período de prueba (7/15/30/60/90 días).
+- **Detalle de empresa:** cambiar plan, **rubro y módulos habilitados** (Tienda · Restaurante ·
+  Tienda y restaurante), crear cuentas (con clave temporal), ubicaciones autorizadas, y
+  *"Cargar datos de ejemplo"* (Boutique Aurora).
 - **Actividad:** auditoría de acciones.
 
 ---
@@ -88,9 +89,15 @@ Entra con el usuario creado. Como Admin general verás **Consola general** en el
 | Puesto | `profiles.puesto` | `admin` \| `bodega` \| `tienda` \| `auditor` |
 
 Los permisos se modelan como **capacidades** (`src/core/auth/capabilities.ts`) con
-*defaults por puesto* + *overrides* por persona (`profiles.permissions`, JSONB que suma o
-revoca). Un módulo apagado no lo ve ni el admin. El permiso se aplica a la **ruta**
-(`ModuloGuard`), no solo al enlace.
+*defaults por puesto* + *ajustes* por persona (`profiles.permissions`, JSONB que suma o
+revoca módulos y acciones). El permiso se aplica a la **ruta** (`ModuloGuard`), no solo al enlace.
+
+Dos niveles:
+1. **Empresa** — el Administrador general define el rubro y los **módulos habilitados**. Un
+   módulo apagado no lo ve nadie de la empresa, ni su admin. El admin de empresa solo los ve.
+2. **Usuario** — el admin de empresa crea la cuenta con los permisos del puesto ya marcados y
+   puede ajustarlos, solo dentro de los módulos habilitados y **sin otorgar lo que él no tiene**
+   (validado en la base: `proteger_perfil` y `validar_permisos_nuevos`).
 
 ## 7. Seguridad (resumen)
 
@@ -112,7 +119,10 @@ revoca). Un módulo apagado no lo ve ni el admin. El permiso se aplica a la **ru
 - **Devoluciones:** `devolver_venta` (parcial o total, motivo obligatorio, capacidad
   `ventas.devolver`); nunca se borran ventas ni movimientos.
 - Funciones helper `SECURITY DEFINER` con `search_path` fijo.
-- Triggers anti-escalación (`role`, `empresa_id`, `es_owner`, plan/prueba).
+- Tiendas y bodegas **no se borran**: se desactivan (sin stock, sin transferencias ni cuentas
+  abiertas), conservando su historial.
+- Triggers anti-escalación (`role`, `empresa_id`, `es_owner`, plan/prueba, rubro/módulos) y
+  referencias solo dentro de la misma empresa (variantes, categorías, ubicaciones, mesas).
 - `admin_auditoria` con RLS sin políticas + `REVOKE` (solo service_role).
 - Funciones `anon` sin `EXECUTE`.
 - CSP y cabeceras en `netlify.toml`.

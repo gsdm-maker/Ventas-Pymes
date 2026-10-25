@@ -1,32 +1,39 @@
+import { lazy, type ComponentType } from 'react'
 import { Route, Routes } from 'react-router-dom'
 import { AuthGuard, ModuloGuard } from '@/core/auth/guards'
 import { Login } from '@/pages/Login'
 import { CambiarClave } from '@/pages/CambiarClave'
 import { Restablecer } from '@/pages/Restablecer'
-import { Dashboard } from '@/pages/Dashboard'
-import { POS } from '@/pages/POS'
-import { SalidaRapida } from '@/pages/SalidaRapida'
-import { Salidas } from '@/pages/Salidas'
-import { Ingreso } from '@/pages/Ingreso'
-import { Inventario } from '@/pages/Inventario'
-import { ProductoDetalle } from '@/pages/ProductoDetalle'
-import { Productos } from '@/pages/Productos'
-import { Bodega } from '@/pages/Bodega'
-import { Movimientos } from '@/pages/Movimientos'
-import { Reportes } from '@/pages/Reportes'
-import { Usuarios } from '@/pages/Usuarios'
-import { Configuracion } from '@/pages/Configuracion'
-import { Sync } from '@/pages/Sync'
-import { Voucher } from '@/pages/Voucher'
-import { Admin } from '@/pages/admin/Admin'
-import { AdminEmpresas } from '@/pages/admin/AdminEmpresas'
-import { AdminEmpresaDetalle } from '@/pages/admin/AdminEmpresaDetalle'
-import { AdminOwners } from '@/pages/admin/AdminOwners'
-import { AdminActividad } from '@/pages/admin/AdminActividad'
-import { NoEncontrado } from '@/pages/NoEncontrado'
-import { Reposicion } from '@/pages/Reposicion'
-import { Mesas } from '@/pages/Mesas'
-import { Cocina } from '@/pages/Cocina'
+
+// Cada pantalla se descarga al entrar a ella (el service worker igual las guarda todas para
+// usarlas sin conexión). Así el login y el POS no bajan, por ejemplo, la librería de gráficos.
+const pagina = <T extends Record<string, ComponentType>>(cargar: () => Promise<T>, nombre: keyof T) =>
+  lazy(() => cargar().then((m) => ({ default: m[nombre] })))
+
+const Dashboard = pagina(() => import('@/pages/Dashboard'), 'Dashboard')
+const POS = pagina(() => import('@/pages/POS'), 'POS')
+const SalidaRapida = pagina(() => import('@/pages/SalidaRapida'), 'SalidaRapida')
+const Salidas = pagina(() => import('@/pages/Salidas'), 'Salidas')
+const Ingreso = pagina(() => import('@/pages/Ingreso'), 'Ingreso')
+const Inventario = pagina(() => import('@/pages/Inventario'), 'Inventario')
+const ProductoDetalle = pagina(() => import('@/pages/ProductoDetalle'), 'ProductoDetalle')
+const Productos = pagina(() => import('@/pages/Productos'), 'Productos')
+const Bodega = pagina(() => import('@/pages/Bodega'), 'Bodega')
+const Movimientos = pagina(() => import('@/pages/Movimientos'), 'Movimientos')
+const Reportes = pagina(() => import('@/pages/Reportes'), 'Reportes')
+const Usuarios = pagina(() => import('@/pages/Usuarios'), 'Usuarios')
+const Configuracion = pagina(() => import('@/pages/Configuracion'), 'Configuracion')
+const Sync = pagina(() => import('@/pages/Sync'), 'Sync')
+const Voucher = pagina(() => import('@/pages/Voucher'), 'Voucher')
+const Admin = pagina(() => import('@/pages/admin/Admin'), 'Admin')
+const AdminEmpresas = pagina(() => import('@/pages/admin/AdminEmpresas'), 'AdminEmpresas')
+const AdminEmpresaDetalle = pagina(() => import('@/pages/admin/AdminEmpresaDetalle'), 'AdminEmpresaDetalle')
+const AdminOwners = pagina(() => import('@/pages/admin/AdminOwners'), 'AdminOwners')
+const AdminActividad = pagina(() => import('@/pages/admin/AdminActividad'), 'AdminActividad')
+const NoEncontrado = pagina(() => import('@/pages/NoEncontrado'), 'NoEncontrado')
+const Reposicion = pagina(() => import('@/pages/Reposicion'), 'Reposicion')
+const Mesas = pagina(() => import('@/pages/Mesas'), 'Mesas')
+const Cocina = pagina(() => import('@/pages/Cocina'), 'Cocina')
 
 export default function App() {
   return (

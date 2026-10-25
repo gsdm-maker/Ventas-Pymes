@@ -14,6 +14,9 @@ export function esErrorDeRed(error: ErrorRpc | null, status?: number): boolean {
 /** El servidor rechazó la operación por reglas de negocio o permisos: reintentar no sirve. */
 export function esRechazoDefinitivo(error: ErrorRpc, status?: number): boolean {
   if (esErrorDeRed(error, status)) return false
+  // 401 = la petición salió sin sesión válida (token vencido o revocado): se reintenta
+  // cuando el usuario vuelva a entrar, no es un rechazo de la operación
+  if (status === 401) return false
   const code = error.code ?? ''
   return code === 'P0001' || code === '42501' || code.startsWith('22') || code.startsWith('23')
 }

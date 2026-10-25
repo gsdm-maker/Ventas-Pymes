@@ -40,6 +40,19 @@ function claveTemporal(): string {
   return grupos.join('-')
 }
 
+// Espejo de MODULOS en src/core/auth/capabilities.ts (la base lo valida con un CHECK)
+const MODULOS = [
+  'dashboard', 'pos', 'mesas', 'cocina', 'salidas', 'ingreso', 'inventario', 'productos',
+  'bodega', 'movimientos', 'reportes', 'usuarios', 'configuracion'
+]
+const RUBROS = ['retail', 'restaurante', 'mixto']
+
+function modulosValidos(valor: unknown): string[] | null {
+  if (!Array.isArray(valor)) return null
+  const lista = [...new Set(valor.map(String))]
+  return lista.every((m) => MODULOS.includes(m)) ? lista : null
+}
+
 function esEmailValido(email: string): boolean {
   return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)
 }
@@ -148,11 +161,13 @@ Deno.serve(async (req) => {
         if (!esAdminGeneral) return json({ error: 'No autorizado' }, 403)
         const nombre = String(payload.nombre || '').trim()
         const dias = Number(payload.prueba_dias ?? 15)
-        const modulos = Array.isArray(payload.modulos)
-          ? (payload.modulos as string[])
-          : ['dashboard', 'pos', 'salidas', 'ingreso', 'inventario', 'productos', 'bodega', 'movimientos', 'reportes', 'usuarios', 'configuracion']
-        // retail | restaurante: define si los productos nuevos controlan stock por defecto
-        const tipoNegocio = payload.tipo_negocio === 'restaurante' ? 'restaurante' : 'retail'
+        // Rubro: retail | restaurante | mixto. Sin módulos explícitos, restaurante y mixto
+        // suman Mesas y Cocina
+        const tipoNegocio = RUBROS.includes(String(payload.tipo_negocio)) ? String(payload.tipo_negocio) : 'retail'
+        const modulos = payload.modulos === undefined
+          ? MODULOS.filter((m) => tipoNegocio !== 'retail' || (m !== 'mesas' && m !== 'cocina'))
+          : modulosValidos(payload.modulos)
+        if (!modulos) return json({ error: 'Módulos inválidos' }, 400)
         const adminEmail = String(payload.admin_email || '').trim().toLowerCase()
         const adminNombre = String(payload.admin_nombre || '').trim()
         if (!nombre) return json({ error: 'Falta el nombre de la empresa' }, 400)
@@ -216,10 +231,26 @@ Deno.serve(async (req) => {
         const ubicaciones = Array.isArray(payload.ubicaciones)
           ? [...new Set((payload.ubicaciones as unknown[]).map(String))]
           : []
+        // Ajustes sobre los permisos del puesto (suma o revoca); la base valida que sean
+        // capacidades conocidas y que quien crea la cuenta no otorgue lo que no tiene
+        const permissions =
+          payload.permissions && typeof payload.permissions === 'object' && !Array.isArray(payload.permissions)
+            ? (payload.permissions as Record<string, unknown>)
+            : {}
 
         const { data: empresa } = await admin.from('empresas').select('id').eq('id', empresaId).single()
         if (!empresa) return json({ error: 'Empresa inexistente' }, 400)
         if (!esEmailValido(email)) return json({ error: 'Correo inválido' }, 400)
+
+        const { data: rechazo, error: vErr } = await admin.rpc('validar_permisos_nuevos', {
+          p_actor: perfil.id,
+          p_empresa: empresaId,
+          p_role: role,
+          p_puesto: puesto,
+          p_permisos: permissions
+        })
+        if (vErr) throw vErr
+        if (rechazo) return json({ error: rechazo }, 403)
 
         // Las ubicaciones autorizadas deben ser de la misma empresa
         if (ubicaciones.length) {
@@ -246,7 +277,7 @@ Deno.serve(async (req) => {
 
         const { error: profErr } = await admin
           .from('profiles')
-          .update({ empresa_id: empresaId, role, puesto, nombre: nombre || email, must_change_password: true })
+          .update({ empresa_id: empresaId, role, puesto, permissions, nombre: nombre || email, must_change_password: true })
           .eq('id', created.user.id)
         if (profErr) {
           await admin.auth.admin.deleteUser(created.user.id)
@@ -263,7 +294,7 @@ Deno.serve(async (req) => {
             return json({ error: `No se pudieron asignar las ubicaciones: ${accErr.message}` }, 500)
           }
         }
-        await auditar(empresaId, { email, role, puesto, ubicaciones })
+        await auditar(empresaId, { email, role, puesto, permissions, ubicaciones })
         return json({ ok: true, email, clave_temporal: clave })
       }
 
@@ -286,6 +317,29 @@ Deno.serve(async (req) => {
           .eq('id', empresaId)
         if (error) throw error
         await auditar(empresaId, { plan, prueba_hasta: pruebaHasta })
+        return json({ ok: true })
+      }
+
+      // ---------- Rubro y módulos habilitados (solo Owner) ----------
+      case 'actualizar_modulos': {
+        if (!esAdminGeneral) return json({ error: 'No autorizado' }, 403)
+        const empresaId = String(payload.empresa_id || '')
+        const tipoNegocio = String(payload.tipo_negocio || '')
+        const modulos = modulosValidos(payload.modulos)
+        if (!RUBROS.includes(tipoNegocio)) return json({ error: 'Rubro inválido' }, 400)
+        if (!modulos) return json({ error: 'Módulos inválidos' }, 400)
+        const { data: antes } = await admin
+          .from('empresas')
+          .select('tipo_negocio, modulos')
+          .eq('id', empresaId)
+          .maybeSingle()
+        if (!antes) return json({ error: 'Empresa inexistente' }, 400)
+        const { error } = await admin
+          .from('empresas')
+          .update({ tipo_negocio: tipoNegocio, modulos })
+          .eq('id', empresaId)
+        if (error) throw error
+        await auditar(empresaId, { antes, tipo_negocio: tipoNegocio, modulos })
         return json({ ok: true })
       }
 

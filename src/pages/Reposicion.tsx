@@ -174,13 +174,6 @@ export function Reposicion() {
               ? `Proyección hasta el ${formatDiaLargo(meta.hasta)} · según ${meta.semanas_usadas} semana(s) de ventas`
               : 'Proyección de demanda según la historia de ventas'
           }
-          actions={
-            puedeTransferir && transferibles.length > 0 ? (
-              <Button size="sm" onClick={() => void transferir(transferibles)} disabled={creando}>
-                <Truck size={14} /> Transferir desde bodega ({transferibles.length})
-              </Button>
-            ) : undefined
-          }
         />
 
         {/* Controles */}
@@ -283,16 +276,26 @@ export function Reposicion() {
           <EmptyState icon={<AlertTriangle size={28} aria-hidden />} title="No se pudo calcular la proyección" description={error} />
         ) : (
           <div className="lg:flex lg:min-h-0 lg:flex-1 lg:flex-col">
-            <div className="mb-4 grid shrink-0 grid-cols-2 gap-3 sm:grid-cols-4">
+            {/* Resumen y la acción principal en una sola fila */}
+            <div className="mb-3 grid shrink-0 grid-cols-2 gap-2 sm:grid-cols-4 lg:grid-cols-[repeat(4,minmax(0,1fr))_auto]">
               <Cifra icono={<PackageX size={15} />} n={conteo.quebrado} label="Quebrados" tono="danger" />
               <Cifra
                 icono={<TrendingDown size={15} />}
                 n={conteo.por_quebrar}
-                label={meta ? `Por quebrar antes del ${formatDiaCorto(meta.hasta)}` : 'Por quebrar'}
+                label={meta ? `Por quebrar al ${sinCortes(formatDiaCorto(meta.hasta))}` : 'Por quebrar'}
                 tono="warning"
               />
               <Cifra icono={<Truck size={15} />} n={totales.bodega} label="Unidades desde bodega" />
               <Cifra icono={<ShoppingBag size={15} />} n={totales.comprar} label="Unidades por comprar" />
+              {puedeTransferir && transferibles.length > 0 && (
+                <Button
+                  onClick={() => void transferir(transferibles)}
+                  disabled={creando}
+                  className="col-span-2 h-auto min-h-10 sm:col-span-4 lg:col-span-1"
+                >
+                  <Truck size={15} /> Transferir desde bodega ({transferibles.length})
+                </Button>
+              )}
             </div>
 
             {visibles.length === 0 ? (
@@ -568,6 +571,11 @@ function DetalleReposicion({ f }: { f: FilaReposicion }) {
   )
 }
 
+/** «dom 25-10» sin saltos de línea dentro de la fecha (espacio y guion que no se cortan). */
+function sinCortes(texto: string): string {
+  return texto.replace(/ /g, '\u00a0').replace(/-/g, '\u2011')
+}
+
 function Cifra({
   icono,
   n,
@@ -581,13 +589,13 @@ function Cifra({
 }) {
   const color = n > 0 && tono === 'danger' ? 'text-danger' : n > 0 && tono === 'warning' ? 'text-warning' : 'text-fg'
   return (
-    <div className="flex items-center gap-3 rounded-xl border border-border bg-panel px-4 py-2.5 shadow-card">
+    <div className="flex items-center gap-2.5 rounded-xl border border-border bg-panel px-3 py-2 shadow-card">
       <span className={cn('shrink-0', n > 0 && tono ? color : 'text-fg-faint')} aria-hidden>
         {icono}
       </span>
       <div className="min-w-0">
-        <p className={cn('text-lg font-semibold leading-tight tabular-nums', color)}>{n}</p>
-        <p className="truncate text-[11px] text-fg-muted">{label}</p>
+        <p className={cn('text-base font-semibold leading-tight tabular-nums', color)}>{n}</p>
+        <p className="line-clamp-2 text-[11px] leading-tight text-fg-muted">{label}</p>
       </div>
     </div>
   )

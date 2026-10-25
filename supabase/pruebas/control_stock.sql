@@ -117,9 +117,10 @@ select pg_temp.probar('la proyección ignora productos sin control de stock', '{
   $q$ select count(*)::text from public.proyeccion_reposicion() where sku = 'ZZ-PLATO' $q$);
 select pg_temp.probar('historia simulada vende platos sin movimientos de stock', '{{USUARIO_ADMIN}}', 'OK ítems plato true · movimientos plato 0',
   $q$ select pg_temp.simulada_con_plato() $q$);
-select pg_temp.probar('tipo de negocio inválido se rechaza', '{{USUARIO_ADMIN}}', 'ERROR 23514',
+-- Desde 0020 el rubro lo cambia solo el administrador general (ver modulos_permisos.sql)
+select pg_temp.probar('admin no cambia el rubro a uno inválido', '{{USUARIO_ADMIN}}', 'ERROR P0001',
   $q$ with u as (update public.empresas set tipo_negocio = 'farmacia' where id = public.mi_empresa() returning 1) select count(*)::text from u $q$);
-select pg_temp.probar('admin cambia a restaurante', '{{USUARIO_ADMIN}}', 'OK 1',
+select pg_temp.probar('admin no cambia el rubro (solo el administrador general)', '{{USUARIO_ADMIN}}', 'ERROR P0001',
   $q$ with u as (update public.empresas set tipo_negocio = 'restaurante' where id = public.mi_empresa() returning 1) select count(*)::text from u $q$);
 
 do $$ begin
