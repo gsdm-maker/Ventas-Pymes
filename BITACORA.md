@@ -432,6 +432,9 @@ control de stock con trazabilidad.
   (había que recargar dos veces). Ahora el service worker es `registerType: prompt` + `clientsClaim`, la app lo
   registra (`AvisoActualizacion`), revisa cada 30 min y muestra «Hay una versión nueva · Actualizar». No recarga
   sola para no borrar un ticket en curso. Probado: aviso visible y recarga al pulsar Actualizar.
+- **Copia de stock del POS siempre al día (24-10-2026):** además de al abrir, al cambiar de tienda y tras cada
+  venta, ahora se renueva cada 5 min con conexión, al volver la conexión (3 s después, para que primero suba la cola
+  offline) y al volver a la pestaña. Si se corta internet, se vende con un stock de hace como máximo 5 min.
 - `typecheck`, lint y `vite build` sin errores. Dev server en `http://localhost:5173`.
 
 ## 8. Skills de agente instaladas (`.agents/skills/`)

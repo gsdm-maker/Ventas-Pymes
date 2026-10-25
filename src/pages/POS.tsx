@@ -46,6 +46,10 @@ interface Linea {
 type Medio = 'efectivo' | 'transferencia' | 'debito'
 type VistaPos = 'lista' | 'botones'
 
+// Con conexión, la copia local del catálogo se renueva cada 5 minutos aunque no se venda:
+// si se corta internet, el POS vende con un stock de hace como máximo ese tiempo
+const RENOVAR_COPIA_MS = 5 * 60 * 1000
+
 const VISTAS_POS: OpcionVista<VistaPos>[] = [
   { v: 'lista', etiqueta: 'Lista compacta', Icono: Rows3 },
   { v: 'botones', etiqueta: 'Botones', Icono: LayoutGrid }
@@ -102,6 +106,33 @@ export function POS() {
     if (ubicacionActiva) rankingVentas(ubicacionActiva).then(setRanking).catch(() => setRanking(new Map()))
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [ubicacionActiva])
+
+  // Renovación de la copia: cada 5 min, al volver la conexión (tras dar tiempo a que suba la
+  // cola de ventas offline) y al volver a esta pestaña. Sin red no hace nada: se usa la copia.
+  const recargarRef = useRef(recargarProductos)
+  recargarRef.current = recargarProductos
+  useEffect(() => {
+    const renovar = () => {
+      if (navigator.onLine) void recargarRef.current().catch(() => {})
+    }
+    let tras: number | undefined
+    const alReconectar = () => {
+      window.clearTimeout(tras)
+      tras = window.setTimeout(renovar, 3000)
+    }
+    const alVolver = () => {
+      if (document.visibilityState === 'visible') renovar()
+    }
+    const id = window.setInterval(renovar, RENOVAR_COPIA_MS)
+    window.addEventListener('online', alReconectar)
+    document.addEventListener('visibilitychange', alVolver)
+    return () => {
+      window.clearInterval(id)
+      window.clearTimeout(tras)
+      window.removeEventListener('online', alReconectar)
+      document.removeEventListener('visibilitychange', alVolver)
+    }
+  }, [])
 
   const enfocarBuscador = () => {
     // En celular no se abre el teclado solo
