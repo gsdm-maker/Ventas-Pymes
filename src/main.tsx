@@ -7,6 +7,7 @@ import { SyncProvider } from '@/core/offline/SyncProvider'
 import { ToastProvider } from '@/components/ui/Toast'
 import { ConfirmProvider } from '@/components/ui/ConfirmProvider'
 import App from './App'
+import { AvisoActualizacion } from '@/components/layout/AvisoActualizacion'
 import './index.css'
 
 ReactDOM.createRoot(document.getElementById('root')!).render(
@@ -18,6 +19,8 @@ ReactDOM.createRoot(document.getElementById('root')!).render(
             <ToastProvider>
               <ConfirmProvider>
                 <App />
+                {/* Registra el service worker y avisa cuando hay versión nueva */}
+                <AvisoActualizacion />
               </ConfirmProvider>
             </ToastProvider>
           </SyncProvider>

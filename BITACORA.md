@@ -428,6 +428,10 @@ control de stock con trazabilidad.
     JS principal 313 → 143 KB comprimido; el service worker sigue guardando todo (62 archivos) para usar sin conexión.
   - Datos listos: Dashboard 2,7 → 0,85 s · POS 1,7 → 0,8 s · Productos 1,7 → 0,9 s · Inventario 1,7 → 0,8 s ·
     Reposición 1,2 → 0,8 s.
+- **Aviso de versión nueva (24-10-2026):** antes, tras publicar, una pestaña abierta seguía con la versión vieja
+  (había que recargar dos veces). Ahora el service worker es `registerType: prompt` + `clientsClaim`, la app lo
+  registra (`AvisoActualizacion`), revisa cada 30 min y muestra «Hay una versión nueva · Actualizar». No recarga
+  sola para no borrar un ticket en curso. Probado: aviso visible y recarga al pulsar Actualizar.
 - `typecheck`, lint y `vite build` sin errores. Dev server en `http://localhost:5173`.
 
 ## 8. Skills de agente instaladas (`.agents/skills/`)

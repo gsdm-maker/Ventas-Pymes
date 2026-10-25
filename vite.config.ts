@@ -9,8 +9,10 @@ export default defineConfig({
     react(),
     tailwindcss(),
     VitePWA({
-      registerType: 'autoUpdate',
-      injectRegister: 'auto',
+      // La versión nueva espera a que el usuario la acepte (AvisoActualizacion): una recarga
+      // automática podía borrar el ticket de una venta en curso
+      registerType: 'prompt',
+      injectRegister: false,
       includeAssets: ['favicon.svg', 'tema-inicial.js'],
       manifest: {
         name: 'Mi Socio Pyme',
@@ -29,6 +31,9 @@ export default defineConfig({
       },
       workbox: {
         globPatterns: ['**/*.{js,css,html,svg,png,woff2}'],
+        // Toma el control de la pestaña al instalarse: así «Actualizar» también recarga en la
+        // primera visita (sin esto, esa pestaña no se enteraba del cambio)
+        clientsClaim: true,
         navigateFallback: '/index.html',
         // La API no se cachea aquí (podía mostrar datos de otro usuario en un equipo
         // compartido): el POS usa una copia local por usuario en IndexedDB.
