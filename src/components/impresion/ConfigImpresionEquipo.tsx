@@ -65,7 +65,7 @@ export function ConfigImpresionEquipo() {
   }
 
   return (
-    <Card>
+    <Card id="impresion">
       <CardHeader title="Impresión en este equipo" subtitle="Comprobante de venta del Punto de Venta y precuenta de Mesas" />
       <CardBody className="space-y-4 text-sm">
         <label className="flex items-start gap-2 rounded-xl border border-border p-3 text-fg-body">

@@ -152,6 +152,9 @@ export function Configuracion() {
       <PageHeader title="Configuración" subtitle={empresa?.nombre} />
 
       <div className="grid gap-5 lg:grid-cols-2">
+        {/* Primero: es lo que se ajusta en cada caja (este equipo) */}
+        <ConfigImpresionEquipo />
+
         <Card>
           <CardHeader title="Empresa" subtitle="Datos generales" />
           <CardBody className="space-y-4">
@@ -332,8 +335,6 @@ export function Configuracion() {
         </Card>
 
         <ConfigReposicion />
-
-        <ConfigImpresionEquipo />
 
         <Card>
           <CardHeader title="Apariencia" subtitle="Tema y color de acento" />

@@ -44,6 +44,12 @@ export function esc(t: string): string {
 }
 
 /** Documento HTML de ticket con el ancho de papel indicado. `cuerpo` ya viene escapado. */
+/**
+ * Papel en blanco al final del ticket: la térmica corta apenas termina el contenido y sin esto
+ * la última línea queda justo en el corte. Si aún queda cortado, subir este valor.
+ */
+const AVANCE_MM = 18
+
 export function documentoTicket(titulo: string, cuerpo: string, ancho: AnchoPapel): string {
   // Área imprimible típica: 48 mm en papel de 58 y 72 mm en papel de 80
   const util = ancho === 58 ? 48 : 72
@@ -62,7 +68,8 @@ td:last-child{text-align:right;white-space:nowrap;padding-left:2mm}
 .fuerte td{font-weight:700;font-size:${letra + 1}px}
 .s{color:#333;font-size:${letra - 1}px}
 .det{display:block;color:#333;font-size:${letra - 1}px}
-</style></head><body>${cuerpo}</body></html>`
+.avance{height:${AVANCE_MM}mm}
+</style></head><body>${cuerpo}<div class="avance">&nbsp;</div></body></html>`
 }
 
 let marco: HTMLIFrameElement | null = null
@@ -73,7 +80,9 @@ export function imprimirDocumento(html: string): void {
   marco = document.createElement('iframe')
   marco.setAttribute('aria-hidden', 'true')
   marco.tabIndex = -1
-  marco.style.cssText = 'position:fixed;right:0;bottom:0;width:0;height:0;border:0;visibility:hidden'
+  // Fuera de la pantalla pero con tamaño real: algunos navegadores no imprimen un marco de
+  // tamaño cero o con visibility:hidden (no muestran nada al cobrar)
+  marco.style.cssText = 'position:fixed;left:-10000px;top:0;width:80mm;height:200mm;border:0'
   document.body.appendChild(marco)
   const doc = marco.contentDocument
   const win = marco.contentWindow
@@ -83,8 +92,19 @@ export function imprimirDocumento(html: string): void {
   doc.close()
   // Esperar a que el documento tome los estilos antes de abrir el diálogo
   setTimeout(() => {
-    win.focus()
-    win.print()
+    try {
+      win.focus()
+      win.print()
+    } catch {
+      // Si el navegador no deja imprimir el marco, se imprime en una ventana aparte
+      const w = window.open('', '_blank', 'width=380,height=600')
+      if (!w) return
+      w.document.write(html)
+      w.document.close()
+      w.focus()
+      w.print()
+      w.close()
+    }
   }, 150)
 }
 
