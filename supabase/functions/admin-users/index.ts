@@ -9,7 +9,7 @@
 // `usuarios.gestionar` y la empresa está vigente.
 // Todo con service_role (salta RLS): el aislamiento se reimplementa aquí.
 // ============================================================
-import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
+import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.118.0'
 
 const CORS = {
   'Access-Control-Allow-Origin': '*',

@@ -5,9 +5,6 @@ import {
   Minus,
   Trash2,
   ShoppingCart,
-  Banknote,
-  CreditCard,
-  ArrowLeftRight,
   CheckCircle2,
   CloudOff,
   Rows3,
@@ -22,7 +19,8 @@ import { supabase } from '@/core/supabase/client'
 import { listarCategorias, listarProductosConStock, rankingVentas } from '@/core/data/api'
 import { pendientesPorProducto } from '@/core/offline/respaldo'
 import { aplicarPendientes, clave, etiquetaVariante } from '@/lib/variantes'
-import type { Categoria, ProductoConStock } from '@/core/types'
+import type { Categoria, MedioPago, ProductoConStock } from '@/core/types'
+import { MEDIO_PAGO, MEDIOS_PAGO, montosSugeridos, referenciaCompleta, referenciaPara } from '@/lib/mediosPago'
 import { Button } from '@/components/ui/Button'
 import { Input } from '@/components/ui/Input'
 import { Modal } from '@/components/ui/Modal'
@@ -43,7 +41,6 @@ interface Linea {
   disponible: number
 }
 
-type Medio = 'efectivo' | 'transferencia' | 'debito'
 type VistaPos = 'lista' | 'botones'
 
 // Con conexión, la copia local del catálogo se renueva cada 5 minutos aunque no se venda:
@@ -53,12 +50,6 @@ const RENOVAR_COPIA_MS = 5 * 60 * 1000
 const VISTAS_POS: OpcionVista<VistaPos>[] = [
   { v: 'lista', etiqueta: 'Lista compacta', Icono: Rows3 },
   { v: 'botones', etiqueta: 'Botones', Icono: LayoutGrid }
-]
-
-const medios: { key: Medio; label: string; icon: typeof Banknote; refLabel: string }[] = [
-  { key: 'efectivo', label: 'Efectivo', icon: Banknote, refLabel: '' },
-  { key: 'transferencia', label: 'Transferencia', icon: ArrowLeftRight, refLabel: 'Número de transferencia' },
-  { key: 'debito', label: 'Débito', icon: CreditCard, refLabel: 'Número de voucher de venta' }
 ]
 
 export function POS() {
@@ -109,7 +100,7 @@ export function POS() {
   }, [lineas, claveTicket])
   const [descuentoTipo, setDescuentoTipo] = useState<'porcentaje' | 'monto'>('porcentaje')
   const [descuentoValor, setDescuentoValor] = useState(0)
-  const [medio, setMedio] = useState<Medio>('efectivo')
+  const [medio, setMedio] = useState<MedioPago>('efectivo')
   const [referencia, setReferencia] = useState('')
   const [enviando, setEnviando] = useState(false)
   // Última venta: aviso sin bloquear, la caja queda lista para la siguiente
@@ -250,14 +241,13 @@ export function POS() {
   const total = bruto - descMonto
   const { neto, iva } = desglosarIVA(total)
 
-  const referenciaRequerida = medio !== 'efectivo'
   // Efectivo: si se ingresó con cuánto paga, debe alcanzar. Una venta en $0 no se cobra.
-  const faltaEfectivo = medio === 'efectivo' && recibido > 0 && recibido < total
+  const faltaEfectivo = MEDIO_PAGO[medio].daVuelto && recibido > 0 && recibido < total
   const puedeCobrar =
     lineas.length > 0 &&
     total > 0 &&
     !faltaEfectivo &&
-    (!referenciaRequerida || referencia.trim().length > 0) &&
+    referenciaCompleta(medio, referencia) &&
     !enviando
 
   async function finalizar() {
@@ -278,7 +268,7 @@ export function POS() {
       descuento_tipo: descuentoTipo,
       descuento_valor: descuentoValor,
       medio_pago: medio,
-      referencia: referenciaRequerida ? referencia.trim() : null
+      referencia: referenciaPara(medio, referencia)
     }
 
     const guardarOffline = async () => {
@@ -302,7 +292,7 @@ export function POS() {
       p_descuento_tipo: descuentoTipo,
       p_descuento_valor: descuentoValor,
       p_medio_pago: medio,
-      p_referencia: referenciaRequerida ? referencia.trim() : null,
+      p_referencia: referenciaPara(medio, referencia),
       p_uuid_local: uuidLocal
     })
     // Se cayó la red a mitad de camino: queda en cola con el mismo uuid (no se duplica)
@@ -579,8 +569,8 @@ interface TicketPanelProps {
   setDescuentoTipo: (t: 'porcentaje' | 'monto') => void
   descuentoValor: number
   setDescuentoValor: (v: number) => void
-  medio: Medio
-  setMedio: (m: Medio) => void
+  medio: MedioPago
+  setMedio: (m: MedioPago) => void
   referencia: string
   setReferencia: (r: string) => void
   puedeCobrar: boolean
@@ -618,12 +608,10 @@ function TicketPanel({
   setRecibido
 }: TicketPanelProps) {
   // Billetes para cobrar rápido en efectivo (montos mayores al total)
-  const billetes = [...new Set([total, ...[1000, 2000, 5000, 10000, 20000].map((b) => Math.ceil(total / b) * b)])]
-    .filter((n) => n >= total && n > 0)
-    .slice(0, 4)
+  const billetes = montosSugeridos(total)
   const vuelto = recibido > 0 ? recibido - total : 0
-  const medioInfo = medios.find((m) => m.key === medio)!
-  const referenciaRequerida = medio !== 'efectivo'
+  const medioInfo = MEDIO_PAGO[medio]
+  const referenciaRequerida = medioInfo.pideReferencia
 
   return (
     <>
@@ -744,7 +732,7 @@ function TicketPanel({
         {/* Medio de pago */}
         <div>
           <div role="group" aria-label="Medio de pago" className="grid grid-cols-3 gap-1.5">
-            {medios.map((m) => (
+            {MEDIOS_PAGO.map((m) => (
               <button
                 key={m.key}
                 onClick={() => {
@@ -772,7 +760,7 @@ function TicketPanel({
               onChange={(e) => setReferencia(e.target.value)}
             />
           )}
-          {medio === 'efectivo' && total > 0 && (
+          {medioInfo.daVuelto && total > 0 && (
             <div className="mt-2 flex items-center gap-1.5">
               <div className="flex shrink-0 gap-1">
                 {billetes.slice(0, 3).map((b) => (
@@ -819,7 +807,7 @@ function TicketPanel({
             <span>Neto · IVA 19% incluido</span>
             <span className="tabular-nums">{formatCLP(neto)} · {formatCLP(iva)}</span>
           </div>
-          {medio === 'efectivo' && recibido > 0 && (
+          {medioInfo.daVuelto && recibido > 0 && (
             <div className={cn('flex justify-between font-semibold', vuelto < 0 ? 'text-danger' : 'text-fg')}>
               <span>{vuelto < 0 ? 'Faltan' : 'Vuelto'}</span>
               <span className="tabular-nums">{formatCLP(Math.abs(vuelto))}</span>

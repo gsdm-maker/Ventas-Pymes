@@ -35,6 +35,7 @@ const vacio = {
   stock_minimo: 0,
   stock_objetivo: 0,
   controla_stock: true,
+  va_a_cocina: true,
   activo: true,
   margen: ''
 }
@@ -42,6 +43,7 @@ const vacio = {
 export function Productos() {
   const { can, empresa } = useAuth()
   const toast = useToast()
+  const conCocina = !!empresa?.modulos.includes('cocina')
   const [productos, setProductos] = useState<ProductoConStock[]>([])
   const [categorias, setCategorias] = useState<Categoria[]>([])
   const [cargando, setCargando] = useState(true)
@@ -92,6 +94,7 @@ export function Productos() {
       stock_minimo: p.stock_minimo,
       stock_objetivo: p.stock_objetivo,
       controla_stock: p.controla_stock !== false,
+      va_a_cocina: p.va_a_cocina !== false,
       activo: p.activo,
       margen: String(margenDesdePrecio(p.costo_referencia, p.precio_venta) ?? '')
     })
@@ -115,6 +118,7 @@ export function Productos() {
       stock_minimo: Number(form.stock_minimo) || 0,
       stock_objetivo: Number(form.stock_objetivo) || 0,
       controla_stock: form.controla_stock,
+      va_a_cocina: form.va_a_cocina,
       activo: form.activo
     }
     const { error } = form.id
@@ -283,6 +287,7 @@ export function Productos() {
                   <div className="flex flex-col items-end gap-1">
                     <Badge tone={p.activo ? 'success' : 'blocked'}>{p.activo ? 'Activo' : 'Inactivo'}</Badge>
                     {p.controla_stock === false && <Badge tone="neutral">Sin inventario</Badge>}
+                    {conCocina && p.va_a_cocina === false && <Badge tone="neutral">No va a cocina</Badge>}
                     {p.variantes.length > 0 && <Badge tone="info">{p.variantes.length} variantes</Badge>}
                   </div>
                 </div>
@@ -477,6 +482,23 @@ export function Productos() {
                     </span>
                   </span>
                 </label>
+                {conCocina && (
+                  <label className="flex items-start gap-2 rounded-xl border border-border p-3 text-sm text-fg-body sm:col-span-2">
+                    <input
+                      type="checkbox"
+                      checked={form.va_a_cocina}
+                      onChange={(e) => setForm({ ...form, va_a_cocina: e.target.checked })}
+                      className="mt-0.5 size-4 accent-[rgb(var(--accent))]"
+                    />
+                    <span>
+                      <span className="font-medium text-fg">Se prepara en cocina</span>
+                      <span className="block text-xs text-fg-muted">
+                        Desmárcalo para bebidas, postres envasados y todo lo que se sirve sin preparar: se agrega a
+                        la cuenta sin aparecer en la pantalla de cocina.
+                      </span>
+                    </span>
+                  </label>
+                )}
                 <Field label="Unidad de medida">
                   <Input value={form.unidad_medida} onChange={(e) => setForm({ ...form, unidad_medida: e.target.value })} />
                 </Field>

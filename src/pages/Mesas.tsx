@@ -175,7 +175,9 @@ export function Mesas() {
     })
     setEnviando(false)
     if (error) return toast(error.message, 'error')
-    toast(`Comanda #${(data as Comanda).numero} enviada a cocina`)
+    // Sin comanda: el pedido era solo de cosas que no pasan por cocina (bebidas, envasados)
+    const com = data as Comanda | null
+    toast(com?.id ? `Comanda #${com.numero} enviada a cocina` : 'Pedido agregado a la cuenta (no pasa por cocina)')
     setBorradores((prev) => ({ ...prev, [mesa.id]: [] }))
     setModo('salon')
     setNotaDe(null)
@@ -190,8 +192,9 @@ export function Mesas() {
       if (error) return toast(error.message, 'error')
       void cargar()
     }
-    if (com?.estado === 'pendiente') {
-      if (!(await confirmar({ titulo: `¿Quitar ${it.cantidad}× ${it.descripcion}?`, mensaje: 'Cocina aún no lo empieza.', accion: 'Quitar' }))) return
+    if (!it.comanda_id || com?.estado === 'pendiente') {
+      const mensaje = it.comanda_id ? 'Cocina aún no lo empieza.' : 'Se quita de la cuenta.'
+      if (!(await confirmar({ titulo: `¿Quitar ${it.cantidad}× ${it.descripcion}?`, mensaje, accion: 'Quitar' }))) return
       return ejecutar(null)
     }
     setMotivo({ titulo: `Quitar ${it.cantidad}× ${it.descripcion}`, texto: 'Cocina ya lo está preparando. ¿Por qué se quita?', accion: ejecutar })
@@ -202,6 +205,27 @@ export function Mesas() {
     if (error) return toast(error.message, 'error')
     void cargar()
   }
+
+  // Una línea de la cuenta (con botón para quitarla)
+  const filaItem = (i: CuentaItem) => (
+    <li key={i.id} className={cn('flex items-start gap-2 px-3 py-2 text-sm', i.anulado && 'opacity-50')}>
+      <span className="w-6 shrink-0 font-semibold tabular-nums text-fg">{i.cantidad}×</span>
+      <span className="min-w-0 flex-1">
+        <span className={cn('text-fg', i.anulado && 'line-through')}>{i.descripcion}</span>
+        {i.nota && <span className="block text-xs text-warning">{i.nota}</span>}
+      </span>
+      <span className="shrink-0 tabular-nums text-fg-body">{formatCLP(i.cantidad * i.precio_unitario)}</span>
+      {!i.anulado && (
+        <button
+          onClick={() => void anularItem(i)}
+          aria-label={`Quitar ${i.descripcion}`}
+          className="grid size-6 shrink-0 place-items-center rounded-md text-fg-faint hover:bg-danger-soft hover:text-danger"
+        >
+          <X size={13} />
+        </button>
+      )}
+    </li>
+  )
 
   async function moverA(destino: Mesa) {
     if (!cuenta) return
@@ -523,29 +547,19 @@ ${[...agrupados.values()].map((a) => `<tr><td>${a.c} × ${esc(a.d)}</td><td>${es
                           </span>
                         </div>
                         <ul className="divide-y divide-border">
-                          {its.map((i) => (
-                            <li key={i.id} className={cn('flex items-start gap-2 px-3 py-2 text-sm', i.anulado && 'opacity-50')}>
-                              <span className="w-6 shrink-0 font-semibold tabular-nums text-fg">{i.cantidad}×</span>
-                              <span className="min-w-0 flex-1">
-                                <span className={cn('text-fg', i.anulado && 'line-through')}>{i.descripcion}</span>
-                                {i.nota && <span className="block text-xs text-warning">{i.nota}</span>}
-                              </span>
-                              <span className="shrink-0 tabular-nums text-fg-body">{formatCLP(i.cantidad * i.precio_unitario)}</span>
-                              {!i.anulado && (
-                                <button
-                                  onClick={() => void anularItem(i)}
-                                  aria-label={`Quitar ${i.descripcion}`}
-                                  className="grid size-6 shrink-0 place-items-center rounded-md text-fg-faint hover:bg-danger-soft hover:text-danger"
-                                >
-                                  <X size={13} />
-                                </button>
-                              )}
-                            </li>
-                          ))}
+                          {its.map(filaItem)}
                         </ul>
                       </section>
                     )
                   })}
+
+                  {/* Lo que no pasa por cocina (bebidas, envasados): directo a la cuenta */}
+                  {items.some((i) => !i.comanda_id) && (
+                    <section className="rounded-xl border border-border">
+                      <p className="border-b border-border px-3 py-2 text-xs text-fg-muted">Directo a la cuenta · sin cocina</p>
+                      <ul className="divide-y divide-border">{items.filter((i) => !i.comanda_id).map(filaItem)}</ul>
+                    </section>
+                  )}
 
                   {/* Pedido nuevo (aún no enviado) */}
                   {borrador.length > 0 && (
@@ -606,7 +620,7 @@ ${[...agrupados.values()].map((a) => `<tr><td>${a.c} × ${esc(a.d)}</td><td>${es
                       <div className="p-3">
                         <Button block onClick={() => void enviar()} disabled={enviando || !online || !can('mesas.atender')}>
                           <ChefHat size={16} />
-                          {enviando ? 'Enviando…' : `Enviar a cocina (${unidadesBorrador}) · ${formatCLP(totalBorrador)}`}
+                          {enviando ? 'Enviando…' : `Enviar pedido (${unidadesBorrador}) · ${formatCLP(totalBorrador)}`}
                         </Button>
                       </div>
                     </section>

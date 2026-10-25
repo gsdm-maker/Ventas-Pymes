@@ -162,7 +162,8 @@ const TEMAS: Tema[] = [
         titulo: 'Atender una mesa',
         pasos: [
           'En el salón, pulsa una mesa libre para abrir su cuenta.',
-          'Agrega los productos del pedido y pulsa «Enviar a cocina»: se crea una comanda numerada.',
+          'Agrega los productos del pedido y pulsa «Enviar pedido»: lo que se prepara va a cocina como una comanda numerada.',
+          'Las bebidas y lo que se sirve sin preparar (productos sin «Se prepara en cocina») se agregan directo a la cuenta y no aparecen en Cocina.',
           'Puedes seguir agregando pedidos a la misma cuenta durante la comida.',
           'Si los clientes se cambian de mesa, usa «Mover» para trasladar la cuenta.'
         ]
@@ -194,8 +195,10 @@ const TEMAS: Tema[] = [
         pasos: [
           'Las comandas llegan solas, en tiempo real, a la columna «Por preparar», en el orden en que se enviaron.',
           'Pulsa «Empezar» al comenzar a prepararla y «Listo» cuando esté terminada: pasa a «Listas para servir».',
-          'Al servirla, márcala como «Entregada» (desde Cocina o, el garzón, desde Mesas).'
-        ]
+          'Al servirla, márcala como «Entregada» (desde Cocina o, el garzón, desde Mesas).',
+          'Si la moviste por error, la flecha la devuelve a la columna anterior. Los estados avanzan o retroceden de a un paso.'
+        ],
+        nota: 'A Cocina solo llega lo que se prepara. Para que una bebida no llegue, desmarca «Se prepara en cocina» en el producto (Productos → editar).'
       }
     ]
   },

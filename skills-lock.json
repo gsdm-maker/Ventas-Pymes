@@ -13,18 +13,6 @@
       "skillPath": "skills/taste-skill/SKILL.md",
       "computedHash": "41463de84d80d8839b1e9fc8ddfd140578443d095b53710d1f331dbab3079712"
     },
-    "design-taste-frontend-v1": {
-      "source": "Leonxlnx/taste-skill",
-      "sourceType": "github",
-      "skillPath": "skills/taste-skill-v1/SKILL.md",
-      "computedHash": "693ec93f29a2133d79cb3c41b707629ecc6120ab784d1f5aa3e93dedd8b38d5c"
-    },
-    "design-taste-frontend-v2-experimental": {
-      "source": "Leonxlnx/taste-skill",
-      "sourceType": "github",
-      "skillPath": "skills/taste-skill-v2-experimental/SKILL.md",
-      "computedHash": "1618e10f20b22914c6f0db6b55c76ed49caf6284e28d0fa5bca3e533aee22673"
-    },
     "full-output-enforcement": {
       "source": "Leonxlnx/taste-skill",
       "sourceType": "github",

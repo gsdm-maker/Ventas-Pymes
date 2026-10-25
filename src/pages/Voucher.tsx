@@ -11,6 +11,7 @@ import { Button } from '@/components/ui/Button'
 import { Badge } from '@/components/ui/Badge'
 import { LoadingState } from '@/components/ui/Feedback'
 import { desglosarIVA, formatCLP, formatFechaHora } from '@/lib/format'
+import { etiquetaMedio } from '@/lib/mediosPago'
 
 export function Voucher() {
   const { id } = useParams()
@@ -179,7 +180,7 @@ export function Voucher() {
               <div className="rounded-xl bg-surface p-3 text-xs">
                 <div className="flex justify-between">
                   <span className="text-fg-muted">Medio de pago</span>
-                  <span className="capitalize text-fg">{venta.medio_pago}</span>
+                  <span className="text-fg">{etiquetaMedio(venta.medio_pago)}</span>
                 </div>
                 {venta.referencia_pago && (
                   <div className="mt-1 flex justify-between">

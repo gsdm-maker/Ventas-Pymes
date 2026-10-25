@@ -1,5 +1,4 @@
 import { useEffect, useState } from 'react'
-import { ArrowLeftRight, Banknote, CreditCard } from 'lucide-react'
 import { supabase } from '@/core/supabase/client'
 import type { MedioPago, Venta } from '@/core/types'
 import { Modal } from '@/components/ui/Modal'
@@ -7,13 +6,8 @@ import { Button } from '@/components/ui/Button'
 import { Input } from '@/components/ui/Input'
 import { useToast } from '@/components/ui/Toast'
 import { cn } from '@/lib/cn'
+import { MEDIO_PAGO, MEDIOS_PAGO, montosSugeridos, referenciaCompleta, referenciaPara } from '@/lib/mediosPago'
 import { formatCLP } from '@/lib/format'
-
-const MEDIOS: { key: MedioPago; label: string; icon: typeof Banknote; refLabel: string }[] = [
-  { key: 'efectivo', label: 'Efectivo', icon: Banknote, refLabel: '' },
-  { key: 'debito', label: 'Débito / crédito', icon: CreditCard, refLabel: 'Número de voucher de venta' },
-  { key: 'transferencia', label: 'Transferencia', icon: ArrowLeftRight, refLabel: 'Número de transferencia' }
-]
 
 type ModoPropina = 'sugerida' | 'sin' | 'otra'
 
@@ -53,21 +47,19 @@ export function ModalCobroCuenta({
   const sugerida = Math.round((total * 0.1) / 10) * 10
   const propina = modo === 'sugerida' ? sugerida : modo === 'otra' ? Math.max(0, otra) : 0
   const aPagar = total + propina
-  const billetes = [...new Set([aPagar, ...[1000, 2000, 5000, 10000, 20000].map((b) => Math.ceil(aPagar / b) * b)])]
-    .filter((n) => n >= aPagar && n > 0)
-    .slice(0, 4)
+  const billetes = montosSugeridos(aPagar)
   const vuelto = recibido > 0 ? recibido - aPagar : 0
-  const info = MEDIOS.find((m) => m.key === medio)!
+  const info = MEDIO_PAGO[medio]
 
   async function cobrar() {
     if (!cuentaId) return
-    if (medio !== 'efectivo' && !referencia.trim()) return toast('Ingresa el número de referencia del pago', 'warning')
+    if (!referenciaCompleta(medio, referencia)) return toast('Ingresa el número de referencia del pago', 'warning')
     if (propina > total) return toast('La propina no puede ser mayor que el consumo', 'warning')
     setEnviando(true)
     const { data, error } = await supabase.rpc('cobrar_cuenta', {
       p_cuenta: cuentaId,
       p_medio_pago: medio,
-      p_referencia: medio === 'efectivo' ? null : referencia.trim(),
+      p_referencia: referenciaPara(medio, referencia),
       p_propina: propina
     })
     setEnviando(false)
@@ -150,7 +142,7 @@ export function ModalCobroCuenta({
         <fieldset>
           <legend className="mb-1.5 text-[11px] font-semibold uppercase tracking-wider text-fg-muted">Medio de pago</legend>
           <div className="grid grid-cols-3 gap-2">
-            {MEDIOS.map((m) => (
+            {MEDIOS_PAGO.map((m) => (
               <button
                 key={m.key}
                 type="button"
@@ -169,10 +161,10 @@ export function ModalCobroCuenta({
               </button>
             ))}
           </div>
-          {medio !== 'efectivo' && (
+          {info.pideReferencia && (
             <Input className="mt-2" placeholder={info.refLabel} aria-label={info.refLabel} value={referencia} onChange={(e) => setReferencia(e.target.value)} />
           )}
-          {medio === 'efectivo' && (
+          {info.daVuelto && (
             <div className="mt-2 space-y-2">
               <div className="flex flex-wrap gap-1.5">
                 {billetes.map((b) => (

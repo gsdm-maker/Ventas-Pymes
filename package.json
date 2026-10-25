@@ -9,6 +9,7 @@
     "preview": "vite preview",
     "lint": "eslint .",
     "typecheck": "tsc -p tsconfig.app.json --noEmit",
+    "verificar:catalogo": "node scripts/verificar-catalogo.mjs",
     "db:reset": "supabase db reset",
     "db:push": "supabase db push",
     "test:seguridad": "node scripts/sql-remoto.mjs supabase/pruebas/seguridad.sql",

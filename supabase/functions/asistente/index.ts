@@ -17,7 +17,7 @@
 // Secretos: OPENAI_API_KEY (obligatorio), AI_MODEL y ALLOWED_ORIGIN (opcionales).
 // SUPABASE_URL, SUPABASE_ANON_KEY y SUPABASE_SERVICE_ROLE_KEY los pone Supabase.
 // ============================================================
-import { createClient, type SupabaseClient } from 'https://esm.sh/@supabase/supabase-js@2'
+import { createClient, type SupabaseClient } from 'https://esm.sh/@supabase/supabase-js@2.118.0'
 
 const SUPABASE_URL = Deno.env.get('SUPABASE_URL')!
 const ANON_KEY = Deno.env.get('SUPABASE_ANON_KEY')!

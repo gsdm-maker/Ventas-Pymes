@@ -87,3 +87,70 @@ Ambas cosas a la vez: viene preconfigurado por puesto y el admin lo ajusta si qu
    1. [x] `supabase db push` (0020) — aplicada 24-10-2026; suites re-ejecutadas contra la base real: sin cambios.
    2. [x] `supabase functions deploy admin-users` — versión 8, activa (24-10-2026).
    3. [x] Commit y push a `main` (Netlify publica solo) — aprobado y subido 24-10-2026.
+
+---
+
+# Plan de lo pendiente · 25-10-2026
+
+Junta lo que quedó abierto del asistente Socio IA, la revisión OWASP de skills, las skills de
+Anthropic, los patrones de diseño (Refactoring.Guru) y los pendientes anteriores.
+**Quién:** 🤖 lo hago yo (en local, se publica con tu ok) · 👤 decisión o acción tuya.
+
+## F1. Para cerrar ya (listo en local, falta tu ok)
+- [ ] 🤖 Desplegar `asistente` y `admin-users` con `supabase-js` fijado en `2.118.0`.
+- [ ] 🤖 Commit y push de la revisión OWASP (skills duplicadas borradas, reglas de Vercel fijadas).
+- [ ] 👤→🤖 Subir también al respaldo privado `Sebdev23/stockflow` (requiere `gh auth switch`).
+
+## F2. Seguridad y costos (prioridad alta)
+- [ ] 👤 Rotar el token `sbp_…` y la clave de la BD; actualizar `Datakeys.md` (pendiente desde el 18-10).
+- [ ] 👤 Crear una clave de OpenAI propia para Mi Socio Pyme (hoy comparte cuenta y gasto con Lumix)
+      con tope de gasto mensual en OpenAI; 🤖 cargarla con `supabase secrets set`.
+- [ ] 🤖 Secreto `ALLOWED_ORIGIN` (URL de Netlify + localhost) para que las funciones no acepten
+      llamadas de cualquier sitio (hoy CORS `*`).
+- [ ] 🤖 Pinear también `esm.sh` en cualquier función nueva (regla: nunca `@2`, siempre versión exacta).
+
+## F3. Correcciones detectadas (prioridad alta)
+- [x] 🤖 **Estado de comandas (patrón State)** — hecho en `0024` (local, 34/34 en `restaurante.sql`): de a un paso hacia adelante o atrás; además **solo lo que se prepara va a cocina** (`productos.va_a_cocina`, bebidas directo a la cuenta). Transferencias y cuentas ya validaban sus estados. Detalle original: `cambiar_estado_comanda` permite cualquier salto
+      (p. ej. «entregada» → «pendiente»). Tabla de transiciones permitidas
+      (pendiente → preparando → lista → entregada, con retroceso de un paso si se decide) + pruebas.
+      Revisar lo mismo en transferencias y cuentas. 👤 decidir si cocina puede retroceder un paso.
+- [ ] 🤖 Investigar `reportes.sql` «reporte coincide con ventas…» (falla desde antes de 0020;
+      diferencia de ~$450.000 y 6 tickets: probablemente devoluciones/anuladas en el cálculo de la prueba).
+
+## F4. Socio IA: afinar con uso real
+- [ ] 👤 Probarlo con un usuario de tienda (al que se le dé el permiso) y en el celular.
+- [ ] 👤 Revisar en la consola (Resumen → Uso del asistente) el consumo de la primera semana y
+      ajustar los topes Básico / Pro / Max.
+- [ ] 👤 Activar el plan en las empresas reales que lo tengan contratado.
+- [ ] 🤖 (Opcional) Guardar las preguntas (sin respuestas) para ver qué consultan y mejorar el prompt.
+- [ ] 🤖 (Opcional) Respuestas en streaming (que se vayan escribiendo) para que no se sienta la espera de ~6 s.
+
+## F5. Calidad: pruebas automáticas
+- [ ] 👤 ok para instalar `webapp-testing` (Anthropic, commit `dbd4588`) + Playwright para Python.
+- [ ] 🤖 Pruebas de punta a punta: login, venta en POS, venta sin conexión y sincronización,
+      permisos por puesto, chat de Socio IA.
+
+## F6. Patrones de diseño y orden del código (prioridad media)
+- [x] 🤖 Sección «Patrones de diseño» en `BUENAS_PRACTICAS_LUMIX.md` (§16) (Command en la cola offline,
+      Chain of Responsibility en permisos, Facade en `api.ts`, Proxy en Edge Functions, Strategy en
+      herramientas de IA, Observer en Realtime, Singleton en el cliente).
+- [x] 🤖 Strategy para medios de pago: `src/lib/mediosPago.ts` (POS, cobro de mesas, Reportes y voucher).
+- [x] 🤖 Cola offline: tabla `EJECUTORES` por tipo de operación en `SyncProvider`.
+- [ ] 🤖 Fachada: mover las 42 consultas directas de 10 pantallas a `api.ts` (de a poco). **Después de F5** (pruebas automáticas).
+- [ ] 🤖 Partir `POS.tsx` (917 líneas): carrito y cobro como hooks y componentes. **Después de F5.**
+- [x] 🤖 Catálogo de módulos y permisos: `npm run verificar:catalogo` compara TS, SQL y Edge Function
+      y falla si se desalinean.
+
+## F7. Funciones de negocio pendientes (de la Bitácora)
+- [ ] Ajuste de inventario por conteo físico (el permiso existe, falta pantalla y RPC).
+- [ ] Cierre de caja diario por cajero y tienda.
+- [ ] Decisiones de la sección D: precio de ventas offline, permiso y tope de descuento,
+      cancelar transferencias.
+- [ ] (Opcional) Historial de recepciones y «cargar compra sugerida» desde Reposición.
+- [ ] (Opcional) Restaurante: modificadores con precio y dividir la cuenta.
+- [ ] (Opcional) Aviso de quiebres por correo/push; SMTP propio para recuperación de clave.
+
+## Orden sugerido
+1. **F1** (minutos) → 2. **F2** (tus acciones en Supabase/OpenAI + 1 secreto) → 3. **F3** (bug de
+comandas) → 4. **F5** (pruebas automáticas, protegen todo lo que sigue) → 5. **F6** (refactors con
+pruebas detrás) → 6. **F7** según prioridad del negocio. **F4** corre en paralelo con el uso real.

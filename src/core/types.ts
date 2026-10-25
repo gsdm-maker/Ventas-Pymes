@@ -118,6 +118,8 @@ export interface Producto {
   stock_objetivo: number
   /** false: se vende sin llevar existencias (platos, servicios) */
   controla_stock: boolean
+  /** Restaurante: false = no pasa por cocina (bebidas, envasados); va directo a la cuenta */
+  va_a_cocina?: boolean
   activo: boolean
   created_at: string
 }
@@ -445,7 +447,8 @@ export interface Comanda {
 export interface CuentaItem {
   id: string
   cuenta_id: string
-  comanda_id: string
+  /** null: el producto no pasa por cocina y se agregó directo a la cuenta */
+  comanda_id: string | null
   producto_id: string
   variante_id: string | null
   descripcion: string

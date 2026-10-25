@@ -13,27 +13,26 @@ Review files for compliance with Web Interface Guidelines.
 
 ## How It Works
 
-1. Fetch the latest guidelines from the source URL below
+1. Read the pinned guidelines in `guidelines.md` (next to this file)
 2. Read the specified files (or prompt user for files/pattern)
-3. Check against all rules in the fetched guidelines
+3. Check against all rules in `guidelines.md`
 4. Output findings in the terse `file:line` format
 
 ## Guidelines Source
 
-Fetch fresh guidelines before each review:
+Use ONLY the local, pinned copy: `guidelines.md` in this skill's folder.
 
-```
-https://raw.githubusercontent.com/vercel-labs/web-interface-guidelines/main/command.md
-```
-
-Use WebFetch to retrieve the latest rules. The fetched content contains all the rules and output format instructions.
+It is a reviewed snapshot of `vercel-labs/web-interface-guidelines` at commit
+`434b7f91364665f2f733b310ec54809bf8f37937` (2026-10-05). Do not fetch the rules from the
+network: remote instructions can change without review (OWASP Agentic Skills AST05). To update,
+download that file at a specific commit, review it, and replace `guidelines.md`.
 
 ## Usage
 
 When a user provides a file or pattern argument:
-1. Fetch guidelines from the source URL above
+1. Read `guidelines.md`
 2. Read the specified files
-3. Apply all rules from the fetched guidelines
+3. Apply all rules from `guidelines.md`
 4. Output findings using the format specified in the guidelines
 
 If no files specified, ask the user which files to review.

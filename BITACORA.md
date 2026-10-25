@@ -467,16 +467,31 @@ control de stock con trazabilidad.
   (por defecto solo administradores). Tope contado en la base (`uso_ia`, `registrar_uso_ia` solo service_role; si
   OpenAI falla se devuelve el mensaje). Migración `0023_asistente_ia.sql`, pruebas en `pruebas/asistente.sql`.
   Requiere el secreto `OPENAI_API_KEY` en Supabase.
+- **Cocina y patrones de diseño (25-10-2026):** `0024_cocina_estados.sql`: las comandas avanzan o
+  retroceden de a un paso (pendiente ⇄ preparando ⇄ lista ⇄ entregada; antes se aceptaba cualquier salto) y
+  solo lo que se prepara va a cocina: `productos.va_a_cocina` (casilla «Se prepara en cocina» en Productos,
+  visible con el módulo Cocina); bebidas y envasados van directo a la cuenta (`cuenta_items.comanda_id` nulo,
+  sección «Directo a la cuenta» en Mesas, se quitan sin motivo). Patrones: medios de pago en
+  `src/lib/mediosPago.ts`, cola offline con tabla `EJECUTORES`, `npm run verificar:catalogo` y §16 de
+  `BUENAS_PRACTICAS_LUMIX.md`.
 - `typecheck`, lint y `vite build` sin errores. Dev server en `http://localhost:5173`.
 
 ## 8. Skills de agente instaladas (`.agents/skills/`)
 
-- **15 skills** vía `npx skills` (CLI de Vercel Labs):
-  - De `Leonxlnx/taste-skill` (14): `redesign-existing-projects`, `minimalist-ui`,
-    `high-end-visual-design`, `full-output-enforcement`, `design-taste-frontend`
-    (+ v1/v2-exp), `gpt-taste`, `industrial-brutalist-ui`, `stitch-design-taste`,
+- **13 skills** vía `npx skills` (CLI de Vercel Labs):
+  - De `Leonxlnx/taste-skill` (12): `redesign-existing-projects`, `minimalist-ui`,
+    `high-end-visual-design`, `full-output-enforcement`, `design-taste-frontend`,
+    `gpt-taste`, `industrial-brutalist-ui`, `stitch-design-taste`,
     `image-to-code`, `imagegen-frontend-web/-mobile`, `brandkit`.
   - De `vercel-labs/agent-skills` (1): **`web-design-guidelines`** (revisión de UI accesible).
+- **Revisión OWASP Agentic Skills Top 10 (25-10-2026):** sin hallazgos maliciosos (sin texto
+  oculto, payloads ni acceso a credenciales; los scripts de `design-taste-frontend` solo bajan
+  imágenes de fuentes públicas y usan Chrome headless con perfil temporal). Cambios:
+  - `web-design-guidelines` ya no descarga sus reglas de `main` en cada uso (AST05): usa la copia
+    revisada `guidelines.md` (commit `434b7f9`). **Ojo:** `npx skills update` restauraría el
+    SKILL.md original; volver a aplicar el cambio si se actualiza.
+  - Borradas las duplicadas `design-taste-frontend-v1` y `-v2-experimental` (y del `skills-lock.json`).
+  - Edge Functions con `supabase-js` fijado a `2.118.0` (antes `@2`, tomaba cualquier 2.x).
 - Recomendadas para Mi Socio Pyme (dashboard/POS): `redesign-existing-projects`,
   `minimalist-ui`, `web-design-guidelines`.
 

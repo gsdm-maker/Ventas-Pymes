@@ -38,24 +38,27 @@ interface SyncCtx {
 
 const Ctx = createContext<SyncCtx | null>(null)
 
-function argumentos(op: OperacionPendiente) {
-  if (op.tipo === 'salida') {
-    return {
-      rpc: 'registrar_salida',
-      args: {
-        p_producto: op.payload.producto_id,
-        p_variante: op.payload.variante_id ?? null,
-        p_ubicacion: op.payload.ubicacion_id,
-        p_cantidad: op.payload.cantidad,
-        p_motivo: op.payload.motivo_id ?? null,
-        p_observaciones: op.payload.observaciones ?? null,
-        p_uuid_local: op.uuid_local,
-        // Ya se entregó la mercadería: si el stock no alcanza se registra igual y se marca
-        p_permitir_sin_stock: true
-      }
+/**
+ * Cómo se envía a la base cada tipo de operación offline (patrón Command: la cola guarda la
+ * operación y aquí se define cómo ejecutarla). Para una operación offline nueva se agrega su
+ * entrada; el ciclo de sincronización no cambia. Todas llevan uuid_local para no duplicarse.
+ */
+const EJECUTORES: Record<TipoOperacion, (op: OperacionPendiente) => { rpc: string; args: Record<string, unknown> }> = {
+  salida: (op) => ({
+    rpc: 'registrar_salida',
+    args: {
+      p_producto: op.payload.producto_id,
+      p_variante: op.payload.variante_id ?? null,
+      p_ubicacion: op.payload.ubicacion_id,
+      p_cantidad: op.payload.cantidad,
+      p_motivo: op.payload.motivo_id ?? null,
+      p_observaciones: op.payload.observaciones ?? null,
+      p_uuid_local: op.uuid_local,
+      // Ya se entregó la mercadería: si el stock no alcanza se registra igual y se marca
+      p_permitir_sin_stock: true
     }
-  }
-  return {
+  }),
+  venta: (op) => ({
     rpc: 'registrar_venta',
     args: {
       p_ubicacion: op.payload.ubicacion_id,
@@ -68,7 +71,11 @@ function argumentos(op: OperacionPendiente) {
       // La venta ya se cobró: si el stock no alcanza se registra igual y se marca
       p_permitir_sin_stock: true
     }
-  }
+  })
+}
+
+function argumentos(op: OperacionPendiente) {
+  return EJECUTORES[op.tipo](op)
 }
 
 export function SyncProvider({ children }: { children: ReactNode }) {

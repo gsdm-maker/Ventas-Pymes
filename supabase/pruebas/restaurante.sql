@@ -190,6 +190,64 @@ select pg_temp.probar('nombre de mesa repetido se rechaza', '{{USUARIO_ADMIN}}',
 update public.profiles set permissions = permissions || '{"mesas.atender": false}' where email = '{{USUARIO_TIENDA}}';
 select pg_temp.probar('sin mesas.atender no se envían comandas', '{{USUARIO_TIENDA}}', 'ERROR P0001: No tienes permiso',
   $q$ select pg_temp.enviar('ZZ Mesa 1', pg_temp.items('ZZ-PLATO', 1)) $q$);
+
+-- ---------------- 0024: solo lo que se cocina va a cocina · estados de a un paso ----------------
+-- Se devuelve el permiso que quitó el caso anterior
+update public.profiles set permissions = permissions - 'mesas.atender' where email = '{{USUARIO_TIENDA}}';
+update public.productos set va_a_cocina = false where id = pg_temp.prod('ZZ-LATA');
+
+create function pg_temp.solo_bebidas() returns text language plpgsql as $$
+declare c public.comandas;
+begin
+  c := public.enviar_comanda(pg_temp.mesa('ZZ Mesa 1'), pg_temp.items('ZZ-LATA', 2));
+  return 'comanda ' || coalesce(c.id::text, 'ninguna')
+    || ' · ítems sin cocina ' || (select count(*) from public.cuenta_items where cuenta_id = pg_temp.cuenta('ZZ Mesa 1') and comanda_id is null);
+end $$;
+create function pg_temp.mixto() returns text language plpgsql as $$
+declare c public.comandas;
+begin
+  c := public.enviar_comanda(pg_temp.mesa('ZZ Mesa 1'), pg_temp.items('ZZ-PLATO', 1) || pg_temp.items('ZZ-LATA', 1));
+  return 'en cocina ' || (select count(*) from public.cuenta_items where comanda_id = c.id)
+    || ' · directo ' || (select count(*) from public.cuenta_items where cuenta_id = c.cuenta_id and comanda_id is null);
+end $$;
+create function pg_temp.anular_bebida() returns text language plpgsql as $$
+declare c public.comandas; v_item uuid;
+begin
+  c := public.enviar_comanda(pg_temp.mesa('ZZ Mesa 1'), pg_temp.items('ZZ-LATA', 1));
+  select id into v_item from public.cuenta_items where cuenta_id = pg_temp.cuenta('ZZ Mesa 1') and comanda_id is null;
+  perform public.anular_item_cuenta(v_item, null);
+  return (select anulado::text from public.cuenta_items where id = v_item);
+end $$;
+-- Crea una comanda de plato y aplica los estados en orden; devuelve el estado final
+create function pg_temp.recorrer(p_estados text[]) returns text language plpgsql as $$
+declare c public.comandas; e text;
+begin
+  c := public.enviar_comanda(pg_temp.mesa('ZZ Mesa 1'), pg_temp.items('ZZ-PLATO', 1));
+  foreach e in array p_estados loop
+    c := public.cambiar_estado_comanda(c.id, e);
+  end loop;
+  return c.estado;
+end $$;
+
+select pg_temp.probar('pedido solo de bebidas no crea comanda', '{{USUARIO_TIENDA}}', 'OK comanda ninguna · ítems sin cocina 1',
+  $q$ select pg_temp.solo_bebidas() $q$);
+select pg_temp.probar('pedido mixto: a cocina solo el plato', '{{USUARIO_TIENDA}}', 'OK en cocina 1 · directo 1',
+  $q$ select pg_temp.mixto() $q$);
+select pg_temp.probar('quitar una bebida no pide motivo', '{{USUARIO_TIENDA}}', 'OK true',
+  $q$ select pg_temp.anular_bebida() $q$);
+select pg_temp.probar('estados en orden hasta entregada', '{{USUARIO_TIENDA}}', 'OK entregada',
+  $q$ select pg_temp.recorrer(array['preparando', 'lista', 'entregada']) $q$);
+select pg_temp.probar('cocina retrocede un paso', '{{USUARIO_TIENDA}}', 'OK pendiente',
+  $q$ select pg_temp.recorrer(array['preparando', 'pendiente']) $q$);
+select pg_temp.probar('deshacer una entrega vuelve a lista', '{{USUARIO_TIENDA}}', 'OK lista',
+  $q$ select pg_temp.recorrer(array['preparando', 'lista', 'entregada', 'lista']) $q$);
+select pg_temp.probar('repetir el estado actual no falla', '{{USUARIO_TIENDA}}', 'OK preparando',
+  $q$ select pg_temp.recorrer(array['preparando', 'preparando']) $q$);
+select pg_temp.probar('saltar de pendiente a lista se rechaza', '{{USUARIO_TIENDA}}', 'ERROR P0001: No se puede pasar',
+  $q$ select pg_temp.recorrer(array['lista']) $q$);
+select pg_temp.probar('entregada no vuelve a pendiente', '{{USUARIO_TIENDA}}', 'ERROR P0001: No se puede pasar',
+  $q$ select pg_temp.recorrer(array['preparando', 'lista', 'entregada', 'pendiente']) $q$);
+
 -- Módulo apagado: nadie usa mesas
 update public.empresas set modulos = array_remove(modulos, 'mesas') where id = (select emp from zz_ctx);
 select pg_temp.probar('módulo mesas apagado', '{{USUARIO_ADMIN}}', 'ERROR P0001: El módulo mesas no está habilitado',

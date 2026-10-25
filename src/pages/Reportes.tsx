@@ -27,6 +27,7 @@ import {
   formatDiaCorto,
   formatMiles
 } from '@/lib/format'
+import { etiquetaMedio } from '@/lib/mediosPago'
 
 type Periodo = 'hoy' | '7d' | '28d' | 'mes' | 'mes_ant' | 'rango'
 
@@ -39,7 +40,6 @@ const PERIODOS: { key: Periodo; label: string }[] = [
   { key: 'rango', label: 'Rango' }
 ]
 
-const MEDIO_LABEL: Record<string, string> = { efectivo: 'Efectivo', debito: 'Débito', transferencia: 'Transferencia' }
 
 function rangoDe(p: Periodo, desde: string | null, hasta: string | null): [string, string] {
   const hoy = new Date()
@@ -484,7 +484,7 @@ export function Reportes() {
                 <div className="space-y-5">
                   <ListaBarras
                     titulo="Medios de pago"
-                    filas={rep.medios.map((m) => ({ clave: m.medio, label: MEDIO_LABEL[m.medio] ?? m.medio, sub: `${formatMiles(m.tickets)} ventas`, monto: m.monto }))}
+                    filas={rep.medios.map((m) => ({ clave: m.medio, label: etiquetaMedio(m.medio), sub: `${formatMiles(m.tickets)} ventas`, monto: m.monto }))}
                     conPorcentaje
                   />
                   <ListaBarras

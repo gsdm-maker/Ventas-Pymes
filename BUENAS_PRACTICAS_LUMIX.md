@@ -25,6 +25,7 @@ Fuente viva del código: `supabase/migrations/`, `supabase/functions/admin-users
 13. [Diferencias respecto a Lumix](#13-diferencias-respecto-a-lumix)
 14. [Checklist final](#14-checklist-final)
 15. [Estado actual del proyecto](#15-estado-actual-del-proyecto)
+16. [Patrones de diseño](#16-patrones-de-diseño)
 
 ---
 
@@ -587,6 +588,29 @@ con IVA y validación de medio de pago, salida, transferencia (crear→despachar
 por stock insuficiente, aislamiento RLS entre empresas y bloqueo de `anon` en RPC.
 
 ---
+
+---
+
+## 16. Patrones de diseño
+
+Referencia: catálogo de [Refactoring.Guru](https://refactoring.guru/es/design-patterns). Estos son
+los patrones que **ya usa** el sistema; un cambio nuevo debe seguir el mismo criterio en vez de
+inventar otro. (Revisado el 25-10-2026.)
+
+| Patrón | Dónde | Regla para cambios futuros |
+|---|---|---|
+| **Command** | Cola offline (`core/offline/db.ts` + `EJECUTORES` en `SyncProvider.tsx`): cada venta o salida se guarda como operación y se ejecuta al volver la red. | Una operación offline nueva = una entrada en `EJECUTORES` + `uuid_local` en su RPC para que reintentar no la duplique. |
+| **Chain of Responsibility** | Permisos: `evaluarCapacidad()` (front) y `_evaluar_cap()` (SQL), en este orden: módulo apagado → owner → ajuste del usuario → admin de empresa → puesto. También `_estado_ia()` (asistente: cuenta → empresa → plan → permiso → topes). | El orden es contrato: si cambia en un lado, cambia en el otro. `npm run verificar:catalogo` revisa que el catálogo calce. |
+| **State** | Comandas (`_transicion_comanda`, 0024): pendiente ⇄ preparando ⇄ lista ⇄ entregada, de a un paso. Transferencias: pendiente_despacho → en_transito → recibida (o recibida_con_diferencias). Cuentas: abierta → cobrada / anulada. | Cada flujo con estados declara sus transiciones permitidas en la base y rechaza el resto. Nunca un `update estado = …` libre desde la app. |
+| **Strategy** | Medios de pago (`src/lib/mediosPago.ts`): cada medio define si pide referencia y si da vuelto. Herramientas del asistente (`ejecutar()` en la Edge Function `asistente`). | Un medio de pago nuevo se agrega solo en `MEDIOS_PAGO` (y en el CHECK de `ventas`). Una herramienta nueva de IA = su esquema + su caso en `ejecutar()`, sin tocar el ciclo de conversación. |
+| **Facade** | `core/data/api.ts` esconde Supabase detrás de funciones con nombre de negocio. | Las pantallas piden datos a `api.ts`, no con `supabase.from(...)` directo (hay deuda: ver `PLAN_MEJORAS.md` F6). |
+| **Proxy (de protección)** | Edge Functions `admin-users` y `asistente`: se ponen delante de Auth y de OpenAI y verifican sesión, permisos, plan y cupo. | Ningún servicio con clave secreta se llama desde el navegador. La función repite el aislamiento porque `service_role` salta RLS. |
+| **Observer** | Realtime (`useTiempoReal`) y contextos de React (`AuthProvider`, `SyncProvider`). | Suscribirse en un solo lugar y limpiar al desmontar. |
+| **Singleton** | Cliente de Supabase (`core/supabase/client.ts`). | Un solo cliente por app; no crear otros con la anon key. |
+
+**Señales de alerta** (refactorizar antes de agregar más): pantallas de más de ~600 líneas
+(`POS.tsx`, `Reportes.tsx`, `Mesas.tsx`), la misma lista o regla copiada en dos archivos, y
+`if/else` por tipo que crece con cada caso nuevo (pasarlo a una tabla como `EJECUTORES` o `MEDIOS_PAGO`).
 
 _Documento derivado de las buenas prácticas de `OPERA AI/Lumixapp/` y ajustado a la
 implementación real de Mi Socio Pyme (`supabase/migrations/0001`–`0007`,
