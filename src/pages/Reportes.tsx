@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react'
-import { useSearchParams } from 'react-router-dom'
+import { Link, useSearchParams } from 'react-router-dom'
 import {
   CartesianGrid,
   Line,
@@ -10,8 +10,8 @@ import {
   YAxis,
   type TooltipProps
 } from 'recharts'
-import { AlertTriangle, Download, Minus, Package, Table2, TrendingDown, TrendingUp, LineChart as IconoLinea } from 'lucide-react'
-import { listarProductosConStock, reportePropinas, reporteVentas, type FilaPropina } from '@/core/data/api'
+import { AlertTriangle, Download, FlaskConical, Minus, Package, Table2, TrendingDown, TrendingUp, LineChart as IconoLinea } from 'lucide-react'
+import { contarVentasSimuladas, listarProductosConStock, reportePropinas, reporteVentas, type FilaPropina } from '@/core/data/api'
 import { useAuth } from '@/core/auth/AuthProvider'
 import type { ProductoConStock, ReporteVentas } from '@/core/types'
 import { Card, CardBody, CardHeader } from '@/components/ui/Card'
@@ -88,6 +88,7 @@ export function Reportes() {
   const [rep, setRep] = useState<ReporteVentas | null>(null)
   const [inventario, setInventario] = useState<ProductoConStock[]>([])
   const [cargando, setCargando] = useState(true)
+  const [simuladas, setSimuladas] = useState(0)
   const [error, setError] = useState<string | null>(null)
   const [vistaTabla, setVistaTabla] = useState(false)
 
@@ -110,6 +111,9 @@ export function Reportes() {
       .then((r) => vigente && setRep(r))
       .catch((e) => vigente && setError((e as Error).message))
       .finally(() => vigente && setCargando(false))
+    contarVentasSimuladas(desde, hasta, tienda)
+      .then((n) => vigente && setSimuladas(n))
+      .catch(() => vigente && setSimuladas(0))
     return () => {
       vigente = false
     }
@@ -212,8 +216,15 @@ export function Reportes() {
             <Input type="date" aria-label="Hasta" className="w-auto" value={hasta} min={desde} max={aDia(new Date())} onChange={(e) => e.target.value && setParam({ hasta: e.target.value })} />
           </div>
         )}
-        <Select aria-label="Tienda" className="w-auto" value={tienda ?? ''} onChange={(e) => setParam({ tienda: e.target.value || null })}>
-          <option value="">Todas las tiendas</option>
+        {/* Filtro propio del reporte: no depende de la ubicación elegida en la barra superior */}
+        <Select
+          aria-label="Tienda del reporte"
+          title="Filtro propio del reporte (no depende de la ubicación de la barra superior)"
+          className="w-auto"
+          value={tienda ?? ''}
+          onChange={(e) => setParam({ tienda: e.target.value || null })}
+        >
+          <option value="">Reporte: todas las tiendas</option>
           {rep?.tiendas.map((x) => (
             <option key={x.id} value={x.id}>
               {x.nombre}
@@ -221,6 +232,17 @@ export function Reportes() {
           ))}
         </Select>
       </div>
+
+      {simuladas > 0 && (
+        <div className="mb-4 flex items-start gap-2 rounded-xl border border-warning/30 bg-warning-soft px-4 py-3 text-xs text-warning">
+          <FlaskConical size={15} className="mt-0.5 shrink-0" aria-hidden />
+          <span>
+            Este período incluye <b>{simuladas.toLocaleString('es-CL')} ventas simuladas</b> (historia de demostración
+            para probar la proyección). Para ver solo ventas reales, bórralas en{' '}
+            <Link to="/configuracion" className="font-medium underline">Configuración → Historia simulada</Link>.
+          </span>
+        </div>
+      )}
 
       {error ? (
         <EmptyState icon={<AlertTriangle size={28} aria-hidden />} title="No se pudo cargar el reporte" description={error} />

@@ -7,7 +7,8 @@ import {
   CloudOff,
   RefreshCw,
   Check,
-  ShieldCheck
+  ShieldCheck,
+  Menu
 } from 'lucide-react'
 import { useAuth } from '@/core/auth/AuthProvider'
 import { useSync } from '@/core/offline/SyncProvider'
@@ -20,6 +21,7 @@ import { PLAN_LABEL } from '@/core/auth/plan'
 import { CampanaAlertas } from '@/components/reposicion/AlertasStock'
 import { TituloSlotContext } from '@/components/layout/tituloSlot'
 import { LoadingState } from '@/components/ui/Feedback'
+import { Modal } from '@/components/ui/Modal'
 
 function Logo({ compact }: { compact?: boolean }) {
   return (
@@ -87,7 +89,7 @@ function UbicacionSelector() {
       value={ubicacionActiva ?? ''}
       onChange={(e) => setUbicacionActiva(e.target.value)}
       aria-label="Ubicación activa"
-      className="h-9 w-36 min-w-0 py-0 text-xs sm:w-auto sm:min-w-40"
+      className="h-9 w-full min-w-0 max-w-56 py-0 text-xs sm:w-auto sm:min-w-40"
     >
       {ubicaciones.map((u) => (
         <option key={u.id} value={u.id}>
@@ -104,9 +106,11 @@ export function AppShell() {
   const { tema, toggleTema } = useTheme()
   const navigate = useNavigate()
   const [tituloSlot, setTituloSlot] = useState<HTMLElement | null>(null)
+  const [menuMovil, setMenuMovil] = useState(false)
 
   const visibles = NAV.filter((item) => !item.cap || can(item.cap))
-  const mobileItems = visibles.filter((i) => i.mobile).slice(0, 5)
+  // Barra inferior del celular: 4 accesos directos + «Más» con todos los módulos
+  const mobileItems = visibles.filter((i) => i.mobile).slice(0, 4)
 
   const iniciales = (profile?.nombre || profile?.email || '?')
     .split(' ')
@@ -216,7 +220,7 @@ export function AppShell() {
           </div>
           {/* Título de la pantalla (lo coloca PageHeader); en móvil queda dentro de la página */}
           <div ref={setTituloSlot} className="hidden min-w-0 flex-1 lg:flex" />
-          <div className="flex items-center gap-2">
+          <div className="flex min-w-0 flex-1 items-center justify-end gap-2">
             <UbicacionSelector />
             <CampanaAlertas />
             <SyncIndicator />
@@ -227,14 +231,6 @@ export function AppShell() {
               title="Cambiar tema"
             >
               {tema === 'light' ? <Moon size={16} /> : <Sun size={16} />}
-            </button>
-            <button
-              onClick={() => void cerrarSesion()}
-              className="grid size-9 place-items-center rounded-lg border border-border text-fg-muted hover:bg-surface lg:hidden"
-              aria-label="Cerrar sesión"
-              title="Cerrar sesión"
-            >
-              <LogOut size={16} />
             </button>
           </div>
         </header>
@@ -274,17 +270,80 @@ export function AppShell() {
               <span className="max-w-[72px] truncate">{item.label.split(' ')[0]}</span>
             </NavLink>
           ))}
-          {profile?.es_owner && (
-            <button
-              onClick={() => navigate('/admin')}
-              className="flex flex-1 flex-col items-center gap-0.5 py-2.5 text-[10px] font-medium text-fg-muted"
-            >
-              <ShieldCheck size={20} />
-              Admin
-            </button>
-          )}
+          <button
+            onClick={() => setMenuMovil(true)}
+            aria-label="Más módulos"
+            className="flex flex-1 flex-col items-center gap-0.5 py-2.5 text-[10px] font-medium text-fg-muted active:text-fg"
+          >
+            <Menu size={20} />
+            Más
+          </button>
         </nav>
       )}
+
+      {/* Menú completo en el celular: todos los módulos habilitados para el usuario */}
+      <Modal open={menuMovil} onClose={() => setMenuMovil(false)} title="Menú">
+        <nav className="space-y-4">
+          {GRUPOS.map((g) => {
+            const items = visibles.filter((i) => i.grupo === g.key)
+            if (!items.length) return null
+            return (
+              <div key={g.key}>
+                <p className="pb-1.5 text-[11px] font-semibold uppercase tracking-wider text-fg-faint">{g.label}</p>
+                <div className="grid grid-cols-2 gap-2">
+                  {items.map((item) => (
+                    <NavLink
+                      key={item.to}
+                      to={item.to}
+                      end={item.to === '/'}
+                      onClick={() => setMenuMovil(false)}
+                      className={({ isActive }) =>
+                        cn(
+                          'flex items-center gap-2 rounded-xl border px-3 py-2.5 text-sm',
+                          isActive ? 'border-accent/40 bg-accent-soft font-medium text-accent' : 'border-border text-fg-body active:bg-surface'
+                        )
+                      }
+                    >
+                      <item.icon size={17} className="shrink-0" />
+                      <span className="line-clamp-2 leading-tight">{item.label}</span>
+                    </NavLink>
+                  ))}
+                </div>
+              </div>
+            )
+          })}
+          {profile?.es_owner && (
+            <button
+              onClick={() => {
+                setMenuMovil(false)
+                navigate('/admin')
+              }}
+              className="flex w-full items-center gap-2 rounded-xl border border-border px-3 py-2.5 text-sm text-fg-body active:bg-surface"
+            >
+              <ShieldCheck size={17} /> Consola general
+            </button>
+          )}
+          <button
+            onClick={toggleTema}
+            className="flex w-full items-center gap-2 rounded-xl border border-border px-3 py-2.5 text-sm text-fg-body active:bg-surface"
+          >
+            {tema === 'light' ? <Moon size={17} /> : <Sun size={17} />} Tema {tema === 'light' ? 'oscuro' : 'claro'}
+          </button>
+          <div className="flex items-center gap-2 border-t border-border pt-4">
+            <span className="grid size-8 shrink-0 place-items-center rounded-full bg-accent text-xs font-semibold text-on-accent">{iniciales}</span>
+            <div className="min-w-0 flex-1">
+              <p className="truncate text-sm font-medium text-fg">{profile?.nombre}</p>
+              <p className="truncate text-xs text-fg-muted">{empresa?.nombre}</p>
+            </div>
+            <button
+              onClick={() => void cerrarSesion()}
+              className="flex items-center gap-1.5 rounded-lg border border-border px-3 py-2 text-sm text-fg-body active:bg-surface"
+            >
+              <LogOut size={16} /> Salir
+            </button>
+          </div>
+        </nav>
+      </Modal>
     </div>
   )
 }

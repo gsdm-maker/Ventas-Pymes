@@ -18,6 +18,8 @@ import { ConfigReposicion } from '@/components/reposicion/ConfigReposicion'
 import { cn } from '@/lib/cn'
 import { formatFecha, hace } from '@/lib/format'
 
+type Tabla = 'categorias' | 'motivos_salida' | 'proveedores'
+
 export function Configuracion() {
   const { empresa, can, refrescar } = useAuth()
   const { ultimaSync, pendientes, online } = useSync()
@@ -31,7 +33,8 @@ export function Configuracion() {
   const [motivos, setMotivos] = useState<{ id: string; nombre: string }[]>([])
   const [proveedores, setProveedores] = useState<{ id: string; nombre: string }[]>([])
   const [ubicaciones, setUbicaciones] = useState<{ id: string; nombre: string; tipo: string; activa: boolean }[]>([])
-  const [nuevo, setNuevo] = useState('')
+  // Un texto por lista (antes compartían el mismo y lo escrito aparecía en las tres)
+  const [nuevo, setNuevo] = useState<Record<Tabla, string>>({ motivos_salida: '', categorias: '', proveedores: '' })
   const [nuevaUbi, setNuevaUbi] = useState({ nombre: '', tipo: 'tienda' })
 
   async function recargar() {
@@ -59,13 +62,14 @@ export function Configuracion() {
     await refrescar()
   }
 
-  async function agregar(tabla: 'categorias' | 'motivos_salida' | 'proveedores', campo = 'nombre') {
-    if (!nuevo.trim() || !empresa) return
+  async function agregar(tabla: Tabla, campo = 'nombre') {
+    if (!empresa) return
+    if (!nuevo[tabla].trim()) return toast('Escribe un nombre antes de agregar', 'warning')
     const payload: Record<string, unknown> = { empresa_id: empresa.id }
-    payload[campo] = nuevo.trim()
+    payload[campo] = nuevo[tabla].trim()
     const { error } = await supabase.from(tabla).insert(payload)
     if (error) return toast(error.message, 'error')
-    setNuevo('')
+    setNuevo((prev) => ({ ...prev, [tabla]: '' }))
     void recargar()
   }
 
@@ -82,7 +86,8 @@ export function Configuracion() {
   }
 
   async function agregarUbicacion() {
-    if (!nuevaUbi.nombre.trim() || !empresa) return
+    if (!empresa) return
+    if (!nuevaUbi.nombre.trim()) return toast('Escribe el nombre de la ubicación', 'warning')
     const { error } = await supabase.from('ubicaciones').insert({ empresa_id: empresa.id, nombre: nuevaUbi.nombre.trim(), tipo: nuevaUbi.tipo })
     if (error) return toast(error.message, 'error')
     setNuevaUbi({ nombre: '', tipo: 'tienda' })
@@ -227,7 +232,7 @@ export function Configuracion() {
           <CardHeader title="Motivos de salida" />
           <CardBody className="space-y-3">
             <div className="flex gap-2">
-              <Input placeholder="Nuevo motivo" value={nuevo} onChange={(e) => setNuevo(e.target.value)} />
+              <Input placeholder="Nuevo motivo" value={nuevo.motivos_salida} onChange={(e) => setNuevo({ ...nuevo, motivos_salida: e.target.value })} />
               <Button variant="secondary" onClick={() => void agregar('motivos_salida')} disabled={!admin}><Plus size={16} /></Button>
             </div>
             <div className="divide-y divide-border">
@@ -245,7 +250,7 @@ export function Configuracion() {
           <CardHeader title="Categorías" />
           <CardBody className="space-y-3">
             <div className="flex gap-2">
-              <Input placeholder="Nueva categoría" value={nuevo} onChange={(e) => setNuevo(e.target.value)} />
+              <Input placeholder="Nueva categoría" value={nuevo.categorias} onChange={(e) => setNuevo({ ...nuevo, categorias: e.target.value })} />
               <Button variant="secondary" onClick={() => void agregar('categorias')} disabled={!admin}><Plus size={16} /></Button>
             </div>
             <div className="flex flex-wrap gap-2">
@@ -263,7 +268,7 @@ export function Configuracion() {
           <CardHeader title="Proveedores" />
           <CardBody className="space-y-3">
             <div className="flex gap-2">
-              <Input placeholder="Nuevo proveedor" value={nuevo} onChange={(e) => setNuevo(e.target.value)} />
+              <Input placeholder="Nuevo proveedor" value={nuevo.proveedores} onChange={(e) => setNuevo({ ...nuevo, proveedores: e.target.value })} />
               <Button variant="secondary" onClick={() => void agregar('proveedores')} disabled={!admin}><Plus size={16} /></Button>
             </div>
             <div className="divide-y divide-border">

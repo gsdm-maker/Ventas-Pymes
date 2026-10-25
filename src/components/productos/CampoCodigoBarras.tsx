@@ -5,6 +5,7 @@ import { formatCLP } from '@/lib/format'
 
 /** Código de barras: se escanea/escribe el del fabricante o se genera uno interno. */
 export function CampoCodigoBarras({
+  id,
   valor,
   usados,
   nombre,
@@ -12,6 +13,8 @@ export function CampoCodigoBarras({
   disabled,
   onChange
 }: {
+  /** Lo asigna Field para asociar la etiqueta al campo */
+  id?: string
   valor: string
   /** Códigos ya usados en la empresa (para no repetir) */
   usados: Set<string>
@@ -44,6 +47,7 @@ svg{width:100%;height:auto}@page{size:62mm 40mm;margin:0}</style></head>
     <div className="space-y-2">
       <div className="flex gap-2">
         <Input
+          id={id}
           value={valor}
           inputMode="numeric"
           placeholder="Escanea o escribe el código…"

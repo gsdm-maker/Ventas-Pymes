@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useState } from 'react'
 import { ArrowLeftRight, Search, Package } from 'lucide-react'
 import { useAuth } from '@/core/auth/AuthProvider'
 import { supabase } from '@/core/supabase/client'
@@ -6,11 +6,15 @@ import { listarMovimientos } from '@/core/data/api'
 import type { Movimiento, Producto } from '@/core/types'
 import { Card, CardBody, CardHeader } from '@/components/ui/Card'
 import { Badge } from '@/components/ui/Badge'
+import { Button } from '@/components/ui/Button'
 import { Input, Select } from '@/components/ui/Input'
 import { SidePanel } from '@/components/ui/SidePanel'
 import { EmptyState, LoadingState, PageHeader } from '@/components/ui/Feedback'
 import { cn } from '@/lib/cn'
 import { formatFechaHora } from '@/lib/format'
+
+// Movimientos por página: el historial completo puede tener miles
+const POR_PAGINA = 100
 
 const tipoTono = { entrada: 'success', salida: 'accent', transferencia: 'info', ajuste: 'warning' } as const
 
@@ -92,25 +96,52 @@ function MovimientoDetalleView({ movimiento, ubicaciones }: { movimiento: Movimi
 export function Movimientos() {
   const { ubicaciones } = useAuth()
   const [movs, setMovs] = useState<Movimiento[]>([])
+  const [total, setTotal] = useState(0)
   const [cargando, setCargando] = useState(true)
+  const [cargandoMas, setCargandoMas] = useState(false)
   const [tipo, setTipo] = useState('all')
   const [estado, setEstado] = useState('all')
   const [busqueda, setBusqueda] = useState('')
   const [movimientoSeleccionado, setMovimientoSeleccionado] = useState<Movimiento | null>(null)
 
-  useEffect(() => {
-    listarMovimientos().then(setMovs).finally(() => setCargando(false))
-  }, [])
+  // Los filtros se aplican en el servidor sobre todo el historial (no solo lo descargado)
+  const filtros = {
+    tipo: tipo === 'all' ? undefined : tipo,
+    estado: estado === 'all' ? undefined : estado,
+    referencia: busqueda.trim() || undefined,
+    cantidad: POR_PAGINA
+  }
 
-  const filtrados = useMemo(() => {
-    const t = busqueda.trim().toLowerCase()
-    return movs.filter((m) => {
-      if (tipo !== 'all' && m.tipo !== tipo) return false
-      if (estado !== 'all' && m.estado_sync !== estado) return false
-      if (!t) return true
-      return (m.referencia ?? '').toLowerCase().includes(t)
-    })
-  }, [movs, tipo, estado, busqueda])
+  useEffect(() => {
+    let vigente = true
+    setCargando(true)
+    // La búsqueda espera a que se deje de escribir
+    const t = window.setTimeout(() => {
+      listarMovimientos(filtros)
+        .then((r) => {
+          if (!vigente) return
+          setMovs(r.filas)
+          setTotal(r.total)
+        })
+        .finally(() => vigente && setCargando(false))
+    }, busqueda ? 300 : 0)
+    return () => {
+      vigente = false
+      window.clearTimeout(t)
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [tipo, estado, busqueda])
+
+  async function cargarMas() {
+    setCargandoMas(true)
+    try {
+      const r = await listarMovimientos({ ...filtros, desde: movs.length })
+      setMovs((prev) => [...prev, ...r.filas])
+      setTotal(r.total)
+    } finally {
+      setCargandoMas(false)
+    }
+  }
 
   const nombreUbi = (id: string | null) => (id ? ubicaciones.find((u) => u.id === id)?.nombre ?? '—' : '—')
 
@@ -140,7 +171,7 @@ export function Movimientos() {
 
       {cargando ? (
         <LoadingState />
-      ) : filtrados.length === 0 ? (
+      ) : movs.length === 0 ? (
         <EmptyState icon={<ArrowLeftRight size={32} />} title="Sin movimientos" description="No hay movimientos que coincidan con los filtros." />
       ) : (
         <Card>
@@ -158,7 +189,7 @@ export function Movimientos() {
                   </tr>
                 </thead>
                 <tbody>
-                  {filtrados.map((m) => (
+                  {movs.map((m) => (
                     <tr
                       key={m.id}
                       role="button"
@@ -183,6 +214,16 @@ export function Movimientos() {
                   ))}
                 </tbody>
               </table>
+            </div>
+            <div className="flex flex-wrap items-center justify-between gap-3 border-t border-border px-4 py-3 text-xs text-fg-muted">
+              <span className="tabular-nums">
+                Mostrando {movs.length.toLocaleString('es-CL')} de {total.toLocaleString('es-CL')} movimientos
+              </span>
+              {movs.length < total && (
+                <Button size="sm" variant="secondary" onClick={() => void cargarMas()} disabled={cargandoMas}>
+                  {cargandoMas ? 'Cargando…' : `Cargar ${Math.min(POR_PAGINA, total - movs.length)} más`}
+                </Button>
+              )}
             </div>
           </CardBody>
         </Card>

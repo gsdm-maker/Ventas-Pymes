@@ -1,5 +1,8 @@
 import {
+  cloneElement,
   forwardRef,
+  isValidElement,
+  useId,
   type InputHTMLAttributes,
   type SelectHTMLAttributes,
   type TextareaHTMLAttributes,
@@ -23,21 +26,27 @@ export function Field({
   required?: boolean
   children: ReactNode
 }) {
+  // Etiqueta asociada de forma explícita (for/id) al control, y la ayuda o el error como
+  // descripción: así lo anuncian todos los lectores de pantalla
+  const autoId = useId()
+  const control = isValidElement<{ id?: string; 'aria-describedby'?: string }>(children) ? children : null
+  const id = control?.props.id ?? autoId
+  const ayudaId = error || hint ? `${id}-ayuda` : undefined
   return (
-    <label className="block">
+    <div className="block">
       {label && (
-        <span className="mb-1.5 flex items-center gap-1 text-xs font-medium text-fg-body">
+        <label htmlFor={control ? id : undefined} className="mb-1.5 flex items-center gap-1 text-xs font-medium text-fg-body">
           {label}
-          {required && <span className="text-danger">*</span>}
-        </span>
+          {required && <span className="text-danger" aria-hidden>*</span>}
+        </label>
       )}
-      {children}
+      {control ? cloneElement(control, { id, 'aria-describedby': ayudaId }) : children}
       {error ? (
-        <span className="mt-1 block text-xs text-danger">{error}</span>
+        <span id={ayudaId} className="mt-1 block text-xs text-danger">{error}</span>
       ) : hint ? (
-        <span className="mt-1 block text-xs text-fg-muted">{hint}</span>
+        <span id={ayudaId} className="mt-1 block text-xs text-fg-muted">{hint}</span>
       ) : null}
-    </label>
+    </div>
   )
 }
 

@@ -30,7 +30,7 @@ export function Restablecer() {
     if (p1.length < 8) return setError('La contraseña debe tener al menos 8 caracteres')
     if (p1 !== p2) return setError('Las contraseñas no coinciden')
     setCargando(true)
-    const { error: err } = await supabase.auth.updateUser({ password: p1 })
+    const { error: err } = await supabase.auth.updateUser({ password: p1, data: { must_change_password: false } })
     if (err) {
       setCargando(false)
       return setError(err.message)

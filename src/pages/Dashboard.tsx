@@ -191,11 +191,19 @@ export function Dashboard() {
                           <stop offset="100%" stopColor="rgb(var(--accent))" stopOpacity={0} />
                         </linearGradient>
                       </defs>
-                      <XAxis dataKey="fecha" hide />
+                      <XAxis
+                        dataKey="fecha"
+                        tick={{ fontSize: 11, fill: 'rgb(var(--fg-muted))' }}
+                        tickFormatter={(v: string) => `${v.slice(8, 10)}-${v.slice(5, 7)}`}
+                        interval="preserveStartEnd"
+                        minTickGap={16}
+                      />
                       <YAxis width={28} tick={{ fontSize: 11, fill: 'rgb(var(--fg-muted))' }} />
                       <Tooltip contentStyle={estiloTooltip} labelFormatter={(v) => formatFecha(String(v))} />
-                      <Area type="monotone" dataKey="entradas" stroke="rgb(var(--success))" fill="url(#gb)" strokeWidth={2} />
-                      <Area type="monotone" dataKey="salidas" stroke="rgb(var(--accent))" fillOpacity={0} strokeWidth={2} />
+                      {/* Sin animación: si el contenedor cambia de ancho al cargar, la animación quedaba
+                          congelada y las series se veían amontonadas a la izquierda */}
+                      <Area type="monotone" dataKey="entradas" name="Entradas" stroke="rgb(var(--success))" fill="url(#gb)" strokeWidth={2} isAnimationActive={false} />
+                      <Area type="monotone" dataKey="salidas" name="Salidas" stroke="rgb(var(--accent))" fillOpacity={0} strokeWidth={2} isAnimationActive={false} />
                     </AreaChart>
                   </ResponsiveContainer>
                 </div>
@@ -211,7 +219,7 @@ export function Dashboard() {
                       <XAxis dataKey="ubicacion" tick={{ fontSize: 11, fill: 'rgb(var(--fg-muted))' }} />
                       <YAxis width={36} tick={{ fontSize: 11, fill: 'rgb(var(--fg-muted))' }} />
                       <Tooltip contentStyle={estiloTooltip} />
-                      <Bar dataKey="unidades" fill="rgb(var(--accent))" radius={[6, 6, 0, 0]} />
+                      <Bar dataKey="unidades" name="Unidades" fill="rgb(var(--accent))" radius={[6, 6, 0, 0]} maxBarSize={56} isAnimationActive={false} />
                     </BarChart>
                   </ResponsiveContainer>
                 </div>

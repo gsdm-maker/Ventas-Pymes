@@ -62,7 +62,7 @@ const medios: { key: Medio; label: string; icon: typeof Banknote; refLabel: stri
 ]
 
 export function POS() {
-  const { ubicacionActiva, ubicaciones } = useAuth()
+  const { ubicacionActiva, ubicaciones, profile } = useAuth()
   const { online, encolarOperacion } = useSync()
   const toast = useToast()
   const [productos, setProductos] = useState<ProductoConStock[]>([])
@@ -76,6 +76,37 @@ export function POS() {
   const [cantidadEleccion, setCantidadEleccion] = useState(1)
   const buscador = useRef<HTMLInputElement>(null)
   const [lineas, setLineas] = useState<Linea[]>([])
+
+  // El ticket en curso sobrevive a una recarga: queda en el dispositivo por usuario y tienda,
+  // y se borra al cobrar (o al vaciarlo)
+  const claveTicket = profile && ubicacionActiva ? `misociopyme:ticket:${profile.id}:${ubicacionActiva}` : null
+  const recienRestaurado = useRef(false)
+  useEffect(() => {
+    if (!claveTicket) return
+    let guardado: Linea[] = []
+    try {
+      guardado = JSON.parse(localStorage.getItem(claveTicket) ?? '[]') as Linea[]
+    } catch {
+      guardado = []
+    }
+    // El guardado de este mismo render llevaría el ticket de la tienda anterior: se omite
+    recienRestaurado.current = true
+    // JSON guarda Infinity (productos sin control de stock) como null
+    setLineas(Array.isArray(guardado) ? guardado.map((l) => ({ ...l, disponible: l.disponible ?? Number.POSITIVE_INFINITY })) : [])
+  }, [claveTicket])
+  useEffect(() => {
+    if (!claveTicket) return
+    if (recienRestaurado.current) {
+      recienRestaurado.current = false
+      return
+    }
+    try {
+      if (lineas.length) localStorage.setItem(claveTicket, JSON.stringify(lineas))
+      else localStorage.removeItem(claveTicket)
+    } catch {
+      // Sin almacenamiento (modo privado): el ticket solo vive en memoria
+    }
+  }, [lineas, claveTicket])
   const [descuentoTipo, setDescuentoTipo] = useState<'porcentaje' | 'monto'>('porcentaje')
   const [descuentoValor, setDescuentoValor] = useState(0)
   const [medio, setMedio] = useState<Medio>('efectivo')
@@ -220,8 +251,14 @@ export function POS() {
   const { neto, iva } = desglosarIVA(total)
 
   const referenciaRequerida = medio !== 'efectivo'
+  // Efectivo: si se ingresó con cuánto paga, debe alcanzar. Una venta en $0 no se cobra.
+  const faltaEfectivo = medio === 'efectivo' && recibido > 0 && recibido < total
   const puedeCobrar =
-    lineas.length > 0 && (!referenciaRequerida || referencia.trim().length > 0) && !enviando
+    lineas.length > 0 &&
+    total > 0 &&
+    !faltaEfectivo &&
+    (!referenciaRequerida || referencia.trim().length > 0) &&
+    !enviando
 
   async function finalizar() {
     if (!ubicacionActiva) return
@@ -675,7 +712,11 @@ function TicketPanel({
             placeholder="0"
             value={descuentoValor || ''}
             // La base recibe un entero: un "12.5" haría fallar la venta (y la cola offline)
-            onChange={(e) => setDescuentoValor(Math.max(0, Math.round(Number(e.target.value) || 0)))}
+            // Tope: 100 % o el subtotal del ticket
+            onChange={(e) => {
+              const v = Math.max(0, Math.round(Number(e.target.value) || 0))
+              setDescuentoValor(Math.min(v, descuentoTipo === 'porcentaje' ? 100 : bruto))
+            }}
             className="min-w-0 flex-1 bg-transparent px-2 text-right text-sm tabular-nums text-fg outline-none placeholder:text-fg-faint"
           />
           <div role="group" aria-label="Tipo de descuento" className="flex border-l border-border">
@@ -683,7 +724,10 @@ function TicketPanel({
               <button
                 key={t}
                 type="button"
-                onClick={() => setDescuentoTipo(t)}
+                onClick={() => {
+                  setDescuentoTipo(t)
+                  if (t === 'porcentaje' && descuentoValor > 100) setDescuentoValor(100)
+                }}
                 aria-pressed={descuentoTipo === t}
                 aria-label={t === 'porcentaje' ? 'Descuento en porcentaje' : 'Descuento en pesos'}
                 className={cn(
@@ -792,6 +836,9 @@ function TicketPanel({
           {enviando ? 'Registrando…' : 'Cobrar'}
           <kbd className="ml-1 hidden rounded border border-current/30 px-1 text-[10px] font-normal opacity-70 lg:inline">F9</kbd>
         </Button>
+        {lineas.length > 0 && total <= 0 && (
+          <p className="text-center text-xs text-danger">Con ese descuento la venta queda en $0: no se puede cobrar.</p>
+        )}
         {!online && (
           <p className="flex items-center justify-center gap-1.5 text-[11px] text-warning">
             <CloudOff size={12} />

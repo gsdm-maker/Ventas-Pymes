@@ -116,6 +116,8 @@ select pg_temp.probar('venta enviando precio_unitario = 1', '{{USUARIO_TIENDA}}'
 select pg_temp.probar('admin desactiva a otro admin directo', '{{USUARIO_ADMIN}}', 'ERROR P0001',
   $q$ with u as (update public.profiles set activo = false where email = '{{USUARIO_TIENDA}}' returning 1) select count(*)::text from u $q$,
   $p$ update public.profiles set role = 'admin' where email = '{{USUARIO_TIENDA}}' $p$);
+select pg_temp.probar('venta con 100 % de descuento (total $0)', '{{USUARIO_TIENDA}}', 'ERROR P0001',
+  replace(pg_temp.sql_venta(null), '''monto'', 0', '''porcentaje'', 100'));
 select pg_temp.probar('recibir 500 de 1 enviado', '{{USUARIO_ADMIN}}', 'ERROR P0001',
   $q$ select pg_temp.recibir(500) $q$);
 

@@ -525,7 +525,7 @@ function DetalleReposicion({ f }: { f: FilaReposicion }) {
                   formatter={(v: number) => [v.toFixed(1), 'unidades']}
                   contentStyle={{ background: 'rgb(var(--panel))', border: '1px solid rgb(var(--border))', borderRadius: 12, fontSize: 12 }}
                 />
-                <Bar dataKey="venta" radius={[6, 6, 0, 0]}>
+                <Bar dataKey="venta" radius={[6, 6, 0, 0]} isAnimationActive={false}>
                   {perfil.map((p) => (
                     <Cell key={p.dia} fill={p.enPeriodo ? 'rgb(var(--accent))' : 'rgb(var(--border-strong))'} />
                   ))}

@@ -7,8 +7,8 @@ import { Restablecer } from '@/pages/Restablecer'
 
 // Cada pantalla se descarga al entrar a ella (el service worker igual las guarda todas para
 // usarlas sin conexión). Así el login y el POS no bajan, por ejemplo, la librería de gráficos.
-const pagina = <T extends Record<string, ComponentType>>(cargar: () => Promise<T>, nombre: keyof T) =>
-  lazy(() => cargar().then((m) => ({ default: m[nombre] })))
+const pagina = <M,>(cargar: () => Promise<M>, nombre: keyof M) =>
+  lazy(async () => ({ default: (await cargar())[nombre] as ComponentType }))
 
 const Dashboard = pagina(() => import('@/pages/Dashboard'), 'Dashboard')
 const POS = pagina(() => import('@/pages/POS'), 'POS')

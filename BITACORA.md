@@ -435,6 +435,23 @@ control de stock con trazabilidad.
 - **Copia de stock del POS siempre al día (24-10-2026):** además de al abrir, al cambiar de tienda y tras cada
   venta, ahora se renueva cada 5 min con conexión, al volver la conexión (3 s después, para que primero suba la cola
   offline) y al volver a la pestaña. Si se corta internet, se vende con un stock de hace como máximo 5 min.
+- **Informe de QA (25-10-2026)** — correcciones:
+  - **typecheck no revisaba nada**: `tsconfig.json` tiene `files: []` y solo referencias, así que `tsc --noEmit` salía
+    sin mirar el código (también en `npm run build` de Netlify). Ahora `tsc -p tsconfig.app.json --noEmit`; se
+    corrigieron los errores que estaban ocultos (carga diferida, alertas, ProductoDetalle, Salidas, Sync).
+  - F1 descuento con tope (100 % / subtotal) y Cobrar bloqueado en $0; en la base, trigger que rechaza ventas reales en
+    $0 (`0022`). F4 Cobrar bloqueado si el efectivo no alcanza. F2 menú «Más» en el celular con todos los módulos
+    (y Cerrar sesión). F3 Movimientos filtrados en el servidor y de a 100 con «Cargar más». F5 aviso de ventas simuladas
+    en Reportes; F6 el filtro de tienda del reporte se identifica como propio. F7 fotos de la demo corregidas
+    (`0022`). F8/U6 gráficos del Dashboard sin animación (quedaban congelados a la izquierda) y con fechas.
+  - U1 selectores de Proyección más anchos · U2 avisos arriba · U3 aviso al agregar vacío (y los tres campos de
+    Configuración ya no comparten el texto) · U4 el ticket del POS sobrevive a una recarga · U5 selector y tabla de
+    Inventario en el celular · U7 etiquetas asociadas (for/id) en todos los formularios · S5 COOP · S2 se limpia la
+    marca del token al cambiar la clave.
+  - Falsos positivos verificados: S1 (el admin no puede cambiar plan/prueba/módulos; el 200 era un PATCH sin
+    cambios; casos agregados a `modulos_permisos.sql`), S2 (la app sí obliga a cambiar la clave, por el perfil), U8
+    (no hay scripts en línea). S6: registro público cerrado en Supabase (`disable_signup = true`, 25-10-2026).
+  - `0022` aplicada en producción (25-10-2026).
 - `typecheck`, lint y `vite build` sin errores. Dev server en `http://localhost:5173`.
 
 ## 8. Skills de agente instaladas (`.agents/skills/`)

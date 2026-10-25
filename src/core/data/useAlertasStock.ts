@@ -30,7 +30,9 @@ async function cargar(clave: string, forzar = false) {
   emitir({ cargando: true, clave, filas: estado.clave === clave ? estado.filas : [] })
   enCurso = proyeccionReposicion()
     // Si entretanto cambió el usuario, el resultado ya no es suyo
-    .then((filas) => estado.clave === clave && emitir({ filas, ts: Date.now() }))
+    .then((filas) => {
+      if (estado.clave === clave) emitir({ filas, ts: Date.now() })
+    })
     .catch(() => emitir({ ts: Date.now() }))
     .finally(() => {
       enCurso = null

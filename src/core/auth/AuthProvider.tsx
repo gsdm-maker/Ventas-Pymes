@@ -164,7 +164,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, [cargarDatos])
 
   const cambiarClave = useCallback(async (nueva: string) => {
-    const { error } = await supabase.auth.updateUser({ password: nueva })
+    // También se limpia la marca de los metadatos de la cuenta (la que viaja en el token):
+    // la obligación real la controla profiles.must_change_password
+    const { error } = await supabase.auth.updateUser({ password: nueva, data: { must_change_password: false } })
     if (error) throw new Error(error.message)
     const { data } = await supabase.auth.getUser()
     if (data.user) {

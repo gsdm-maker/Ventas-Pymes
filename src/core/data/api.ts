@@ -206,19 +206,26 @@ export async function resumenDashboard(ubicacionId: string | null): Promise<Resu
   }
 }
 
-export async function listarMovimientos(filtros?: {
-  desde?: string
+/** Una página del historial de movimientos (filtrado en el servidor) y el total que coincide. */
+export async function listarMovimientos(filtros: {
   tipo?: string
-}): Promise<Movimiento[]> {
+  estado?: string
+  referencia?: string
+  desde?: number
+  cantidad?: number
+}): Promise<{ filas: Movimiento[]; total: number }> {
+  const desde = filtros.desde ?? 0
   let q = supabase
     .from('movimientos')
-    .select('*')
+    .select('*', { count: 'exact' })
     .order('created_at', { ascending: false })
-    .limit(300)
-  if (filtros?.tipo) q = q.eq('tipo', filtros.tipo)
-  if (filtros?.desde) q = q.gte('created_at', filtros.desde)
-  const { data } = await q
-  return (data as Movimiento[]) ?? []
+    .range(desde, desde + (filtros.cantidad ?? 100) - 1)
+  if (filtros.tipo) q = q.eq('tipo', filtros.tipo)
+  if (filtros.estado) q = q.eq('estado_sync', filtros.estado)
+  if (filtros.referencia) q = q.ilike('referencia', `%${filtros.referencia.replace(/[%_]/g, '')}%`)
+  const { data, count, error } = await q
+  if (error) throw error
+  return { filas: (data as Movimiento[]) ?? [], total: count ?? 0 }
 }
 
 export async function listarVentas(): Promise<Venta[]> {
@@ -359,6 +366,22 @@ export async function reporteVentas(desde: string, hasta: string, tienda?: strin
   })
   if (error) throw error
   return data as ReporteVentas
+}
+
+/** Ventas simuladas (historia de demo) en el período, para avisarlo en Reportes. */
+export async function contarVentasSimuladas(desde: string, hasta: string, tienda?: string | null): Promise<number> {
+  // Días locales «AAAA-MM-DD»: desde el inicio de `desde` hasta el fin de `hasta`
+  const fin = new Date(`${hasta}T00:00:00`)
+  fin.setDate(fin.getDate() + 1)
+  let q = supabase
+    .from('ventas')
+    .select('id', { count: 'exact', head: true })
+    .eq('simulado', true)
+    .gte('created_at', new Date(`${desde}T00:00:00`).toISOString())
+    .lt('created_at', fin.toISOString())
+  if (tienda) q = q.eq('ubicacion_id', tienda)
+  const { count } = await q
+  return count ?? 0
 }
 
 /** Unidades vendidas por producto en una ubicación (últimos `dias`), para ordenar el POS. */

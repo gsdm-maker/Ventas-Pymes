@@ -91,7 +91,7 @@ export function Sync() {
                 <div key={op.key} className="flex flex-wrap items-center justify-between gap-3 px-5 py-3 text-sm">
                   <div className="min-w-0">
                     <p className="capitalize text-fg">{op.tipo}</p>
-                    <p className="text-xs text-fg-muted">{op.uuid_local.slice(0, 8)}… · guardado {hace(op.creado)}</p>
+                    <p className="text-xs text-fg-muted">{op.uuid_local.slice(0, 8)}… · guardado {hace(new Date(op.creado))}</p>
                     {op.estado === 'rechazado' && op.error && (
                       <p className="mt-1 text-xs text-danger">Rechazada: {op.error}</p>
                     )}

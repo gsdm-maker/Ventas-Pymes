@@ -35,7 +35,7 @@ export function ProductoDetalleView({ id, onClose }: ProductoDetalleViewProps) {
 
       const { data: s } = await supabase.from('stock').select('*').eq('producto_id', id)
       const { data: ubis } = await supabase.from('ubicaciones').select('id, nombre')
-      const map = new globalThis.Map((ubis ?? []).map((u: Ubicacion) => [u.id, u.nombre]))
+      const map = new globalThis.Map((ubis ?? []).map((u: Pick<Ubicacion, 'id' | 'nombre'>) => [u.id, u.nombre]))
       setStock((s ?? []).map((row) => ({ ...row, ubicacion: map.get(row.ubicacion_id) })))
 
       const { data: m } = await supabase

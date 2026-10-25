@@ -261,7 +261,7 @@ export interface Voucher {
   id: string
   empresa_id: string
   numero: string
-  tipo: 'movimiento' | 'venta' | 'transferencia'
+  tipo: 'movimiento' | 'venta' | 'transferencia' | 'devolucion'
   referencia_id: string
   ubicacion_id: string | null
   usuario_id: string | null

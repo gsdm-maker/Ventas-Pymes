@@ -93,10 +93,11 @@ export function Inventario() {
                 <thead>
                   <tr className="border-b border-border text-left text-xs uppercase tracking-wide text-fg-muted">
                     <th className="px-4 py-3 font-medium">Producto</th>
-                    <th className="px-4 py-3 font-medium">Categoría</th>
+                    {/* En el celular solo lo esencial: producto, disponible y estado */}
+                    <th className="hidden px-4 py-3 font-medium md:table-cell">Categoría</th>
                     <th className="px-4 py-3 text-right font-medium">Disponible</th>
-                    <th className="px-4 py-3 text-right font-medium">Mínimo</th>
-                    <th className="px-4 py-3 text-right font-medium">Precio</th>
+                    <th className="hidden px-4 py-3 text-right font-medium sm:table-cell">Mínimo</th>
+                    <th className="hidden px-4 py-3 text-right font-medium sm:table-cell">Precio</th>
                     <th className="px-4 py-3 font-medium">Estado</th>
                   </tr>
                 </thead>
@@ -134,10 +135,10 @@ export function Inventario() {
                           </div>
                         </div>
                       </td>
-                      <td className="px-4 py-3 text-fg-body">{p.categoria_nombre ?? '—'}</td>
+                      <td className="hidden px-4 py-3 text-fg-body md:table-cell">{p.categoria_nombre ?? '—'}</td>
                       <td className="px-4 py-3 text-right tabular-nums text-fg">{p.disponible}</td>
-                      <td className="px-4 py-3 text-right tabular-nums text-fg-muted">{p.stock_minimo}</td>
-                      <td className="px-4 py-3 text-right tabular-nums text-fg">{formatCLP(p.precio_venta)}</td>
+                      <td className="hidden px-4 py-3 text-right tabular-nums text-fg-muted sm:table-cell">{p.stock_minimo}</td>
+                      <td className="hidden px-4 py-3 text-right tabular-nums text-fg sm:table-cell">{formatCLP(p.precio_venta)}</td>
                       <td className="px-4 py-3"><Badge tone={estadoTono[p.estado_stock]} dot>{estadoLabel[p.estado_stock]}</Badge></td>
                     </tr>
                   ))}
