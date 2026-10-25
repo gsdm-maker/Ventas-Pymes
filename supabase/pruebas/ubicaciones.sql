@@ -64,6 +64,10 @@ select pg_temp.probar('no se desactiva la última ubicación activa', '{{USUARIO
 select pg_temp.probar('admin reactiva una ubicación', '{{USUARIO_ADMIN}}', 'OK 1',
   $q$ with u as (update public.ubicaciones set activa = true where id = (select vacia from zz_ctx) returning 1) select count(*)::text from u $q$,
   $p$ update public.ubicaciones set activa = false where id = (select vacia from zz_ctx) $p$);
+select pg_temp.probar('admin renombra una ubicación', '{{USUARIO_ADMIN}}', 'OK ZZ Renombrada',
+  $q$ with u as (update public.ubicaciones set nombre = 'ZZ Renombrada' where id = (select vacia from zz_ctx) returning nombre) select nombre from u $q$);
+select pg_temp.probar('juan (tienda) renombra una ubicación', '{{USUARIO_TIENDA}}', 'OK 0',
+  $q$ with u as (update public.ubicaciones set nombre = 'ZZ Hackeada' where id = (select otra from zz_ctx) returning 1) select count(*)::text from u $q$);
 select pg_temp.probar('juan (tienda) desactiva una ubicación', '{{USUARIO_TIENDA}}', 'OK 0',
   $q$ with u as (update public.ubicaciones set activa = false where id = (select vacia from zz_ctx) returning 1) select count(*)::text from u $q$,
   $p$ insert into public.ubicacion_acceso (user_id, ubicacion_id, empresa_id) select juan_id, vacia, emp from zz_ctx $p$);

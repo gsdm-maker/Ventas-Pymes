@@ -452,6 +452,9 @@ control de stock con trazabilidad.
     cambios; casos agregados a `modulos_permisos.sql`), S2 (la app sí obliga a cambiar la clave, por el perfil), U8
     (no hay scripts en línea). S6: registro público cerrado en Supabase (`disable_signup = true`, 25-10-2026).
   - `0022` aplicada en producción (25-10-2026).
+- **Renombrar tiendas y bodegas (25-10-2026):** lápiz en Configuración → Tiendas y bodegas (edición en la fila, Enter
+  guarda, Esc cancela; no permite nombre vacío ni repetido). El historial no cambia: ventas y movimientos apuntan a
+  la ubicación, no a su nombre. Casos en `ubicaciones.sql` (admin puede, tienda no).
 - `typecheck`, lint y `vite build` sin errores. Dev server en `http://localhost:5173`.
 
 ## 8. Skills de agente instaladas (`.agents/skills/`)

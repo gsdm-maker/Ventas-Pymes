@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { Plus, Trash2, Store, Sparkles, Palette, Cloud, X, Check, Lock } from 'lucide-react'
+import { Plus, Trash2, Store, Sparkles, Palette, Cloud, X, Check, Lock, Pencil } from 'lucide-react'
 import { useAuth } from '@/core/auth/AuthProvider'
 import { useSync } from '@/core/offline/SyncProvider'
 import { useTheme } from '@/core/theme/ThemeProvider'
@@ -36,6 +36,7 @@ export function Configuracion() {
   // Un texto por lista (antes compartían el mismo y lo escrito aparecía en las tres)
   const [nuevo, setNuevo] = useState<Record<Tabla, string>>({ motivos_salida: '', categorias: '', proveedores: '' })
   const [nuevaUbi, setNuevaUbi] = useState({ nombre: '', tipo: 'tienda' })
+  const [renombrando, setRenombrando] = useState<{ id: string; nombre: string } | null>(null)
 
   async function recargar() {
     const [c, m, p, u] = await Promise.all([listarCategorias(), listarMotivos(), listarProveedores(), listarUbicaciones()])
@@ -92,6 +93,23 @@ export function Configuracion() {
     if (error) return toast(error.message, 'error')
     setNuevaUbi({ nombre: '', tipo: 'tienda' })
     toast('Ubicación agregada')
+    await refrescar()
+    void recargar()
+  }
+
+  // Renombrar no toca el historial: ventas y movimientos apuntan a la ubicación, no a su nombre
+  async function renombrarUbicacion() {
+    if (!renombrando) return
+    const nombre = renombrando.nombre.trim()
+    if (!nombre) return toast('Escribe el nuevo nombre', 'warning')
+    if (ubicaciones.some((u) => u.id !== renombrando.id && u.nombre.trim().toLowerCase() === nombre.toLowerCase())) {
+      return toast('Ya existe una ubicación con ese nombre', 'warning')
+    }
+    const { data, error } = await supabase.from('ubicaciones').update({ nombre }).eq('id', renombrando.id).select('id')
+    if (error) return toast(error.message, 'error')
+    if (!data?.length) return toast('No tienes permiso para renombrar esta ubicación', 'error')
+    toast(`Ahora se llama «${nombre}»`)
+    setRenombrando(null)
     await refrescar()
     void recargar()
   }
@@ -208,22 +226,52 @@ export function Configuracion() {
               <Button variant="secondary" onClick={() => void agregarUbicacion()} disabled={!admin}><Plus size={16} /></Button>
             </div>
             <div className="divide-y divide-border">
-              {ubicaciones.map((u) => (
-                <div key={u.id} className="flex items-center justify-between gap-2 py-2 text-sm">
-                  <span className={cn('flex items-center gap-2', u.activa ? 'text-fg' : 'text-fg-faint')}>
-                    <Store size={14} className="text-fg-muted" />{u.nombre}
-                  </span>
-                  <span className="flex items-center gap-2">
-                    {!u.activa && <Badge tone="blocked">inactiva</Badge>}
-                    <Badge tone="neutral">{u.tipo}</Badge>
-                    {admin && (
-                      <Button size="sm" variant="ghost" onClick={() => void cambiarEstadoUbicacion(u)}>
-                        {u.activa ? 'Desactivar' : 'Reactivar'}
-                      </Button>
-                    )}
-                  </span>
-                </div>
-              ))}
+              {ubicaciones.map((u) =>
+                renombrando?.id === u.id ? (
+                  <div key={u.id} className="flex items-center gap-2 py-2">
+                    <Input
+                      autoFocus
+                      aria-label={`Nuevo nombre para ${u.nombre}`}
+                      value={renombrando.nombre}
+                      maxLength={60}
+                      onChange={(e) => setRenombrando({ id: u.id, nombre: e.target.value })}
+                      onKeyDown={(e) => {
+                        if (e.key === 'Enter') void renombrarUbicacion()
+                        if (e.key === 'Escape') setRenombrando(null)
+                      }}
+                      className="py-1.5"
+                    />
+                    <Button size="sm" onClick={() => void renombrarUbicacion()}>Guardar</Button>
+                    <Button size="sm" variant="ghost" onClick={() => setRenombrando(null)}>Cancelar</Button>
+                  </div>
+                ) : (
+                  <div key={u.id} className="flex items-center justify-between gap-2 py-2 text-sm">
+                    <span className={cn('flex min-w-0 items-center gap-2', u.activa ? 'text-fg' : 'text-fg-faint')}>
+                      <Store size={14} className="shrink-0 text-fg-muted" />
+                      <span className="truncate">{u.nombre}</span>
+                    </span>
+                    <span className="flex shrink-0 items-center gap-1.5">
+                      {!u.activa && <Badge tone="blocked">inactiva</Badge>}
+                      <Badge tone="neutral">{u.tipo}</Badge>
+                      {admin && (
+                        <>
+                          <button
+                            onClick={() => setRenombrando({ id: u.id, nombre: u.nombre })}
+                            aria-label={`Renombrar ${u.nombre}`}
+                            title="Renombrar"
+                            className="grid size-8 place-items-center rounded-lg text-fg-muted hover:bg-surface hover:text-fg"
+                          >
+                            <Pencil size={14} />
+                          </button>
+                          <Button size="sm" variant="ghost" onClick={() => void cambiarEstadoUbicacion(u)}>
+                            {u.activa ? 'Desactivar' : 'Reactivar'}
+                          </Button>
+                        </>
+                      )}
+                    </span>
+                  </div>
+                )
+              )}
             </div>
           </CardBody>
         </Card>
