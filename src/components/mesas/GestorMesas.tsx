@@ -1,12 +1,12 @@
 import { useEffect, useState } from 'react'
 import { Plus, Trash2 } from 'lucide-react'
 import { useAuth } from '@/core/auth/AuthProvider'
-import { supabase } from '@/core/supabase/client'
 import type { Mesa } from '@/core/types'
 import { Modal } from '@/components/ui/Modal'
 import { Button } from '@/components/ui/Button'
 import { Field, Input } from '@/components/ui/Input'
 import { useToast } from '@/components/ui/Toast'
+import { actualizarMesa, crearMesas, quitarMesa } from '@/core/data/restaurante'
 
 /** Configurar las mesas de un local: agregar varias de una vez, renombrar, zona y capacidad. */
 export function GestorMesas({
@@ -49,9 +49,9 @@ export function GestorMesas({
       orden: orden + i
     }))
     setGuardando(true)
-    const { error } = await supabase.from('mesas').insert(filas)
+    const error = await crearMesas(filas)
     setGuardando(false)
-    if (error) return toast(error.message, 'error')
+    if (error) return toast(error, 'error')
     toast(`${filas.length} mesa(s) agregadas`)
     onCambio()
   }
@@ -61,13 +61,10 @@ export function GestorMesas({
     if (!cambios.length) return onCerrar()
     setGuardando(true)
     for (const [id, c] of cambios) {
-      const { error } = await supabase
-        .from('mesas')
-        .update({ ...c, ...(c.zona !== undefined ? { zona: c.zona?.trim() || null } : {}) })
-        .eq('id', id)
-      if (error) {
+      const r = await actualizarMesa(id, { ...c, ...(c.zona !== undefined ? { zona: c.zona?.trim() || null } : {}) })
+      if (r.error) {
         setGuardando(false)
-        return toast(error.code === '23505' ? 'Ya existe una mesa con ese nombre' : error.message, 'error')
+        return toast(r.codigo === '23505' ? 'Ya existe una mesa con ese nombre' : r.error, 'error')
       }
     }
     setGuardando(false)
@@ -78,8 +75,8 @@ export function GestorMesas({
 
   async function quitar(m: Mesa) {
     if (ocupadas.has(m.id)) return toast(`${m.nombre} tiene una cuenta abierta: cóbrala o anúlala antes de quitarla`, 'warning')
-    const { error } = await supabase.from('mesas').update({ activa: false }).eq('id', m.id)
-    if (error) return toast(error.message, 'error')
+    const error = await quitarMesa(m.id)
+    if (error) return toast(error, 'error')
     onCambio()
   }
 

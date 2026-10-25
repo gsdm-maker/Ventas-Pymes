@@ -1,6 +1,5 @@
 import { useEffect, useState } from 'react'
 import { ShieldCheck, UserPlus, UserMinus } from 'lucide-react'
-import { supabase } from '@/core/supabase/client'
 import type { Profile } from '@/core/types'
 import { AdminTabs } from '@/pages/admin/AdminTabs'
 import { Card, CardBody, CardHeader } from '@/components/ui/Card'
@@ -10,6 +9,7 @@ import { Field, Input } from '@/components/ui/Input'
 import { Modal } from '@/components/ui/Modal'
 import { LoadingState, PageHeader } from '@/components/ui/Feedback'
 import { useToast } from '@/components/ui/Toast'
+import { adminUsers, listarAdministradoresGenerales } from '@/core/data/admin'
 
 export function AdminOwners() {
   const toast = useToast()
@@ -22,12 +22,7 @@ export function AdminOwners() {
 
   async function cargar() {
     setCargando(true)
-    const { data } = await supabase
-      .from('profiles')
-      .select('*')
-      .eq('es_owner', true)
-      .order('nombre')
-    setOwners((data as Profile[]) ?? [])
+    setOwners(await listarAdministradoresGenerales())
     setCargando(false)
   }
 
@@ -36,12 +31,12 @@ export function AdminOwners() {
   }, [])
 
   async function invocar(body: Record<string, unknown>) {
-    const { data, error } = await supabase.functions.invoke('admin-users', { body })
-    if (error || (data as { error?: string })?.error) {
-      toast((data as { error?: string })?.error || error?.message || 'Error', 'error')
+    const { data, error } = await adminUsers(body)
+    if (error) {
+      toast(error, 'error')
       return null
     }
-    return data as Record<string, unknown>
+    return data
   }
 
   async function nombrar() {

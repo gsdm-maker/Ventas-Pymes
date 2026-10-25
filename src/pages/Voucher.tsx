@@ -1,7 +1,6 @@
 import { useEffect, useState } from 'react'
 import { Link, useNavigate, useParams } from 'react-router-dom'
 import { ArrowLeft, CloudOff, Check, Printer, RotateCcw } from 'lucide-react'
-import { supabase } from '@/core/supabase/client'
 import { useAuth } from '@/core/auth/AuthProvider'
 import { useSync } from '@/core/offline/SyncProvider'
 import type { Devolucion, Venta, VentaItem, Voucher as VoucherT } from '@/core/types'
@@ -13,6 +12,7 @@ import { LoadingState } from '@/components/ui/Feedback'
 import { desglosarIVA, formatCLP, formatFechaHora } from '@/lib/format'
 import { etiquetaMedio } from '@/lib/mediosPago'
 import { imprimirDocumento, leerConfigImpresion, ticketVentaHtml } from '@/lib/impresion'
+import { detalleVoucher, nombresParaTicket } from '@/core/data/ventas'
 
 export function Voucher() {
   const { id } = useParams()
@@ -31,44 +31,14 @@ export function Voucher() {
 
   async function cargar() {
     if (!id) return
-    const { data: v } = await supabase.from('vouchers').select('*').eq('id', id).single()
-    setVoucher((v as VoucherT) ?? null)
-    if (v?.tipo === 'venta') {
-      const { data: ventaData } = await supabase.from('ventas').select('*').eq('id', v.referencia_id).single()
-      setVenta((ventaData as Venta) ?? null)
-      const { data: its } = await supabase.from('venta_items').select('*').eq('venta_id', v.referencia_id)
-      setItems((its as VentaItem[]) ?? [])
-      const { data: devs } = await supabase
-        .from('devoluciones')
-        .select('*')
-        .eq('venta_id', v.referencia_id)
-        .order('created_at')
-      const lista = (devs as Devolucion[]) ?? []
-      const { data: vs } = lista.length
-        ? await supabase.from('vouchers').select('id, referencia_id').in('referencia_id', lista.map((d) => d.id))
-        : { data: [] }
-      setDevoluciones(lista.map((d) => ({ ...d, voucher_id: (vs ?? []).find((x) => x.referencia_id === d.id)?.id })))
-    }
-    if (v?.tipo === 'devolucion') {
-      const { data: d } = await supabase.from('devoluciones').select('*').eq('id', v.referencia_id).single()
-      setDevolucion((d as Devolucion) ?? null)
-      const { data: di } = await supabase
-        .from('devolucion_items')
-        .select('cantidad, monto, venta_items(descripcion)')
-        .eq('devolucion_id', v.referencia_id)
-      setDevItems(
-        ((di ?? []) as unknown as { cantidad: number; monto: number; venta_items: { descripcion: string } | null }[]).map((x) => ({
-          cantidad: x.cantidad,
-          monto: x.monto,
-          descripcion: x.venta_items?.descripcion ?? 'Producto'
-        }))
-      )
-      if (d) {
-        const { data: ve } = await supabase.from('ventas').select('folio').eq('id', d.venta_id).single()
-        const { data: vv } = await supabase.from('vouchers').select('id').eq('referencia_id', d.venta_id).eq('tipo', 'venta').maybeSingle()
-        setVentaDeDevolucion(ve ? { folio: ve.folio, voucher_id: vv?.id } : null)
-      }
-    }
+    const d = await detalleVoucher(id)
+    setVoucher(d.voucher)
+    setVenta(d.venta)
+    setItems(d.items)
+    setDevoluciones(d.devoluciones)
+    setDevolucion(d.devolucion)
+    setDevItems(d.devItems)
+    setVentaDeDevolucion(d.ventaDeDevolucion)
     setCargando(false)
   }
 
@@ -80,10 +50,7 @@ export function Voucher() {
   // Venta: reimprime el mismo ticket del POS (marcado COPIA). Otros comprobantes: la página.
   async function imprimir() {
     if (!venta || !voucher) return window.print()
-    const [{ data: ubi }, { data: cajero }] = await Promise.all([
-      supabase.from('ubicaciones').select('nombre').eq('id', venta.ubicacion_id).maybeSingle(),
-      supabase.from('profiles').select('nombre').eq('id', venta.usuario_id).maybeSingle()
-    ])
+    const nombres = await nombresParaTicket(venta.ubicacion_id, venta.usuario_id)
     const det = voucher.detalle as { propina?: number; mesa?: string }
     const bruto = items.reduce((a, it) => a + it.cantidad * it.precio_unitario, 0)
     const iva = desglosarIVA(venta.total)
@@ -91,10 +58,10 @@ export function Voucher() {
       ticketVentaHtml(
         {
           empresa: empresa?.nombre ?? '',
-          ubicacion: ubi?.nombre ?? '',
+          ubicacion: nombres.ubicacion,
           folio: venta.folio,
           fecha: new Date(venta.created_at),
-          cajero: cajero?.nombre ?? '',
+          cajero: nombres.cajero,
           lineas: items.map((it) => ({ descripcion: it.descripcion, cantidad: it.cantidad, precio_unitario: it.precio_unitario })),
           bruto,
           descuento: Math.max(0, bruto - venta.total),

@@ -1,7 +1,6 @@
 import { useEffect, useMemo, useState, type ReactNode } from 'react'
 import { Plus, Package, Search, ChevronDown } from 'lucide-react'
 import { useAuth } from '@/core/auth/AuthProvider'
-import { supabase } from '@/core/supabase/client'
 import { listarCategorias, listarProductosConStock } from '@/core/data/api'
 import { GestorVariantes } from '@/components/productos/GestorVariantes'
 import { FotoProducto } from '@/components/productos/FotoProducto'
@@ -19,6 +18,7 @@ import { useToast } from '@/components/ui/Toast'
 import { cn } from '@/lib/cn'
 import { SelectorVista, type Vista } from '@/components/ui/SelectorVista'
 import { formatCLP } from '@/lib/format'
+import { borrarFotoHuerfana, guardarProducto } from '@/core/data/inventario'
 
 const vacio = {
   id: '',
@@ -121,14 +121,8 @@ export function Productos() {
       va_a_cocina: form.va_a_cocina,
       activo: form.activo
     }
-    const { error } = form.id
-      ? await supabase.from('productos').update(payload).eq('id', form.id)
-      : await supabase.from('productos').insert({ ...payload, id: idNuevo })
-    if (error) {
-      return toast(error.code === '23505' && error.message.includes('codigo_barras')
-        ? 'Ese código de barras ya lo tiene otro producto'
-        : error.message, 'error')
-    }
+    const error = await guardarProducto(payload, form.id || idNuevo, !!form.id)
+    if (error) return toast(error, 'error')
     toast(form.id ? 'Producto actualizado' : 'Producto creado')
     setOpen(false)
     void cargar()
@@ -138,8 +132,7 @@ export function Productos() {
 
   // Producto nuevo que no se guardó: su foto ya subida se borra para no dejar archivos sueltos
   function cerrarFicha() {
-    const ruta = form.foto_url.match(/\/public\/productos\/([^?]+)/)?.[1]
-    if (!form.id && ruta) void supabase.storage.from('productos').remove([ruta])
+    if (!form.id) borrarFotoHuerfana(form.foto_url)
     setOpen(false)
   }
 

@@ -1,6 +1,5 @@
 import { useEffect, useState } from 'react'
 import { useAuth } from '@/core/auth/AuthProvider'
-import { supabase } from '@/core/supabase/client'
 import type { Categoria, ProductoConStock } from '@/core/types'
 import { Modal } from '@/components/ui/Modal'
 import { Button } from '@/components/ui/Button'
@@ -11,6 +10,7 @@ import { CampoCodigoBarras } from '@/components/productos/CampoCodigoBarras'
 import { formatCLP } from '@/lib/format'
 import { margenDesdePrecio, precioDesdeMargen } from '@/lib/precio'
 import { skuAutomatico } from '@/lib/sku'
+import { borrarFotoHuerfana, crearProducto } from '@/core/data/inventario'
 
 /**
  * Ficha simple para crear un producto sin salir de otra pantalla (p. ej. la
@@ -78,8 +78,7 @@ export function CrearProductoRapido({
 
   function cerrar() {
     // Foto subida de un producto que no se creó: se borra
-    const ruta = foto.match(/\/public\/productos\/([^?]+)/)?.[1]
-    if (ruta) void supabase.storage.from('productos').remove([ruta])
+    borrarFotoHuerfana(foto)
     onCerrar()
   }
 
@@ -103,11 +102,9 @@ export function CrearProductoRapido({
       controla_stock: true,
       activo: true
     }
-    const { data, error } = await supabase.from('productos').insert(fila).select().single()
+    const { data, error } = await crearProducto(fila)
     setGuardando(false)
-    if (error) {
-      return toast(error.code === '23505' && error.message.includes('codigo_barras') ? 'Ese código de barras ya lo tiene otro producto' : error.message, 'error')
-    }
+    if (error) return toast(error, 'error')
     toast(`Producto «${fila.nombre}» creado (${fila.sku})`)
     onCreado({
       ...(data as ProductoConStock),

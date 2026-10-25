@@ -3,9 +3,7 @@ import { useNavigate } from 'react-router-dom'
 import { Search, Minus, Plus, Check, ArrowLeft, CloudOff } from 'lucide-react'
 import { useAuth } from '@/core/auth/AuthProvider'
 import { useSync } from '@/core/offline/SyncProvider'
-import { esErrorDeRed } from '@/core/offline/errores'
 import { invalidarAlertas } from '@/core/data/useAlertasStock'
-import { supabase } from '@/core/supabase/client'
 import { listarMotivos, listarProductosConStock } from '@/core/data/api'
 import { pendientesPorProducto } from '@/core/offline/respaldo'
 import { aplicarPendientes, etiquetaVariante } from '@/lib/variantes'
@@ -17,6 +15,7 @@ import { PageHeader } from '@/components/ui/Feedback'
 import { useToast } from '@/components/ui/Toast'
 import { cn } from '@/lib/cn'
 import { formatCLP } from '@/lib/format'
+import { registrarSalida } from '@/core/data/ventas'
 
 export function SalidaRapida() {
   const { ubicacionActiva, ubicaciones } = useAuth()
@@ -127,22 +126,23 @@ export function SalidaRapida() {
 
     if (!online) return guardarOffline()
 
-    const { data, error, status } = await supabase.rpc('registrar_salida', {
-      p_producto: sel.id,
-      p_variante: varSel ?? null,
-      p_ubicacion: ubicacionActiva,
-      p_cantidad: cantidad,
-      p_motivo: motivo || null,
-      p_observaciones: obs || null,
-      p_uuid_local: uuidLocal
-    })
-    if (esErrorDeRed(error, status)) return guardarOffline()
+    const { data: v, error, deRed } = await registrarSalida(
+      {
+        producto_id: sel.id,
+        variante_id: varSel ?? null,
+        ubicacion_id: ubicacionActiva,
+        cantidad,
+        motivo_id: motivo || null,
+        observaciones: obs || null
+      },
+      uuidLocal
+    )
+    if (deRed) return guardarOffline()
     setEnviando(false)
-    if (error) {
-      toast(error.message, 'error')
+    if (error || !v) {
+      toast(error ?? 'No se pudo registrar la salida', 'error')
       return
     }
-    const v = data as { numero: string; id: string }
     invalidarAlertas()
     setOk({ numero: v.numero, offline: false })
     descontarLocal()

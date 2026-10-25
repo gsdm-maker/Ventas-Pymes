@@ -1,7 +1,6 @@
 import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { Plus, Building2, ChevronRight } from 'lucide-react'
-import { supabase } from '@/core/supabase/client'
 import { listarEmpresas } from '@/core/data/api'
 import type { Empresa, TipoNegocio } from '@/core/types'
 import { AdminTabs } from '@/pages/admin/AdminTabs'
@@ -15,6 +14,7 @@ import { useToast } from '@/components/ui/Toast'
 import { formatFecha, hace } from '@/lib/format'
 import { PLAN_LABEL } from '@/core/auth/plan'
 import { RUBRO_LABEL, modulosPorRubro } from '@/core/auth/capabilities'
+import { adminUsers } from '@/core/data/admin'
 
 export function AdminEmpresas() {
   const toast = useToast()
@@ -46,8 +46,7 @@ export function AdminEmpresas() {
       return toast('Completa el nombre de la empresa y el correo del administrador', 'warning')
     }
     setEnviando(true)
-    const { data, error } = await supabase.functions.invoke('admin-users', {
-      body: {
+    const { data, error } = await adminUsers<{ admin_email: string; clave_temporal: string }>({
         accion: 'crear_empresa',
         nombre: form.nombre.trim(),
         prueba_dias: Number(form.prueba_dias) || 0,
@@ -55,13 +54,10 @@ export function AdminEmpresas() {
         modulos: modulosPorRubro(form.tipo_negocio),
         admin_email: form.admin_email.trim().toLowerCase(),
         admin_nombre: form.admin_nombre.trim()
-      }
     })
     setEnviando(false)
-    if (error || (data as { error?: string })?.error) {
-      return toast((data as { error?: string })?.error || error?.message || 'Error', 'error')
-    }
-    setResultado({ email: (data as { admin_email: string }).admin_email, clave: (data as { clave_temporal: string }).clave_temporal })
+    if (error || !data) return toast(error ?? 'Error', 'error')
+    setResultado({ email: data.admin_email, clave: data.clave_temporal })
     setOpen(false)
     setForm({ nombre: '', prueba_dias: 15, tipo_negocio: 'retail', admin_email: '', admin_nombre: '' })
     void cargar()

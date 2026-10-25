@@ -4,7 +4,6 @@ import { useAuth } from '@/core/auth/AuthProvider'
 import { useSync } from '@/core/offline/SyncProvider'
 import { useTheme } from '@/core/theme/ThemeProvider'
 import { ACENTOS } from '@/core/theme/acentos'
-import { supabase } from '@/core/supabase/client'
 import { listarCategorias, listarMotivos, listarProveedores, listarUbicaciones } from '@/core/data/api'
 import { MODULOS, MODULO_LABEL, RUBRO_LABEL } from '@/core/auth/capabilities'
 import { Card, CardBody, CardHeader } from '@/components/ui/Card'
@@ -18,6 +17,16 @@ import { ConfigReposicion } from '@/components/reposicion/ConfigReposicion'
 import { ConfigImpresionEquipo } from '@/components/impresion/ConfigImpresionEquipo'
 import { cn } from '@/lib/cn'
 import { formatFecha, hace } from '@/lib/format'
+import {
+  actualizarEmpresa,
+  agregarACatalogo,
+  cambiarActivaUbicacion,
+  crearUbicacion,
+  eliminarDeCatalogo,
+  renombrarUbicacion as renombrarUbicacionEnBase
+} from '@/core/data/configuracion'
+import { sembrarDemo } from '@/core/data/admin'
+import type { TipoUbicacion } from '@/core/types'
 
 type Tabla = 'categorias' | 'motivos_salida' | 'proveedores'
 
@@ -51,14 +60,11 @@ export function Configuracion() {
 
   async function guardarEmpresa() {
     if (!empresa) return
-    const { error } = await supabase
-      .from('empresas')
-      .update({ nombre, moneda, usa_variantes: usaVariantes })
-      .eq('id', empresa.id)
+    const error = await actualizarEmpresa(empresa.id, { nombre, moneda, usa_variantes: usaVariantes })
     if (error) {
       // Lo rechazado no quedó guardado: la pantalla vuelve al valor real
       setUsaVariantes(empresa.usa_variantes ?? false)
-      return toast(error.message, 'error')
+      return toast(error, 'error')
     }
     toast('Empresa actualizada')
     await refrescar()
@@ -69,29 +75,29 @@ export function Configuracion() {
     if (!nuevo[tabla].trim()) return toast('Escribe un nombre antes de agregar', 'warning')
     const payload: Record<string, unknown> = { empresa_id: empresa.id }
     payload[campo] = nuevo[tabla].trim()
-    const { error } = await supabase.from(tabla).insert(payload)
-    if (error) return toast(error.message, 'error')
+    const error = await agregarACatalogo(tabla, payload)
+    if (error) return toast(error, 'error')
     setNuevo((prev) => ({ ...prev, [tabla]: '' }))
     void recargar()
   }
 
-  async function eliminar(tabla: string, id: string, etiqueta: string) {
+  async function eliminar(tabla: Tabla, id: string, etiqueta: string) {
     const ok = await confirmar({
       titulo: `Eliminar ${etiqueta}`,
       mensaje: 'Esta acción no se puede deshacer.',
       accion: 'Eliminar'
     })
     if (!ok) return
-    const { error } = await supabase.from(tabla).delete().eq('id', id)
-    if (error) return toast(error.message, 'error')
+    const error = await eliminarDeCatalogo(tabla, id)
+    if (error) return toast(error, 'error')
     void recargar()
   }
 
   async function agregarUbicacion() {
     if (!empresa) return
     if (!nuevaUbi.nombre.trim()) return toast('Escribe el nombre de la ubicación', 'warning')
-    const { error } = await supabase.from('ubicaciones').insert({ empresa_id: empresa.id, nombre: nuevaUbi.nombre.trim(), tipo: nuevaUbi.tipo })
-    if (error) return toast(error.message, 'error')
+    const error = await crearUbicacion(empresa.id, nuevaUbi.nombre.trim(), nuevaUbi.tipo as TipoUbicacion)
+    if (error) return toast(error, 'error')
     setNuevaUbi({ nombre: '', tipo: 'tienda' })
     toast('Ubicación agregada')
     await refrescar()
@@ -106,9 +112,8 @@ export function Configuracion() {
     if (ubicaciones.some((u) => u.id !== renombrando.id && u.nombre.trim().toLowerCase() === nombre.toLowerCase())) {
       return toast('Ya existe una ubicación con ese nombre', 'warning')
     }
-    const { data, error } = await supabase.from('ubicaciones').update({ nombre }).eq('id', renombrando.id).select('id')
-    if (error) return toast(error.message, 'error')
-    if (!data?.length) return toast('No tienes permiso para renombrar esta ubicación', 'error')
+    const error = await renombrarUbicacionEnBase(renombrando.id, nombre)
+    if (error) return toast(error, 'error')
     toast(`Ahora se llama «${nombre}»`)
     setRenombrando(null)
     await refrescar()
@@ -127,8 +132,8 @@ export function Configuracion() {
       })
       if (!ok) return
     }
-    const { error } = await supabase.from('ubicaciones').update({ activa: !u.activa }).eq('id', u.id)
-    if (error) return toast(error.message, 'error')
+    const error = await cambiarActivaUbicacion(u.id, !u.activa)
+    if (error) return toast(error, 'error')
     toast(u.activa ? `${u.nombre} desactivada` : `${u.nombre} reactivada`)
     await refrescar()
     void recargar()
@@ -136,8 +141,8 @@ export function Configuracion() {
 
   async function cargarDemo() {
     if (!empresa) return
-    const { error } = await supabase.rpc('sembrar_demo', { p_empresa: empresa.id })
-    if (error) return toast(error.message, 'error')
+    const error = await sembrarDemo(empresa.id)
+    if (error) return toast(error, 'error')
     toast('Datos de demostración cargados')
     await refrescar()
     void recargar()

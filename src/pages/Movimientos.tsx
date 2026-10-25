@@ -1,7 +1,6 @@
 import { useEffect, useState } from 'react'
 import { ArrowLeftRight, Search, Package } from 'lucide-react'
 import { useAuth } from '@/core/auth/AuthProvider'
-import { supabase } from '@/core/supabase/client'
 import { listarMovimientos } from '@/core/data/api'
 import type { Movimiento, Producto } from '@/core/types'
 import { Card, CardBody, CardHeader } from '@/components/ui/Card'
@@ -12,6 +11,7 @@ import { SidePanel } from '@/components/ui/SidePanel'
 import { EmptyState, LoadingState, PageHeader } from '@/components/ui/Feedback'
 import { cn } from '@/lib/cn'
 import { formatFechaHora } from '@/lib/format'
+import { productoPorId } from '@/core/data/inventario'
 
 // Movimientos por página: el historial completo puede tener miles
 const POR_PAGINA = 100
@@ -25,12 +25,11 @@ function MovimientoDetalleView({ movimiento, ubicaciones }: { movimiento: Movimi
   useEffect(() => {
     let activo = true
     setCargando(true)
-    supabase.from('productos').select('*').eq('id', movimiento.producto_id).single()
-      .then(({ data }) => {
-        if (!activo) return
-        setProducto((data as Producto) ?? null)
-        setCargando(false)
-      })
+    void productoPorId(movimiento.producto_id).then((p) => {
+      if (!activo) return
+      setProducto(p)
+      setCargando(false)
+    })
     return () => { activo = false }
   }, [movimiento.producto_id])
 

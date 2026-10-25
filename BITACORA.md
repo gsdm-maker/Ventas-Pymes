@@ -488,6 +488,12 @@ control de stock con trazabilidad.
   oculto (`src/lib/impresion.ts`), sin ventanas emergentes. Para imprimir sin el diálogo del navegador, el
   equipo de caja abre Chrome con `--kiosk-printing` (pasos en esa misma tarjeta). Comprobante interno, no
   boleta SII. Pruebas e2e: sin botones en el POS, configuración por equipo e impresión al cobrar (opcional).
+- **Orden del código y skills (25-10-2026):** capa de datos por tema en `src/core/data/` (ninguna pantalla usa
+  `supabase` directo; resultado común en `resultado.ts`), `POS.tsx` partido en `src/components/pos/` (934 → 194
+  líneas). Prueba `reportes.sql` corregida (comparaba solo ventas simuladas). Nueva prueba e2e
+  `test_navegacion.py` (recorre todas las pantallas sin errores; las de la consola se saltan porque la cuenta
+  «Admin general» de `Datakeys.md` ya no es administrador general). Skills ordenadas por categoría en
+  `~/.claude/skills/` (índice en su `README.md`): `patrones-*`, `seguridad-*`, `diseno-*`, `calidad-*`, `pruebas-*`.
 - `typecheck`, lint y `vite build` sin errores. Dev server en `http://localhost:5173`.
 
 ## 8. Skills de agente instaladas (`.agents/skills/`)

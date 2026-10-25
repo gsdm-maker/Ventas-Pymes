@@ -27,40 +27,49 @@ begin
   insert into zz_resultados (caso, esperado, obtenido) values (p_caso, p_esperado, v);
 end $$;
 
--- Genera historia y compara el reporte con lo registrado (pasos separados)
+-- Genera historia y compara el reporte con lo registrado (pasos separados).
+-- Lo esperado se calcula con las MISMAS reglas del reporte y sobre todas las ventas del rango
+-- (reales y simuladas): sin anuladas, montos y unidades netos de devoluciones.
 create function pg_temp.coherencia() returns text language plpgsql as $$
 declare r jsonb; v_desde date := public.hoy_negocio() - 28; v_hasta date := public.hoy_negocio() - 1;
-  v_ventas bigint; v_monto bigint; v_unid bigint; v_mov bigint;
+  v_ventas bigint; v_monto bigint; v_unid bigint;
 begin
   perform public.simular_historia(8);
   r := public.reporte_ventas(v_desde, v_hasta);
-  select count(*), coalesce(sum(total), 0) into v_ventas, v_monto from public.ventas
-   where simulado and (created_at at time zone 'America/Santiago')::date between v_desde and v_hasta;
-  select coalesce(sum(vi.cantidad), 0) into v_unid from public.venta_items vi join public.ventas v on v.id = vi.venta_id
-   where v.simulado and (v.created_at at time zone 'America/Santiago')::date between v_desde and v_hasta;
-  select coalesce(sum(cantidad), 0) into v_mov from public.movimientos
-   where simulado and (created_at at time zone 'America/Santiago')::date between v_desde and v_hasta;
+  select count(*), coalesce(sum(total - monto_devuelto), 0) into v_ventas, v_monto from public.ventas
+   where empresa_id = public.mi_empresa() and estado <> 'anulada'
+     and (created_at at time zone 'America/Santiago')::date between v_desde and v_hasta;
+  select coalesce(sum(vi.cantidad - vi.cantidad_devuelta), 0) into v_unid
+    from public.venta_items vi join public.ventas v on v.id = vi.venta_id
+   where v.empresa_id = public.mi_empresa() and v.estado <> 'anulada'
+     and (v.created_at at time zone 'America/Santiago')::date between v_desde and v_hasta;
   return case
     when (r->'totales'->>'tickets')::bigint = v_ventas and (r->'totales'->>'monto')::bigint = v_monto
-     and (r->'totales'->>'unidades')::bigint = v_unid and v_unid = v_mov
+     and (r->'totales'->>'unidades')::bigint = v_unid
      and (select sum((t->>'monto')::bigint) from jsonb_array_elements(r->'tiendas') t) = v_monto
      and (select sum((d->>'monto')::bigint) from jsonb_array_elements(r->'por_dia') d) = v_monto
-    then 'coincide: ' || v_ventas || ' ventas, $' || v_monto || ', ' || v_unid || ' unidades'
+    then 'coincide'
     else 'NO COINCIDE ' || (r->'totales')::text || ' tiendas ' || (select sum((t->>'monto')::bigint) from jsonb_array_elements(r->'tiendas') t)
-      || ' por_dia ' || (select sum((d->>'monto')::bigint) from jsonb_array_elements(r->'por_dia') d) || ' vs ventas ' || v_ventas || ' monto ' || v_monto || ' unid ' || v_unid || ' mov ' || v_mov
+      || ' por_dia ' || (select sum((d->>'monto')::bigint) from jsonb_array_elements(r->'por_dia') d) || ' vs ventas ' || v_ventas || ' monto ' || v_monto || ' unid ' || v_unid
   end;
 end $$;
 
+-- Forma del reporte: tiendas = tiendas activas visibles + ubicaciones que vendieron en el rango
 create function pg_temp.forma() returns text language plpgsql as $$
-declare r jsonb;
+declare r jsonb; v_desde date := public.hoy_negocio() - 13; v_tiendas int;
 begin
   perform public.simular_historia(8);
-  r := public.reporte_ventas(public.hoy_negocio() - 13, public.hoy_negocio());
-  return 'dias ' || (r->>'dias') || ' · tiendas ' || jsonb_array_length(r->'tiendas')
-    || ' · por_dia ' || jsonb_array_length(r->'por_dia')
-    || ' · dow ' || jsonb_array_length(r->'por_dia_semana')
-    || ' · top ' || jsonb_array_length(r->'top_productos')
-    || ' · medios ' || jsonb_array_length(r->'medios')
+  r := public.reporte_ventas(v_desde, public.hoy_negocio());
+  select count(*) into v_tiendas from public.ubicaciones u
+   where u.empresa_id = public.mi_empresa() and public.puede_ver_ubicacion(u.id)
+     and ((u.tipo = 'tienda' and u.activa)
+          or exists (select 1 from public.ventas v where v.ubicacion_id = u.id and v.estado <> 'anulada'
+                      and (v.created_at at time zone 'America/Santiago')::date >= v_desde - 14));
+  return 'dias ' || (r->>'dias')
+    || ' · tiendas ok ' || (jsonb_array_length(r->'tiendas') = v_tiendas)
+    || ' · por_dia = dias × tiendas ' || (jsonb_array_length(r->'por_dia') = 14 * v_tiendas)
+    || ' · dow = 7 × tiendas ' || (jsonb_array_length(r->'por_dia_semana') = 7 * v_tiendas)
+    || ' · top ' || (jsonb_array_length(r->'top_productos') between 1 and 10)
     || ' · anterior ' || (r->'anterior'->>'desde') || '..' || (r->'anterior'->>'hasta')
     || ' · monto_ant>0 ' || ((r->'totales'->>'monto_ant')::bigint > 0);
 end $$;
@@ -76,11 +85,11 @@ begin
     || ' · series por_dia de 1 tienda: ' || (select count(distinct d->>'tienda') from jsonb_array_elements(r->'por_dia') d);
 end $$;
 
-select pg_temp.probar('reporte coincide con ventas, ítems y movimientos', '{{USUARIO_ADMIN}}', 'OK coincide',
+select pg_temp.probar('reporte coincide con ventas e ítems (netos de devoluciones)', '{{USUARIO_ADMIN}}', 'OK coincide',
   $q$ select pg_temp.coherencia() $q$);
-select pg_temp.probar('forma del reporte (14 días, 3 tiendas)', '{{USUARIO_ADMIN}}', 'OK dias 14 · tiendas 3 + bodega si vendió (4) · por_dia = dias × tiendas',
+select pg_temp.probar('forma del reporte (14 días)', '{{USUARIO_ADMIN}}', 'OK dias 14 · tiendas ok true · por_dia = dias × tiendas true · dow = 7 × tiendas true · top true',
   $q$ select pg_temp.forma() $q$);
-select pg_temp.probar('filtro por tienda', '{{USUARIO_ADMIN}}', 'OK totales = tienda filtrada · 1 serie',
+select pg_temp.probar('filtro por tienda', '{{USUARIO_ADMIN}}', 'OK totales = tienda filtrada · series por_dia de 1 tienda: 1',
   $q$ select pg_temp.filtro_tienda() $q$);
 select pg_temp.probar('rango invertido rechazado', '{{USUARIO_ADMIN}}', 'ERROR P0001',
   $q$ select public.reporte_ventas(public.hoy_negocio(), public.hoy_negocio() - 1)::text $q$);

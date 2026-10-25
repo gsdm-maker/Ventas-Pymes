@@ -1,10 +1,10 @@
 import { useEffect, useState, type FormEvent } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { KeyRound, AlertTriangle } from 'lucide-react'
-import { supabase } from '@/core/supabase/client'
 import { Button } from '@/components/ui/Button'
 import { Field, Input } from '@/components/ui/Input'
 import { useToast } from '@/components/ui/Toast'
+import { guardarClaveRecuperada, haySesionDeRecuperacion } from '@/core/data/cuenta'
 
 /**
  * Restablecer contraseña tras hacer clic en el enlace de recuperación.
@@ -21,7 +21,7 @@ export function Restablecer() {
   const [cargando, setCargando] = useState(false)
 
   useEffect(() => {
-    supabase.auth.getSession().then(({ data }) => setHaySesion(!!data.session))
+    void haySesionDeRecuperacion().then(setHaySesion)
   }, [])
 
   async function onSubmit(e: FormEvent) {
@@ -30,18 +30,10 @@ export function Restablecer() {
     if (p1.length < 8) return setError('La contraseña debe tener al menos 8 caracteres')
     if (p1 !== p2) return setError('Las contraseñas no coinciden')
     setCargando(true)
-    const { error: err } = await supabase.auth.updateUser({ password: p1, data: { must_change_password: false } })
-    if (err) {
-      setCargando(false)
-      return setError(err.message)
-    }
-    const { data } = await supabase.auth.getUser()
-    if (data.user) {
-      await supabase.from('profiles').update({ must_change_password: false }).eq('id', data.user.id)
-    }
+    const err = await guardarClaveRecuperada(p1)
     setCargando(false)
+    if (err) return setError(err)
     toast('Contraseña actualizada. Inicia sesión.')
-    await supabase.auth.signOut()
     navigate('/login')
   }
 

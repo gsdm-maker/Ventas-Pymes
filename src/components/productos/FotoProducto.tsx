@@ -1,8 +1,8 @@
 import { useRef, useState } from 'react'
 import { Camera, ImagePlus, Loader2, Trash2 } from 'lucide-react'
-import { supabase } from '@/core/supabase/client'
 import { useToast } from '@/components/ui/Toast'
 import { comprimirImagen } from '@/lib/imagen'
+import { subirFotoProducto } from '@/core/data/inventario'
 
 /**
  * Foto del producto: se toma con la cámara (celular) o se elige un archivo, se
@@ -35,13 +35,7 @@ export function FotoProducto({
       const blob = await comprimirImagen(f)
       const ext = blob.type === 'image/webp' ? 'webp' : 'jpg'
       const ruta = `${empresaId}/${productoId}.${ext}`
-      const { error } = await supabase.storage
-        .from('productos')
-        .upload(ruta, blob, { upsert: true, contentType: blob.type, cacheControl: '31536000' })
-      if (error) throw error
-      const { data } = supabase.storage.from('productos').getPublicUrl(ruta)
-      // La versión evita que el navegador muestre la foto anterior
-      onChange(`${data.publicUrl}?v=${Date.now()}`)
+      onChange(await subirFotoProducto(ruta, blob))
       toast(`Foto guardada (${Math.round(blob.size / 1024)} KB)`)
     } catch (e) {
       toast((e as Error).message || 'No se pudo subir la foto', 'error')

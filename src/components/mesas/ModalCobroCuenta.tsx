@@ -1,5 +1,4 @@
 import { useEffect, useState } from 'react'
-import { supabase } from '@/core/supabase/client'
 import type { MedioPago, Venta } from '@/core/types'
 import { Modal } from '@/components/ui/Modal'
 import { Button } from '@/components/ui/Button'
@@ -8,6 +7,7 @@ import { useToast } from '@/components/ui/Toast'
 import { cn } from '@/lib/cn'
 import { MEDIO_PAGO, MEDIOS_PAGO, montosSugeridos, referenciaCompleta, referenciaPara } from '@/lib/mediosPago'
 import { formatCLP } from '@/lib/format'
+import { cobrarCuenta } from '@/core/data/restaurante'
 
 type ModoPropina = 'sugerida' | 'sin' | 'otra'
 
@@ -56,15 +56,10 @@ export function ModalCobroCuenta({
     if (!referenciaCompleta(medio, referencia)) return toast('Ingresa el número de referencia del pago', 'warning')
     if (propina > total) return toast('La propina no puede ser mayor que el consumo', 'warning')
     setEnviando(true)
-    const { data, error } = await supabase.rpc('cobrar_cuenta', {
-      p_cuenta: cuentaId,
-      p_medio_pago: medio,
-      p_referencia: referenciaPara(medio, referencia),
-      p_propina: propina
-    })
+    const { data, error } = await cobrarCuenta(cuentaId, medio, referenciaPara(medio, referencia), propina)
     setEnviando(false)
-    if (error) return toast(error.message, 'error')
-    onCobrado(data as Venta)
+    if (error || !data) return toast(error ?? 'No se pudo cobrar', 'error')
+    onCobrado(data)
   }
 
   return (

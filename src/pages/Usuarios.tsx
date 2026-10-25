@@ -1,7 +1,6 @@
 import { useEffect, useState } from 'react'
 import { Info, Save, UserPlus, KeyRound } from 'lucide-react'
 import { useAuth } from '@/core/auth/AuthProvider'
-import { supabase } from '@/core/supabase/client'
 import { accesosPorUsuario, actualizarUbicacionesUsuario, listarUsuarios } from '@/core/data/api'
 import { SelectorUbicaciones } from '@/components/usuarios/SelectorUbicaciones'
 import { EditorPermisos } from '@/components/usuarios/EditorPermisos'
@@ -16,6 +15,7 @@ import { Field, Input, Select } from '@/components/ui/Input'
 import { Modal } from '@/components/ui/Modal'
 import { LoadingState, PageHeader } from '@/components/ui/Feedback'
 import { useToast } from '@/components/ui/Toast'
+import { actualizarPerfilUsuario, adminUsers } from '@/core/data/admin'
 
 const puestos: Puesto[] = ['admin', 'bodega', 'tienda', 'auditor']
 
@@ -63,12 +63,8 @@ export function Usuarios() {
   }
 
   async function toggleActivo(u: Profile) {
-    const { data, error } = await supabase.functions.invoke('admin-users', {
-      body: { accion: 'toggle_usuario', user_id: u.id, activo: !u.activo }
-    })
-    if (error || (data as { error?: string })?.error) {
-      return toast((data as { error?: string })?.error || error?.message || 'Error', 'error')
-    }
+    const { error } = await adminUsers({ accion: 'toggle_usuario', user_id: u.id, activo: !u.activo })
+    if (error) return toast(error, 'error')
     setUsuarios((prev) => prev.map((x) => (x.id === u.id ? { ...x, activo: !x.activo } : x)))
     toast(u.activo ? 'Usuario desactivado' : 'Usuario activado')
   }
@@ -77,13 +73,10 @@ export function Usuarios() {
     if (!editando) return
     if (ubiSel !== null && ubiSel.length === 0) return toast('Marca al menos una ubicación o elige «Todas»', 'warning')
     setGuardando(true)
-    const { error } = await supabase
-      .from('profiles')
-      .update({ puesto, permissions: permisos })
-      .eq('id', editando.id)
+    const error = await actualizarPerfilUsuario(editando.id, { puesto, permissions: permisos })
     if (error) {
       setGuardando(false)
-      return toast(error.message, 'error')
+      return toast(error, 'error')
     }
     // Ubicaciones: solo si cambiaron (las escribe la Edge Function)
     const antes = [...(accesos[editando.id] ?? [])].sort().join()
@@ -103,12 +96,12 @@ export function Usuarios() {
   }
 
   async function invocar(body: Record<string, unknown>) {
-    const { data, error } = await supabase.functions.invoke('admin-users', { body })
-    if (error || (data as { error?: string })?.error) {
-      toast((data as { error?: string })?.error || error?.message || 'Error', 'error')
+    const { data, error } = await adminUsers(body)
+    if (error) {
+      toast(error, 'error')
       return null
     }
-    return data as Record<string, unknown>
+    return data
   }
 
   async function crearUsuario() {

@@ -1,6 +1,5 @@
 import { useMemo, useState } from 'react'
 import { RotateCcw } from 'lucide-react'
-import { supabase } from '@/core/supabase/client'
 import type { Devolucion, Venta, VentaItem } from '@/core/types'
 import { Modal } from '@/components/ui/Modal'
 import { Button } from '@/components/ui/Button'
@@ -8,6 +7,8 @@ import { Field, Input, Select } from '@/components/ui/Input'
 import { useToast } from '@/components/ui/Toast'
 import { useConfirm } from '@/components/ui/confirm'
 import { formatCLP } from '@/lib/format'
+import { devolverVenta } from '@/core/data/ventas'
+import { etiquetaMedio } from '@/lib/mediosPago'
 
 const MOTIVOS = ['Producto defectuoso', 'Cambio de talla o color', 'Error de cobro', 'Cliente se arrepintió', 'Otro']
 
@@ -57,22 +58,22 @@ export function ModalDevolucion({
     if (!seleccion.length) return toast('Indica qué productos se devuelven', 'warning')
     const ok = await confirmar({
       titulo: todo && !venta.monto_devuelto ? `Anular la venta ${venta.folio}` : `Registrar devolución de ${venta.folio}`,
-      mensaje: `Se reembolsarán ${formatCLP(reembolso)} (${venta.medio_pago}) y los productos volverán al stock. Queda registrado y no se puede deshacer.`,
+      mensaje: `Se reembolsarán ${formatCLP(reembolso)} (${etiquetaMedio(venta.medio_pago)}) y los productos volverán al stock. Queda registrado y no se puede deshacer.`,
       accion: todo && !venta.monto_devuelto ? 'Anular venta' : 'Registrar devolución'
     })
     if (!ok) return
     setEnviando(true)
-    const { data, error } = await supabase.rpc('devolver_venta', {
-      p_venta: venta.id,
-      p_items: todo ? null : seleccion.map((i) => ({ venta_item_id: i.id, cantidad: cant[i.id] })),
-      p_motivo: texto
-    })
+    const { data, error } = await devolverVenta(
+      venta.id,
+      todo ? null : seleccion.map((i) => ({ venta_item_id: i.id, cantidad: cant[i.id] })),
+      texto
+    )
     setEnviando(false)
-    if (error) return toast(error.message, 'error')
+    if (error || !data) return toast(error ?? 'No se pudo registrar la devolución', 'error')
     toast(todo ? 'Venta anulada' : 'Devolución registrada')
     setCant({})
     setDetalle('')
-    onListo(data as Devolucion)
+    onListo(data)
   }
 
   return (

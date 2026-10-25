@@ -1,6 +1,5 @@
 import { useEffect, useState } from 'react'
 import { Sparkles } from 'lucide-react'
-import { supabase } from '@/core/supabase/client'
 import { listarPlanesIa, usoIaEmpresas, type UsoIaEmpresa } from '@/core/data/api'
 import type { PlanIaConfig } from '@/core/types'
 import { Card, CardBody, CardHeader } from '@/components/ui/Card'
@@ -9,6 +8,7 @@ import { Badge } from '@/components/ui/Badge'
 import { Field, Input } from '@/components/ui/Input'
 import { useToast } from '@/components/ui/Toast'
 import { formatMiles } from '@/lib/format'
+import { adminUsers } from '@/core/data/admin'
 
 /** Consola general: topes diarios de cada plan del asistente y uso por empresa. */
 export function PlanesAsistente() {
@@ -28,17 +28,14 @@ export function PlanesAsistente() {
 
   async function guardar(p: PlanIaConfig) {
     setGuardando(p.plan)
-    const { data, error } = await supabase.functions.invoke('admin-users', {
-      body: {
-        accion: 'actualizar_planes_ia',
-        plan: p.plan,
-        mensajes_dia_empresa: p.mensajes_dia_empresa,
-        mensajes_dia_usuario: p.mensajes_dia_usuario
-      }
+    const { error } = await adminUsers({
+      accion: 'actualizar_planes_ia',
+      plan: p.plan,
+      mensajes_dia_empresa: p.mensajes_dia_empresa,
+      mensajes_dia_usuario: p.mensajes_dia_usuario
     })
     setGuardando(null)
-    const msg = (data as { error?: string } | null)?.error ?? error?.message
-    if (msg) return toast(msg, 'error')
+    if (error) return toast(error, 'error')
     toast(`Plan ${p.nombre} actualizado`)
   }
 

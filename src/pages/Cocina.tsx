@@ -1,7 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { ChefHat, Undo2, Volume2, VolumeX } from 'lucide-react'
 import { useAuth } from '@/core/auth/AuthProvider'
-import { supabase } from '@/core/supabase/client'
 import { comandasCocina, type ComandaCocina } from '@/core/data/api'
 import { useTiempoReal } from '@/core/data/useTiempoReal'
 import type { EstadoComanda } from '@/core/types'
@@ -10,6 +9,7 @@ import { EmptyState, LoadingState, PageHeader } from '@/components/ui/Feedback'
 import { useToast } from '@/components/ui/Toast'
 import { cn } from '@/lib/cn'
 import { formatHora } from '@/lib/format'
+import { cambiarEstadoComanda } from '@/core/data/restaurante'
 
 const COLUMNAS: { estado: EstadoComanda; titulo: string; tono: string; accion: string; siguiente: EstadoComanda }[] = [
   { estado: 'pendiente', titulo: 'Por preparar', tono: 'bg-warning', accion: 'Empezar', siguiente: 'preparando' },
@@ -98,9 +98,9 @@ export function Cocina() {
     setEnviando(c.id)
     // Optimista: la tarjeta cambia de columna al instante
     setComandas((prev) => prev && (estado === 'entregada' ? prev.filter((x) => x.id !== c.id) : prev.map((x) => (x.id === c.id ? { ...x, estado } : x))))
-    const { error } = await supabase.rpc('cambiar_estado_comanda', { p_comanda: c.id, p_estado: estado })
+    const error = await cambiarEstadoComanda(c.id, estado)
     setEnviando(null)
-    if (error) toast(error.message, 'error')
+    if (error) toast(error, 'error')
     void cargar()
   }
 

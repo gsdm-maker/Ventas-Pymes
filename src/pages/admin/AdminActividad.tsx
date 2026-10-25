@@ -1,34 +1,23 @@
 import { useEffect, useState } from 'react'
 import { Building2, ScrollText } from 'lucide-react'
-import { supabase } from '@/core/supabase/client'
 import { AdminTabs } from '@/pages/admin/AdminTabs'
 import { Card, CardBody } from '@/components/ui/Card'
 import { Badge } from '@/components/ui/Badge'
 import { EmptyState, LoadingState, PageHeader } from '@/components/ui/Feedback'
 import { formatFechaHora } from '@/lib/format'
+import { listarAuditoria, type FilaAuditoria } from '@/core/data/admin'
 
-interface Auditoria {
-  id: string
-  accion: string
-  detalle: Record<string, unknown> | null
-  empresa_id: string | null
-  created_at: string
-}
+type Auditoria = FilaAuditoria
 
 export function AdminActividad() {
   const [filas, setFilas] = useState<Auditoria[]>([])
   const [cargando, setCargando] = useState(true)
 
   useEffect(() => {
-    supabase
-      .from('admin_auditoria')
-      .select('id, accion, detalle, empresa_id, created_at')
-      .order('created_at', { ascending: false })
-      .limit(200)
-      .then(({ data }) => {
-        setFilas((data as Auditoria[]) ?? [])
-        setCargando(false)
-      })
+    void listarAuditoria().then((f) => {
+      setFilas(f)
+      setCargando(false)
+    })
   }, [])
 
   return (

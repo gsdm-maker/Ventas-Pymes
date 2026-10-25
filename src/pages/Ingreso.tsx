@@ -1,7 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { Check, ChevronDown, FileText, Package, PackagePlus, Plus, Search, Trash2 } from 'lucide-react'
 import { useAuth } from '@/core/auth/AuthProvider'
-import { supabase } from '@/core/supabase/client'
 import { listarCategorias, listarProductosConStock, listarProveedores } from '@/core/data/api'
 import { invalidarAlertas } from '@/core/data/useAlertasStock'
 import type { Categoria, ProductoConStock, Proveedor } from '@/core/types'
@@ -15,6 +14,7 @@ import { cn } from '@/lib/cn'
 import { formatCLP } from '@/lib/format'
 import { margenDesdePrecio } from '@/lib/precio'
 import { etiquetaVariante } from '@/lib/variantes'
+import { registrarEntrada } from '@/core/data/inventario'
 
 /** Una línea por producto; las tallas van en la misma fila ('' = sin talla). */
 interface Linea {
@@ -132,19 +132,16 @@ export function Ingreso() {
     )
     if (!items.length) return toast('Ingresa al menos una cantidad', 'warning')
     setEnviando(true)
-    const { error } = await supabase.rpc('registrar_entrada', {
-      p_ubicacion: destino,
-      p_items: items,
-      p_proveedor: proveedor || null,
-      p_origen_texto: null,
-      p_observaciones: obs || null,
-      p_documento_tipo: conDocumento ? docTipo : null,
-      p_documento_numero: conDocumento ? docNumero || null : null,
-      p_documento_fecha: conDocumento ? docFecha || null : null,
-      p_actualizar_costo: conDocumento && actualizarCosto
+    const error = await registrarEntrada({
+      ubicacion_id: destino,
+      items,
+      proveedor_id: proveedor || null,
+      observaciones: obs || null,
+      documento: conDocumento ? { tipo: docTipo, numero: docNumero || null, fecha: docFecha || null } : null,
+      actualizar_costo: conDocumento && actualizarCosto
     })
     setEnviando(false)
-    if (error) return toast(error.message, 'error')
+    if (error) return toast(error, 'error')
     invalidarAlertas()
     setOk({ unidades: totalUnidades, productos: lineas.filter((l) => unidadesLinea(l) > 0).length, total: neto + iva })
   }

@@ -2,7 +2,6 @@ import { useState } from 'react'
 import { Link } from 'react-router-dom'
 import { FlaskConical, Save, TrendingUp } from 'lucide-react'
 import { useAuth } from '@/core/auth/AuthProvider'
-import { supabase } from '@/core/supabase/client'
 import { borrarHistoriaSimulada, simularHistoria } from '@/core/data/api'
 import { invalidarAlertas } from '@/core/data/useAlertasStock'
 import type { ParametrosReposicion } from '@/core/types'
@@ -11,6 +10,7 @@ import { Button } from '@/components/ui/Button'
 import { Field, Input, Select } from '@/components/ui/Input'
 import { useToast } from '@/components/ui/Toast'
 import { useConfirm } from '@/components/ui/confirm'
+import { guardarParametrosReposicion } from '@/core/data/configuracion'
 
 const DEFAULT: ParametrosReposicion = { semanas: 8, seguridad_pct: 20, ajuste_pct: 0 }
 
@@ -30,9 +30,9 @@ export function ConfigReposicion() {
       return toast('El ajuste de temporada debe estar entre -90% y 300%', 'warning')
     }
     setGuardando(true)
-    const { error } = await supabase.from('empresas').update({ reposicion: p }).eq('id', empresa.id)
+    const error = await guardarParametrosReposicion(empresa.id, p)
     setGuardando(false)
-    if (error) return toast(error.message, 'error')
+    if (error) return toast(error, 'error')
     invalidarAlertas()
     await refrescar()
     toast('Parámetros de reposición guardados')

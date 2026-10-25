@@ -97,8 +97,8 @@ Anthropic, los patrones de diseño (Refactoring.Guru) y los pendientes anteriore
 **Quién:** 🤖 lo hago yo (en local, se publica con tu ok) · 👤 decisión o acción tuya.
 
 ## F1. Para cerrar ya (listo en local, falta tu ok)
-- [ ] 🤖 Desplegar `asistente` y `admin-users` con `supabase-js` fijado en `2.118.0`.
-- [ ] 🤖 Commit y push de la revisión OWASP (skills duplicadas borradas, reglas de Vercel fijadas).
+- [x] 🤖 Desplegar `asistente` y `admin-users` con `supabase-js` fijado en `2.118.0` (25-10-2026).
+- [x] 🤖 Commit y push de la revisión OWASP (commit `53444ec`).
 - [ ] 👤→🤖 Subir también al respaldo privado `Sebdev23/stockflow` (requiere `gh auth switch`).
 
 ## F2. Seguridad y costos (prioridad alta)
@@ -107,14 +107,14 @@ Anthropic, los patrones de diseño (Refactoring.Guru) y los pendientes anteriore
       con tope de gasto mensual en OpenAI; 🤖 cargarla con `supabase secrets set`.
 - [ ] 🤖 Secreto `ALLOWED_ORIGIN` (URL de Netlify + localhost) para que las funciones no acepten
       llamadas de cualquier sitio (hoy CORS `*`).
-- [ ] 🤖 Pinear también `esm.sh` en cualquier función nueva (regla: nunca `@2`, siempre versión exacta).
+- [x] 🤖 Regla: `esm.sh` siempre con versión exacta (nunca `@2`); aplicada en las dos funciones.
 
 ## F3. Correcciones detectadas (prioridad alta)
 - [x] 🤖 **Estado de comandas (patrón State)** — hecho en `0024` (local, 34/34 en `restaurante.sql`): de a un paso hacia adelante o atrás; además **solo lo que se prepara va a cocina** (`productos.va_a_cocina`, bebidas directo a la cuenta). Transferencias y cuentas ya validaban sus estados. Detalle original: `cambiar_estado_comanda` permite cualquier salto
       (p. ej. «entregada» → «pendiente»). Tabla de transiciones permitidas
       (pendiente → preparando → lista → entregada, con retroceso de un paso si se decide) + pruebas.
       Revisar lo mismo en transferencias y cuentas. 👤 decidir si cocina puede retroceder un paso.
-- [ ] 🤖 Investigar `reportes.sql` «reporte coincide con ventas…» (falla desde antes de 0020;
+- [x] 🤖 `reportes.sql`: el reporte estaba bien; la prueba comparaba solo ventas simuladas y sin devoluciones. Corregida (7/7). Antes:
       diferencia de ~$450.000 y 6 tickets: probablemente devoluciones/anuladas en el cálculo de la prueba).
 
 ## F4. Socio IA: afinar con uso real
@@ -137,8 +137,8 @@ Anthropic, los patrones de diseño (Refactoring.Guru) y los pendientes anteriore
       herramientas de IA, Observer en Realtime, Singleton en el cliente).
 - [x] 🤖 Strategy para medios de pago: `src/lib/mediosPago.ts` (POS, cobro de mesas, Reportes y voucher).
 - [x] 🤖 Cola offline: tabla `EJECUTORES` por tipo de operación en `SyncProvider`.
-- [ ] 🤖 Fachada: mover las 42 consultas directas de 10 pantallas a `api.ts` (de a poco). **Después de F5** (pruebas automáticas).
-- [ ] 🤖 Partir `POS.tsx` (917 líneas): carrito y cobro como hooks y componentes. **Después de F5.**
+- [x] 🤖 Fachada: ninguna pantalla usa `supabase` directo; módulos por tema en `src/core/data/` (25-10-2026).
+- [x] 🤖 `POS.tsx` de 934 a 194 líneas: `useCatalogoPos`, `useTicketPos`, `CatalogoPos`, `TicketPanel` (25-10-2026).
 - [x] 🤖 Catálogo de módulos y permisos: `npm run verificar:catalogo` compara TS, SQL y Edge Function
       y falla si se desalinean.
 

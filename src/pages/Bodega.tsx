@@ -1,7 +1,6 @@
 import { useEffect, useState } from 'react'
 import { Plus, Truck, PackageCheck, Warehouse, X, AlertTriangle, List, Columns3 } from 'lucide-react'
 import { useAuth } from '@/core/auth/AuthProvider'
-import { supabase } from '@/core/supabase/client'
 import { invalidarAlertas } from '@/core/data/useAlertasStock'
 import { listarProductosConStock, listarTransferencias } from '@/core/data/api'
 import type { EstadoTransferencia, ProductoConStock, Transferencia, TransferenciaItem } from '@/core/types'
@@ -16,6 +15,7 @@ import { clave, etiquetaVariante, opcionesProducto } from '@/lib/variantes'
 import { SelectorVista, type OpcionVista } from '@/components/ui/SelectorVista'
 import { cn } from '@/lib/cn'
 import { formatFechaHora } from '@/lib/format'
+import { crearTransferencia, despacharTransferencia, itemsDeTransferencias, recibirTransferencia } from '@/core/data/inventario'
 
 const estadoTono: Record<EstadoTransferencia, 'neutral' | 'warning' | 'info' | 'success' | 'danger'> = {
   borrador: 'neutral',
@@ -64,11 +64,7 @@ export function Bodega() {
     const [t, p] = await Promise.all([listarTransferencias(), listarProductosConStock(null)])
     setTransf(t)
     setProductos(p.filter((x) => x.activo && x.controla_stock !== false))
-    const ids = t.slice(0, 200).map((x) => x.id)
-    if (ids.length) {
-      const { data } = await supabase.from('transferencia_items').select('*').in('transferencia_id', ids)
-      setItems((data as TransferenciaItem[]) ?? [])
-    }
+    setItems(await itemsDeTransferencias(t.slice(0, 200).map((x) => x.id)))
     setCargando(false)
   }
 
@@ -87,13 +83,13 @@ export function Bodega() {
   async function crear() {
     if (!origen || !destino) return toast('Selecciona origen y destino', 'warning')
     if (lineas.length === 0) return toast('Agrega productos a la transferencia', 'warning')
-    const { error } = await supabase.rpc('crear_transferencia', {
-      p_origen: origen,
-      p_destino: destino,
-      p_items: lineas.map((l) => ({ producto_id: l.producto_id, variante_id: l.variante_id, cantidad_enviada: l.cantidad_enviada })),
-      p_observaciones: obs || null
-    })
-    if (error) return toast(error.message, 'error')
+    const error = await crearTransferencia(
+      origen,
+      destino,
+      lineas.map((l) => ({ producto_id: l.producto_id, variante_id: l.variante_id, cantidad_enviada: l.cantidad_enviada })),
+      obs || null
+    )
+    if (error) return toast(error, 'error')
     toast('Transferencia creada (pendiente de despacho)')
     invalidarAlertas()
     setOpen(false)
@@ -103,8 +99,8 @@ export function Bodega() {
   }
 
   async function despachar(id: string) {
-    const { error } = await supabase.rpc('despachar_transferencia', { p_id: id })
-    if (error) return toast(error.message, 'error')
+    const error = await despacharTransferencia(id)
+    if (error) return toast(error, 'error')
     toast('Transferencia despachada (en tránsito)')
     invalidarAlertas()
     void cargar()
@@ -125,12 +121,12 @@ export function Bodega() {
     })
     if (invalido) return toast('Cada cantidad recibida debe estar entre 0 y lo enviado', 'warning')
     setConfirmando(true)
-    const { error } = await supabase.rpc('recibir_transferencia', {
-      p_id: recibiendo.t.id,
-      p_items: itemsT.map((i) => ({ id: i.id, cantidad_recibida: recibiendo.cantidades[i.id] }))
-    })
+    const error = await recibirTransferencia(
+      recibiendo.t.id,
+      itemsT.map((i) => ({ id: i.id, cantidad_recibida: recibiendo.cantidades[i.id] }))
+    )
     setConfirmando(false)
-    if (error) return toast(error.message, 'error')
+    if (error) return toast(error, 'error')
     const faltan = itemsT.reduce((a, i) => a + i.cantidad_enviada - recibiendo.cantidades[i.id], 0)
     toast(faltan > 0 ? `Recepción registrada con diferencias: faltaron ${faltan} u.` : 'Recepción confirmada')
     setRecibiendo(null)

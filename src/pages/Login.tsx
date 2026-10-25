@@ -2,10 +2,11 @@ import { useState, type FormEvent } from 'react'
 import { Navigate } from 'react-router-dom'
 import { LogIn, Mail } from 'lucide-react'
 import { useAuth } from '@/core/auth/AuthProvider'
-import { supabase, supabaseConfigurado } from '@/core/supabase/client'
+import { supabaseConfigurado } from '@/core/supabase/client'
 import { Button } from '@/components/ui/Button'
 import { Field, Input } from '@/components/ui/Input'
 import { useToast } from '@/components/ui/Toast'
+import { enviarRecuperacionClave } from '@/core/data/cuenta'
 
 export function Login() {
   const { iniciarSesion, session, listo } = useAuth()
@@ -36,9 +37,7 @@ export function Login() {
       setError('Escribe tu correo para recuperar la contraseña')
       return
     }
-    await supabase.auth.resetPasswordForEmail(email.trim().toLowerCase(), {
-      redirectTo: `${window.location.origin}/restablecer`
-    })
+    await enviarRecuperacionClave(email, `${window.location.origin}/restablecer`)
     toast('Si el correo existe, enviaremos instrucciones.', 'info')
     setRecuperar(false)
   }

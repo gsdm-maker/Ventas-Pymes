@@ -12,8 +12,8 @@ las pruebas solo navegan y leen. Las que escriben datos son opcionales:
 Otras variables:
     E2E_URL           otra dirección de la app (por defecto http://localhost:5173)
     E2E_VER=1         abre el navegador visible (para mirar la prueba)
-Credenciales: E2E_ADMIN_EMAIL/E2E_ADMIN_CLAVE y E2E_TIENDA_EMAIL/E2E_TIENDA_CLAVE, o las líneas
-«Prueba admin: …» / «Prueba tienda: …» de Datakeys.md (con su «Pass:» en la línea siguiente
+Credenciales: E2E_ADMIN_EMAIL/E2E_ADMIN_CLAVE, E2E_TIENDA_… y E2E_OWNER_…, o las líneas
+«Prueba admin: …» / «Prueba tienda: …» / «Admin general …: …» de Datakeys.md (con su «Pass:» en la línea siguiente
 al correo). Si una cuenta no está o su clave no funciona, sus pruebas se saltan.
 """
 import json
@@ -39,6 +39,14 @@ def _credenciales(rol: str) -> tuple[str, str] | None:
     if not datakeys.exists():
         return None
     lineas = datakeys.read_text(encoding='utf8').splitlines()
+    if rol == 'owner':
+        # «Admin general (usuario maestro): correo» con su «Pass:» en la línea siguiente
+        for i, l in enumerate(lineas[:-1]):
+            m = re.search(r'Admin general[^:]*:\s*(\S+@\S+)', l, re.I)
+            pw = re.search(r'Pass:\s*(.+)', lineas[i + 1])
+            if m and pw:
+                return m.group(1).lower(), pw.group(1).strip()
+        return None
     m = next((re.search(rf'Prueba {rol}:\s*(\S+@\S+)', l, re.I) for l in lineas if re.search(rf'Prueba {rol}:', l, re.I)), None)
     if not m:
         return None
@@ -129,6 +137,19 @@ def _pagina(navegador, estado):
     page.set_default_timeout(15_000)
     yield page
     ctx.close()
+
+
+@pytest.fixture(scope='session')
+def estado_owner(navegador, tmp_path_factory):
+    estado = _estado_sesion(navegador, tmp_path_factory, 'owner')
+    if not estado:
+        pytest.skip('Sin credenciales válidas del administrador general')
+    return estado
+
+
+@pytest.fixture
+def pagina_owner(navegador, estado_owner):
+    yield from _pagina(navegador, estado_owner)
 
 
 @pytest.fixture

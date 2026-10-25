@@ -19,7 +19,6 @@ import {
 } from 'lucide-react'
 import { useAuth } from '@/core/auth/AuthProvider'
 import { useSync } from '@/core/offline/SyncProvider'
-import { supabase } from '@/core/supabase/client'
 import { cargarSalon, listarCategorias, listarProductosConStock, rankingVentas, type Salon } from '@/core/data/api'
 import { useTiempoReal } from '@/core/data/useTiempoReal'
 import type { Categoria, Comanda, CuentaItem, Mesa, ProductoConStock, Venta } from '@/core/types'
@@ -36,6 +35,8 @@ import { documentoTicket, esc, imprimirDocumento, leerConfigImpresion, ticketVen
 import { cn } from '@/lib/cn'
 import { desglosarIVA, formatCLP, formatHora } from '@/lib/format'
 import { etiquetaVariante } from '@/lib/variantes'
+import { anularCuenta as anularCuentaEnBase, anularItemCuenta, cambiarEstadoComanda, enviarPedido, moverCuenta } from '@/core/data/restaurante'
+import { voucherDeVenta } from '@/core/data/ventas'
 
 /** Línea del pedido que aún no se envía a cocina. */
 interface Borrador {
@@ -168,13 +169,13 @@ export function Mesas() {
   async function enviar() {
     if (!mesa || !borrador.length) return
     setEnviando(true)
-    const { data, error } = await supabase.rpc('enviar_comanda', {
-      p_mesa: mesa.id,
-      p_items: borrador.map((b) => ({ producto_id: b.producto_id, variante_id: b.variante_id, cantidad: b.cantidad, nota: b.nota.trim() || null })),
-      p_comensales: !cuenta ? comensales[mesa.id] ?? null : null
-    })
+    const { data, error } = await enviarPedido(
+      mesa.id,
+      borrador.map((b) => ({ producto_id: b.producto_id, variante_id: b.variante_id, cantidad: b.cantidad, nota: b.nota.trim() || null })),
+      !cuenta ? comensales[mesa.id] ?? null : null
+    )
     setEnviando(false)
-    if (error) return toast(error.message, 'error')
+    if (error) return toast(error, 'error')
     // Sin comanda: el pedido era solo de cosas que no pasan por cocina (bebidas, envasados)
     const com = data as Comanda | null
     toast(com?.id ? `Comanda #${com.numero} enviada a cocina` : 'Pedido agregado a la cuenta (no pasa por cocina)')
@@ -188,8 +189,8 @@ export function Mesas() {
   async function anularItem(it: CuentaItem) {
     const com = comandas.find((c) => c.id === it.comanda_id)
     const ejecutar = async (m: string | null) => {
-      const { error } = await supabase.rpc('anular_item_cuenta', { p_item: it.id, p_motivo: m })
-      if (error) return toast(error.message, 'error')
+      const error = await anularItemCuenta(it.id, m)
+      if (error) return toast(error, 'error')
       void cargar()
     }
     if (!it.comanda_id || com?.estado === 'pendiente') {
@@ -201,8 +202,8 @@ export function Mesas() {
   }
 
   async function entregar(c: Comanda) {
-    const { error } = await supabase.rpc('cambiar_estado_comanda', { p_comanda: c.id, p_estado: 'entregada' })
-    if (error) return toast(error.message, 'error')
+    const error = await cambiarEstadoComanda(c.id, 'entregada')
+    if (error) return toast(error, 'error')
     void cargar()
   }
 
@@ -229,8 +230,8 @@ export function Mesas() {
 
   async function moverA(destino: Mesa) {
     if (!cuenta) return
-    const { error } = await supabase.rpc('mover_cuenta', { p_cuenta: cuenta.id, p_mesa: destino.id })
-    if (error) return toast(error.message, 'error')
+    const error = await moverCuenta(cuenta.id, destino.id)
+    if (error) return toast(error, 'error')
     toast(`Cuenta movida a ${destino.nombre}`)
     setMoviendo(false)
     setSel(destino.id)
@@ -240,8 +241,8 @@ export function Mesas() {
   async function anularCuenta() {
     if (!cuenta || !mesa) return
     const ejecutar = async (m: string | null) => {
-      const { error } = await supabase.rpc('anular_cuenta', { p_cuenta: cuenta.id, p_motivo: m })
-      if (error) return toast(error.message, 'error')
+      const error = await anularCuentaEnBase(cuenta.id, m)
+      if (error) return toast(error, 'error')
       toast(`${mesa.nombre} quedó libre`)
       void cargar()
     }
@@ -304,8 +305,8 @@ ${[...agrupados.values()].map((a) => `<tr><td>${a.c} × ${esc(a.d)}</td><td>${es
     }
     setCobrando(false)
     setSel(null)
-    const { data } = await supabase.from('vouchers').select('id').eq('referencia_id', v.id).eq('tipo', 'venta').maybeSingle()
-    setCobrada({ mesa: nombre, venta: v, voucherId: data?.id })
+    const voucherId = await voucherDeVenta(v.id)
+    setCobrada({ mesa: nombre, venta: v, voucherId: voucherId ?? undefined })
     void cargar()
   }
 

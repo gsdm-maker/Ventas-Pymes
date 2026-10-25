@@ -1,7 +1,6 @@
 import { useEffect, useState } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
 import { ArrowLeft, UserPlus, Sparkles, KeyRound, MapPin } from 'lucide-react'
-import { supabase } from '@/core/supabase/client'
 import type { Empresa, PlanIa, PlanIaConfig, Profile, TipoNegocio, Ubicacion } from '@/core/types'
 import { MODULOS, MODULO_LABEL, RUBRO_LABEL, modulosPorRubro } from '@/core/auth/capabilities'
 import { AdminTabs } from '@/pages/admin/AdminTabs'
@@ -18,6 +17,7 @@ import { accesosPorUsuario, actualizarUbicacionesUsuario, listarPlanesIa } from 
 import { SelectorUbicaciones } from '@/components/usuarios/SelectorUbicaciones'
 import { asignadasActivas, resumenUbicaciones, sinUbicacionActiva } from '@/lib/ubicaciones'
 import { cn } from '@/lib/cn'
+import { adminUsers, detalleEmpresaAdmin, sembrarDemo } from '@/core/data/admin'
 
 export function AdminEmpresaDetalle() {
   const { id } = useParams()
@@ -40,14 +40,12 @@ export function AdminEmpresaDetalle() {
   async function cargar() {
     if (!id) return
     setCargando(true)
-    const { data: e } = await supabase.from('empresas').select('*').eq('id', id).single()
-    setEmpresa((e as Empresa) ?? null)
-    setRubro((e as Empresa | null)?.tipo_negocio ?? 'retail')
-    setModulos((e as Empresa | null)?.modulos ?? [])
-    const { data: u } = await supabase.from('profiles').select('*').eq('empresa_id', id).order('nombre')
-    setUsuarios((u as Profile[]) ?? [])
-    const { data: ub } = await supabase.from('ubicaciones').select('*').eq('empresa_id', id).order('nombre')
-    setUbicaciones((ub as Ubicacion[]) ?? [])
+    const { empresa: e, usuarios: u, ubicaciones: ub } = await detalleEmpresaAdmin(id)
+    setEmpresa(e)
+    setRubro(e?.tipo_negocio ?? 'retail')
+    setModulos(e?.modulos ?? [])
+    setUsuarios(u)
+    setUbicaciones(ub)
     setAccesos(await accesosPorUsuario(id))
     setCargando(false)
   }
@@ -61,12 +59,12 @@ export function AdminEmpresaDetalle() {
   }, [])
 
   async function invocar(body: Record<string, unknown>) {
-    const { data, error } = await supabase.functions.invoke('admin-users', { body })
-    if (error || (data as { error?: string })?.error) {
-      toast((data as { error?: string })?.error || error?.message || 'Error', 'error')
+    const { data, error } = await adminUsers(body)
+    if (error) {
+      toast(error, 'error')
       return null
     }
-    return data as Record<string, unknown>
+    return data
   }
 
   async function cambiarPlan(plan: string) {
@@ -136,8 +134,9 @@ export function AdminEmpresaDetalle() {
   }
 
   async function cargarDemo() {
-    const { error } = await supabase.rpc('sembrar_demo', { p_empresa: id })
-    if (error) return toast(error.message, 'error')
+    if (!id) return
+    const error = await sembrarDemo(id)
+    if (error) return toast(error, 'error')
     toast('Datos de demostración cargados')
     void cargar()
   }

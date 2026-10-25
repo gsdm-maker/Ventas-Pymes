@@ -1,9 +1,8 @@
 import { useEffect, useState } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
 import { ArrowLeft, Save, Package } from 'lucide-react'
-import { supabase } from '@/core/supabase/client'
 import { useAuth } from '@/core/auth/AuthProvider'
-import type { Movimiento, Producto, Stock, Ubicacion } from '@/core/types'
+import type { Movimiento, Producto, Stock } from '@/core/types'
 import { Card, CardBody, CardHeader } from '@/components/ui/Card'
 import { Button } from '@/components/ui/Button'
 import { Badge } from '@/components/ui/Badge'
@@ -11,6 +10,7 @@ import { Field, Input } from '@/components/ui/Input'
 import { LoadingState } from '@/components/ui/Feedback'
 import { useToast } from '@/components/ui/Toast'
 import { formatCLP, formatFechaHora } from '@/lib/format'
+import { detalleProducto, guardarStockMinimo } from '@/core/data/inventario'
 
 interface ProductoDetalleViewProps {
   id: string
@@ -29,30 +29,21 @@ export function ProductoDetalleView({ id, onClose }: ProductoDetalleViewProps) {
 
   useEffect(() => {
     async function cargar() {
-      const { data: p } = await supabase.from('productos').select('*').eq('id', id).single()
-      setProducto((p as Producto) ?? null)
-      setMinimo(p?.stock_minimo ?? 0)
-
-      const { data: s } = await supabase.from('stock').select('*').eq('producto_id', id)
-      const { data: ubis } = await supabase.from('ubicaciones').select('id, nombre')
-      const map = new globalThis.Map((ubis ?? []).map((u: Pick<Ubicacion, 'id' | 'nombre'>) => [u.id, u.nombre]))
-      setStock((s ?? []).map((row) => ({ ...row, ubicacion: map.get(row.ubicacion_id) })))
-
-      const { data: m } = await supabase
-        .from('movimientos')
-        .select('*')
-        .eq('producto_id', id)
-        .order('created_at', { ascending: false })
-        .limit(15)
-      setMovs((m as Movimiento[]) ?? [])
+      if (!id) return
+      const d = await detalleProducto(id)
+      setProducto(d.producto)
+      setMinimo(d.producto?.stock_minimo ?? 0)
+      setStock(d.stock)
+      setMovs(d.movimientos)
       setCargando(false)
     }
     void cargar()
   }, [id])
 
   async function guardarMinimo() {
-    const { error } = await supabase.from('productos').update({ stock_minimo: minimo }).eq('id', id)
-    if (error) return toast(error.message, 'error')
+    if (!id) return
+    const error = await guardarStockMinimo(id, minimo)
+    if (error) return toast(error, 'error')
     toast('Configuración de alertas guardada')
   }
 

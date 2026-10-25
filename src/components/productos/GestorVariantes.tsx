@@ -1,12 +1,12 @@
 import { useEffect, useState } from 'react'
 import { Plus, Shirt } from 'lucide-react'
-import { supabase } from '@/core/supabase/client'
 import type { ProductoVariante } from '@/core/types'
 import { Button } from '@/components/ui/Button'
 import { Input } from '@/components/ui/Input'
 import { Badge } from '@/components/ui/Badge'
 import { useToast } from '@/components/ui/Toast'
 import { compararVariantes, etiquetaVariante } from '@/lib/variantes'
+import { cambiarActivaVariante, crearVariantes, listarVariantes } from '@/core/data/inventario'
 
 const limpiar = (s: string) =>
   s.split(',').map((x) => x.trim()).filter(Boolean)
@@ -23,8 +23,7 @@ export function GestorVariantes({ productoId, sku, empresaId }: { productoId: st
   const [guardando, setGuardando] = useState(false)
 
   async function cargar() {
-    const { data } = await supabase.from('producto_variantes').select('*').eq('producto_id', productoId).order('sku')
-    setVariantes(((data as ProductoVariante[]) ?? []).sort(compararVariantes))
+    setVariantes((await listarVariantes(productoId)).sort(compararVariantes))
   }
 
   useEffect(() => {
@@ -50,9 +49,9 @@ export function GestorVariantes({ productoId, sku, empresaId }: { productoId: st
       }))
     if (!nuevas.length) return toast('Esas combinaciones ya existen', 'warning')
     setGuardando(true)
-    const { error } = await supabase.from('producto_variantes').insert(nuevas)
+    const error = await crearVariantes(nuevas)
     setGuardando(false)
-    if (error) return toast(error.message, 'error')
+    if (error) return toast(error, 'error')
     toast(`${nuevas.length} variante(s) creada(s)`)
     setTallas('')
     setColores('')
@@ -60,8 +59,8 @@ export function GestorVariantes({ productoId, sku, empresaId }: { productoId: st
   }
 
   async function alternar(v: ProductoVariante) {
-    const { error } = await supabase.from('producto_variantes').update({ activa: !v.activa }).eq('id', v.id)
-    if (error) return toast(error.message, 'error')
+    const error = await cambiarActivaVariante(v.id, !v.activa)
+    if (error) return toast(error, 'error')
     setVariantes((prev) => prev.map((x) => (x.id === v.id ? { ...x, activa: !x.activa } : x)))
   }
 
