@@ -8,7 +8,8 @@ import {
   RefreshCw,
   Check,
   ShieldCheck,
-  Menu
+  Menu,
+  LifeBuoy
 } from 'lucide-react'
 import { useAuth } from '@/core/auth/AuthProvider'
 import { useSync } from '@/core/offline/SyncProvider'
@@ -224,6 +225,20 @@ export function AppShell() {
             <UbicacionSelector />
             <CampanaAlertas />
             <SyncIndicator />
+            {/* La guía la ve todo usuario (muestra solo lo que cada uno puede usar) */}
+            <NavLink
+              to="/ayuda"
+              className={({ isActive }) =>
+                cn(
+                  'grid size-9 shrink-0 place-items-center rounded-lg border transition-colors',
+                  isActive ? 'border-accent/40 bg-accent-soft text-accent' : 'border-border text-fg-muted hover:bg-surface'
+                )
+              }
+              aria-label="Ayuda y guía de uso"
+              title="Ayuda y guía de uso"
+            >
+              <LifeBuoy size={16} />
+            </NavLink>
             <button
               onClick={toggleTema}
               className="hidden size-9 place-items-center rounded-lg border border-border text-fg-muted hover:bg-surface sm:grid"
@@ -323,6 +338,15 @@ export function AppShell() {
               <ShieldCheck size={17} /> Consola general
             </button>
           )}
+          <button
+            onClick={() => {
+              setMenuMovil(false)
+              navigate('/ayuda')
+            }}
+            className="flex w-full items-center gap-2 rounded-xl border border-border px-3 py-2.5 text-sm text-fg-body active:bg-surface"
+          >
+            <LifeBuoy size={17} /> Ayuda y guía de uso
+          </button>
           <button
             onClick={toggleTema}
             className="flex w-full items-center gap-2 rounded-xl border border-border px-3 py-2.5 text-sm text-fg-body active:bg-surface"

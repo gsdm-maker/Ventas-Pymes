@@ -243,6 +243,7 @@ export function Usuarios() {
               permisos={permisos}
               onChange={setPermisos}
               modulosEmpresa={modulosEmpresa}
+              conAsistente={!!empresa?.plan_ia}
               puedeOtorgar={can}
             />
           )}
@@ -312,6 +313,7 @@ export function Usuarios() {
               permisos={form.permisos}
               onChange={(permisos) => setForm((prev) => ({ ...prev, permisos }))}
               modulosEmpresa={modulosEmpresa}
+              conAsistente={!!empresa?.plan_ia}
               puedeOtorgar={can}
             />
           </div>

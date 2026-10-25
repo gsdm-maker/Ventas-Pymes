@@ -46,6 +46,8 @@ const MODULOS = [
   'bodega', 'movimientos', 'reportes', 'usuarios', 'configuracion'
 ]
 const RUBROS = ['retail', 'restaurante', 'mixto']
+// Espejo de planes_ia (migración 0023)
+const PLANES_IA = ['basico', 'pro', 'max']
 
 function modulosValidos(valor: unknown): string[] | null {
   if (!Array.isArray(valor)) return null
@@ -317,6 +319,43 @@ Deno.serve(async (req) => {
           .eq('id', empresaId)
         if (error) throw error
         await auditar(empresaId, { plan, prueba_hasta: pruebaHasta })
+        return json({ ok: true })
+      }
+
+      // ---------- Plan del asistente IA de una empresa (solo Owner) ----------
+      case 'actualizar_plan_ia': {
+        if (!esAdminGeneral) return json({ error: 'No autorizado' }, 403)
+        const empresaId = String(payload.empresa_id || '')
+        const planIa = payload.plan_ia === null ? null : String(payload.plan_ia || '')
+        if (planIa !== null && !PLANES_IA.includes(planIa)) return json({ error: 'Plan de asistente inválido' }, 400)
+        const { data: antes } = await admin.from('empresas').select('plan_ia').eq('id', empresaId).maybeSingle()
+        if (!antes) return json({ error: 'Empresa inexistente' }, 400)
+        const { error } = await admin.from('empresas').update({ plan_ia: planIa }).eq('id', empresaId)
+        if (error) throw error
+        await auditar(empresaId, { antes: antes.plan_ia, plan_ia: planIa })
+        return json({ ok: true })
+      }
+
+      // ---------- Topes diarios de un plan del asistente IA (solo Owner) ----------
+      case 'actualizar_planes_ia': {
+        if (!esAdminGeneral) return json({ error: 'No autorizado' }, 403)
+        const plan = String(payload.plan || '')
+        if (!PLANES_IA.includes(plan)) return json({ error: 'Plan de asistente inválido' }, 400)
+        const empresaDia = Number(payload.mensajes_dia_empresa)
+        const usuarioDia = Number(payload.mensajes_dia_usuario)
+        const entero = (n: number) => Number.isInteger(n) && n >= 1 && n <= 100000
+        if (!entero(empresaDia) || !entero(usuarioDia)) {
+          return json({ error: 'Los topes deben ser números enteros entre 1 y 100.000' }, 400)
+        }
+        const cambios = {
+          mensajes_dia_empresa: empresaDia,
+          mensajes_dia_usuario: usuarioDia
+        }
+        const { data: antes } = await admin.from('planes_ia').select('*').eq('plan', plan).maybeSingle()
+        if (!antes) return json({ error: 'Plan inexistente' }, 400)
+        const { error } = await admin.from('planes_ia').update(cambios).eq('plan', plan)
+        if (error) throw error
+        await auditar(null, { plan, antes, ...cambios })
         return json({ ok: true })
       }
 

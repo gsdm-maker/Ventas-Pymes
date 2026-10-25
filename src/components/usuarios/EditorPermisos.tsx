@@ -18,14 +18,17 @@ interface Props {
   modulosEmpresa: string[]
   /** Si quien edita puede otorgar la capacidad (nadie da lo que no tiene). */
   puedeOtorgar: (cap: Capability) => boolean
+  /** La empresa tiene plan de asistente con IA (si no, el permiso no se ofrece). */
+  conAsistente?: boolean
 }
 
 /**
  * Permisos de un usuario: parten marcados según el puesto y cada cambio queda como ajuste.
  * Solo se ofrecen los módulos habilitados para la empresa y las acciones de esos módulos.
  */
-export function EditorPermisos({ role, puesto, permisos, onChange, modulosEmpresa, puedeOtorgar }: Props) {
+export function EditorPermisos({ role, puesto, permisos, onChange, modulosEmpresa, puedeOtorgar, conAsistente = false }: Props) {
   const caps = (Object.keys(CAPABILITY_LABELS) as Capability[]).filter((c) => {
+    if (c === 'asistente.usar') return conAsistente
     const m = moduloDe(c)
     return !m || modulosEmpresa.includes(m)
   })

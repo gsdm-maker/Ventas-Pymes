@@ -54,6 +54,7 @@ export type Capability =
   | 'config.gestionar'
   | 'reportes.ver'
   | 'ventas.devolver'
+  | 'asistente.usar'
 
 export const CAPABILITY_LABELS: Record<Capability, { label: string; group: string }> =
   {
@@ -81,7 +82,8 @@ export const CAPABILITY_LABELS: Record<Capability, { label: string; group: strin
     'usuarios.gestionar': { label: 'Gestionar usuarios', group: 'Acciones' },
     'config.gestionar': { label: 'Gestionar configuración', group: 'Acciones' },
     'reportes.ver': { label: 'Ver reportes', group: 'Acciones' },
-    'ventas.devolver': { label: 'Devolver o anular ventas', group: 'Acciones' }
+    'ventas.devolver': { label: 'Devolver o anular ventas', group: 'Acciones' },
+    'asistente.usar': { label: 'Usar el asistente con IA', group: 'Acciones' }
   }
 
 /** Módulo al que pertenece cada acción: si la empresa no lo tiene, la acción no se ofrece. */
@@ -132,7 +134,8 @@ const ACCIONES_POR_PUESTO: Record<Puesto, Capability[]> = {
     'usuarios.gestionar',
     'config.gestionar',
     'reportes.ver',
-    'ventas.devolver'
+    'ventas.devolver',
+    'asistente.usar'
   ],
   bodega: [
     'ingreso.registrar',

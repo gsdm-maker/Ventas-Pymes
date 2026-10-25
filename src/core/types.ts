@@ -5,6 +5,29 @@
  */
 
 export type Plan = 'prueba' | 'gratis' | 'pago'
+
+/** Plan del asistente con IA (lo define el administrador general; null = sin asistente). */
+export type PlanIa = 'basico' | 'pro' | 'max'
+
+export interface PlanIaConfig {
+  plan: PlanIa
+  nombre: string
+  mensajes_dia_empresa: number
+  mensajes_dia_usuario: number
+  orden: number
+}
+
+/** Estado del asistente para quien consulta (mi_uso_ia / respuesta de la Edge Function). */
+export interface UsoIa {
+  permitido: boolean
+  motivo: string | null
+  plan?: PlanIa | null
+  plan_nombre?: string | null
+  usados_usuario?: number
+  tope_usuario?: number
+  usados_empresa?: number
+  tope_empresa?: number
+}
 export type RolEmpresa = 'admin' | 'integrante'
 export type Puesto = 'admin' | 'bodega' | 'tienda' | 'auditor'
 export type TipoUbicacion = 'bodega' | 'tienda'
@@ -33,6 +56,8 @@ export interface Empresa {
   tipo_negocio?: TipoNegocio
   /** Tallas y colores (variantes) habilitados */
   usa_variantes?: boolean
+  /** Plan del asistente con IA; null = sin asistente */
+  plan_ia?: PlanIa | null
   created_at: string
 }
 

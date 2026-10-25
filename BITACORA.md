@@ -455,6 +455,18 @@ control de stock con trazabilidad.
 - **Renombrar tiendas y bodegas (25-10-2026):** lápiz en Configuración → Tiendas y bodegas (edición en la fila, Enter
   guarda, Esc cancela; no permite nombre vacío ni repetido). El historial no cambia: ventas y movimientos apuntan a
   la ubicación, no a su nombre. Casos en `ubicaciones.sql` (admin puede, tienda no).
+- **Ayuda y guía de uso (25-10-2026):** página `/ayuda` (botón salvavidas en la barra superior, junto al tema; en el celular también en «Más») con pasos por
+  módulo, «Primeros pasos», «Trabajar sin conexión» y preguntas frecuentes. Cada usuario ve solo los temas de lo que
+  tiene habilitado; buscador sin distinguir tildes. Contenido en `src/pages/Ayuda.tsx` (actualizarlo al cambiar pantallas).
+- **Asistente con IA «Socio IA» (25-10-2026):** botón flotante en el Dashboard que abre un chat sobre stock, ventas,
+  qué reponer (fin de semana) y horarios. Edge Function `asistente` (OpenAI, mismo patrón que Lumix): exige sesión,
+  lee los datos con el token del usuario (RLS y permisos de la app) mediante herramientas de solo lectura
+  (`stock_asistente`, `reporte_ventas`, `proyeccion_reposicion`, `ventas_por_hora`). Planes Básico / Pro / Max en
+  `planes_ia` (mismas funciones y modelo gpt-4.1-mini; solo cambian los topes diarios por empresa y por usuario) y `empresas.plan_ia`: los define el
+  admin general en la consola (Resumen y ficha de empresa, vía `admin-users`). Permiso por usuario `asistente.usar`
+  (por defecto solo administradores). Tope contado en la base (`uso_ia`, `registrar_uso_ia` solo service_role; si
+  OpenAI falla se devuelve el mensaje). Migración `0023_asistente_ia.sql`, pruebas en `pruebas/asistente.sql`.
+  Requiere el secreto `OPENAI_API_KEY` en Supabase.
 - `typecheck`, lint y `vite build` sin errores. Dev server en `http://localhost:5173`.
 
 ## 8. Skills de agente instaladas (`.agents/skills/`)

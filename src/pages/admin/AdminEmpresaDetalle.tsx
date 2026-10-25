@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
 import { ArrowLeft, UserPlus, Sparkles, KeyRound, MapPin } from 'lucide-react'
 import { supabase } from '@/core/supabase/client'
-import type { Empresa, Profile, TipoNegocio, Ubicacion } from '@/core/types'
+import type { Empresa, PlanIa, PlanIaConfig, Profile, TipoNegocio, Ubicacion } from '@/core/types'
 import { MODULOS, MODULO_LABEL, RUBRO_LABEL, modulosPorRubro } from '@/core/auth/capabilities'
 import { AdminTabs } from '@/pages/admin/AdminTabs'
 import { Card, CardBody, CardHeader } from '@/components/ui/Card'
@@ -14,7 +14,7 @@ import { LoadingState, PageHeader } from '@/components/ui/Feedback'
 import { useToast } from '@/components/ui/Toast'
 import { formatFecha } from '@/lib/format'
 import { PLAN_LABEL } from '@/core/auth/plan'
-import { accesosPorUsuario, actualizarUbicacionesUsuario } from '@/core/data/api'
+import { accesosPorUsuario, actualizarUbicacionesUsuario, listarPlanesIa } from '@/core/data/api'
 import { SelectorUbicaciones } from '@/components/usuarios/SelectorUbicaciones'
 import { asignadasActivas, resumenUbicaciones, sinUbicacionActiva } from '@/lib/ubicaciones'
 import { cn } from '@/lib/cn'
@@ -35,6 +35,7 @@ export function AdminEmpresaDetalle() {
   const [rubro, setRubro] = useState<TipoNegocio>('retail')
   const [modulos, setModulos] = useState<string[]>([])
   const [guardandoModulos, setGuardandoModulos] = useState(false)
+  const [planesIa, setPlanesIa] = useState<PlanIaConfig[]>([])
 
   async function cargar() {
     if (!id) return
@@ -55,6 +56,10 @@ export function AdminEmpresaDetalle() {
     void cargar()
   }, [id])
 
+  useEffect(() => {
+    void listarPlanesIa().then(setPlanesIa)
+  }, [])
+
   async function invocar(body: Record<string, unknown>) {
     const { data, error } = await supabase.functions.invoke('admin-users', { body })
     if (error || (data as { error?: string })?.error) {
@@ -69,6 +74,14 @@ export function AdminEmpresaDetalle() {
     const r = await invocar({ accion: 'actualizar_plan', empresa_id: id, plan, prueba_dias: dias })
     if (r) {
       toast('Plan actualizado')
+      void cargar()
+    }
+  }
+
+  async function cambiarPlanIa(planIa: PlanIa | null) {
+    const r = await invocar({ accion: 'actualizar_plan_ia', empresa_id: id, plan_ia: planIa })
+    if (r) {
+      toast(planIa ? 'Plan del asistente actualizado' : 'Asistente desactivado')
       void cargar()
     }
   }
@@ -179,6 +192,41 @@ export function AdminEmpresaDetalle() {
               <Button variant="secondary" block onClick={() => void cargarDemo()}>
                 <Sparkles size={16} /> Cargar datos de ejemplo
               </Button>
+            </CardBody>
+          </Card>
+
+          <Card>
+            <CardHeader title="Asistente con IA" subtitle="Chat sobre stock, ventas, reposición y horarios" />
+            <CardBody className="space-y-3">
+              <div className="flex flex-wrap gap-2">
+                <Button size="sm" variant={!empresa.plan_ia ? 'primary' : 'secondary'} onClick={() => void cambiarPlanIa(null)}>
+                  Sin asistente
+                </Button>
+                {planesIa.map((p) => (
+                  <Button
+                    key={p.plan}
+                    size="sm"
+                    variant={empresa.plan_ia === p.plan ? 'primary' : 'secondary'}
+                    onClick={() => void cambiarPlanIa(p.plan)}
+                  >
+                    {p.nombre}
+                  </Button>
+                ))}
+              </div>
+              {(() => {
+                const actual = planesIa.find((p) => p.plan === empresa.plan_ia)
+                return actual ? (
+                  <p className="text-xs text-fg-muted">
+                    {actual.mensajes_dia_empresa} mensajes al día para la empresa, {actual.mensajes_dia_usuario} por
+                    usuario. Los topes de cada plan se editan en Resumen.
+                  </p>
+                ) : (
+                  <p className="text-xs text-fg-muted">
+                    Al activarlo, los administradores de la empresa lo ven en el Dashboard y pueden dar el permiso a
+                    otros usuarios.
+                  </p>
+                )
+              })()}
             </CardBody>
           </Card>
 

@@ -8,6 +8,7 @@ import { Card, CardBody } from '@/components/ui/Card'
 import { Badge } from '@/components/ui/Badge'
 import { LoadingState, PageHeader } from '@/components/ui/Feedback'
 import { PLAN_LABEL } from '@/core/auth/plan'
+import { PlanesAsistente } from '@/pages/admin/PlanesAsistente'
 
 export function Admin() {
   const [empresas, setEmpresas] = useState<Empresa[]>([])
@@ -39,6 +40,8 @@ export function Admin() {
           <div><p className="text-2xl font-semibold text-fg">{pagas}</p><p className="text-xs text-fg-muted">Con plan de pago</p></div>
         </CardBody></Card>
       </div>
+
+      <PlanesAsistente />
 
       <div className="mt-5">
         {cargando ? (

@@ -34,6 +34,7 @@ const NoEncontrado = pagina(() => import('@/pages/NoEncontrado'), 'NoEncontrado'
 const Reposicion = pagina(() => import('@/pages/Reposicion'), 'Reposicion')
 const Mesas = pagina(() => import('@/pages/Mesas'), 'Mesas')
 const Cocina = pagina(() => import('@/pages/Cocina'), 'Cocina')
+const Ayuda = pagina(() => import('@/pages/Ayuda'), 'Ayuda')
 
 export default function App() {
   return (
@@ -60,6 +61,7 @@ export default function App() {
         <Route path="usuarios" element={<ModuloGuard cap="modulos.usuarios"><Usuarios /></ModuloGuard>} />
         <Route path="configuracion" element={<ModuloGuard cap="modulos.configuracion"><Configuracion /></ModuloGuard>} />
         <Route path="sync" element={<Sync />} />
+        <Route path="ayuda" element={<Ayuda />} />
         <Route path="voucher/:id" element={<Voucher />} />
         <Route path="admin" element={<Admin />} />
         <Route path="admin/empresas" element={<AdminEmpresas />} />

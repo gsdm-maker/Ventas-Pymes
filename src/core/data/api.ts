@@ -17,10 +17,12 @@ import type {
   ProductoConStock,
   ProductoVariante,
   VarianteConStock,
+  PlanIaConfig,
   Profile,
   Proveedor,
   Stock,
   Transferencia,
+  UsoIa,
   Venta,
   Voucher
 } from '@/core/types'
@@ -460,4 +462,64 @@ export async function reportePropinas(desde: string, hasta: string, tienda?: str
   })
   if (error) throw error
   return (data as FilaPropina[]) ?? []
+}
+
+// ---------------- Asistente con IA ----------------
+
+export interface TurnoAsistente {
+  rol: 'usuario' | 'asistente'
+  texto: string
+}
+
+/** Plan, topes y uso de hoy de quien consulta. */
+export async function miUsoIa(): Promise<UsoIa | null> {
+  const { data, error } = await supabase.rpc('mi_uso_ia')
+  if (error) return null
+  return data as UsoIa
+}
+
+/** Pregunta al asistente. Lanza Error con el mensaje para mostrar; trae el uso actualizado si lo hay. */
+export async function preguntarAsistente(
+  mensaje: string,
+  historial: TurnoAsistente[],
+  ubicacionId: string | null
+): Promise<{ respuesta: string; uso: UsoIa | null }> {
+  const { data, error } = await supabase.functions.invoke('asistente', {
+    body: { mensaje, historial, ubicacion_id: ubicacionId }
+  })
+  if (error) {
+    // Respuesta con error (403/429/502…): el cuerpo trae el motivo y el uso
+    let cuerpo: { error?: string; uso?: UsoIa } | null = null
+    const ctx = (error as { context?: Response }).context
+    try {
+      cuerpo = ctx ? await ctx.json() : null
+    } catch {
+      cuerpo = null
+    }
+    throw Object.assign(new Error(cuerpo?.error ?? 'No se pudo conectar con el asistente. Revisa tu conexión.'), {
+      uso: cuerpo?.uso ?? null
+    })
+  }
+  const r = data as { respuesta?: string; uso?: UsoIa; error?: string }
+  if (r?.error) throw Object.assign(new Error(r.error), { uso: r.uso ?? null })
+  return { respuesta: r?.respuesta ?? '', uso: r?.uso ?? null }
+}
+
+export async function listarPlanesIa(): Promise<PlanIaConfig[]> {
+  const { data } = await supabase.from('planes_ia').select('*').order('orden')
+  return (data as PlanIaConfig[]) ?? []
+}
+
+export interface UsoIaEmpresa {
+  empresa_id: string
+  nombre: string
+  plan_ia: string | null
+  hoy: number
+  mes: number
+}
+
+/** Solo administrador general: mensajes por empresa hoy y en el mes. */
+export async function usoIaEmpresas(): Promise<UsoIaEmpresa[]> {
+  const { data } = await supabase.rpc('uso_ia_empresas')
+  return (data as UsoIaEmpresa[]) ?? []
 }

@@ -34,3 +34,6 @@ enabled = true
 
 [functions.admin-users]
 verify_jwt = true
+
+[functions.asistente]
+verify_jwt = true
