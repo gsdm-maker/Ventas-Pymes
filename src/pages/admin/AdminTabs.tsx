@@ -1,10 +1,11 @@
 import { Link, useLocation } from 'react-router-dom'
-import { Building2, Users, ScrollText, ShieldCheck } from 'lucide-react'
+import { Building2, Users, ScrollText, ShieldCheck, Sparkles } from 'lucide-react'
 import { cn } from '@/lib/cn'
 
 const tabs = [
   { to: '/admin', label: 'Resumen', icon: ShieldCheck },
   { to: '/admin/empresas', label: 'Empresas', icon: Building2 },
+  { to: '/admin/asistente', label: 'Asistente IA', icon: Sparkles },
   { to: '/admin/owners', label: 'Admins generales', icon: Users },
   { to: '/admin/actividad', label: 'Actividad', icon: ScrollText }
 ]

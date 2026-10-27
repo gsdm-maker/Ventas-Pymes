@@ -81,7 +81,10 @@ def test_efectivo_insuficiente_no_deja_cobrar(pagina_admin):
 def test_descuento_baja_el_total(pagina_admin):
     abrir_pos(pagina_admin)
     precio = agregar_primer_producto(pagina_admin)
-    pagina_admin.locator('main input[placeholder="0"]').fill('10')
+    # El descuento va plegado para dejar más alto al detalle del ticket
+    expect(pagina_admin.locator('#pos-descuento')).to_have_count(0)
+    pagina_admin.get_by_role('button', name='Descuento', exact=True).click()
+    pagina_admin.locator('#pos-descuento').fill('10')
     nuevo = total(pagina_admin)
     assert int(nuevo.replace('$', '').replace('.', '')) < int(precio.replace('$', '').replace('.', ''))
 

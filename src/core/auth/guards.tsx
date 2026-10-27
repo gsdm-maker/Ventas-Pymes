@@ -2,11 +2,10 @@ import { Navigate, Outlet } from 'react-router-dom'
 import type { ReactNode } from 'react'
 import { useAuth, useCapabilities } from '@/core/auth/AuthProvider'
 import { AppShell } from '@/components/layout/AppShell'
-import { pruebaVencida } from '@/core/auth/plan'
+import { estadoPlan, planBloqueado, etiquetaPlan } from '@/core/auth/plan'
 import type { Capability } from '@/core/auth/capabilities'
 import { Button } from '@/components/ui/Button'
 import { Loader2, ShieldAlert, Clock } from 'lucide-react'
-import { diasRestantes } from '@/core/auth/plan'
 
 function Pantalla({ children }: { children: ReactNode }) {
   return (
@@ -32,15 +31,22 @@ function SinEmpresa() {
   )
 }
 
-function PruebaTerminada() {
-  const { cerrarSesion } = useAuth()
+function PlanBloqueado() {
+  const { cerrarSesion, empresa } = useAuth()
+  const esPrueba = empresa?.plan === 'prueba'
+  const { vence } = estadoPlan(empresa)
   return (
     <Pantalla>
       <Clock className="mx-auto mb-4 text-danger" size={40} />
-      <h1 className="text-lg font-semibold text-fg">Período de prueba finalizado</h1>
+      <h1 className="text-lg font-semibold text-fg">
+        {esPrueba ? 'Período de prueba finalizado' : 'Suscripción vencida'}
+      </h1>
       <p className="mt-2 text-sm text-fg-muted">
-        Tu información sigue guardada. Contacta al administrador de la plataforma para activar
-        un plan.
+        {esPrueba
+          ? 'Tu información sigue guardada. Contacta al administrador de la plataforma para activar un plan.'
+          : `El plan ${etiquetaPlan(empresa?.plan ?? 'mensual').toLowerCase()} venció${
+              vence ? ` el ${vence.toLocaleDateString('es-CL')}` : ''
+            } y terminaron los días de gracia. Tu información sigue guardada: al registrar el pago se reactiva al tiro.`}
       </p>
       <Button className="mt-5" variant="secondary" onClick={() => void cerrarSesion()}>
         Cerrar sesión
@@ -63,7 +69,7 @@ export function AuthGuard() {
   if (!session) return <Navigate to="/login" replace />
   if (profile?.must_change_password) return <Navigate to="/cambiar-clave" replace />
   if (profile && !profile.empresa_id && !profile.es_owner) return <SinEmpresa />
-  if (!profile?.es_owner && pruebaVencida(empresa, false)) return <PruebaTerminada />
+  if (planBloqueado(empresa, !!profile?.es_owner)) return <PlanBloqueado />
 
   return <AppShell />
 }
@@ -79,21 +85,6 @@ export function ModuloGuard({
   if (!cap) return <>{children}</>
   if (!can(cap)) return <Navigate to="/" replace />
   return <>{children}</>
-}
-
-export function AvisoPrueba() {
-  const { empresa, profile } = useAuth()
-  if (!empresa || profile?.es_owner || empresa.plan !== 'prueba') return null
-  const dias = diasRestantes(empresa)
-  if (dias === null || dias > 7) return null
-  return (
-    <div className="mb-4 flex items-center gap-2 rounded-xl border border-warning/40 bg-warning-soft px-4 py-2.5 text-sm text-warning">
-      <Clock size={16} />
-      {dias <= 0
-        ? 'El período de prueba vence hoy.'
-        : `Quedan ${dias} día(s) de período de prueba.`}
-    </div>
-  )
 }
 
 export { Pantalla }

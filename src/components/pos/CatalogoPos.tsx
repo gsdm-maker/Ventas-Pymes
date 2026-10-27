@@ -54,11 +54,16 @@ export function CatalogoPos({ catalogo, buscador, vista, setVista, agregar }: Ca
               </span>
             )}
           </div>
+          {/* Atajos en un ícono con ayuda (antes ocupaban una fila entera) */}
+          <span
+            title="Atajos: Enter agrega el primero · 3* multiplica · Esc limpia · F2 buscar · F9 cobra"
+            aria-label="Atajos: Enter agrega el primero, 3 asterisco multiplica, Escape limpia, F2 buscar, F9 cobra"
+            className="hidden size-10 shrink-0 cursor-help place-items-center rounded-xl text-fg-faint hover:bg-surface hover:text-fg-muted lg:grid"
+          >
+            <Keyboard size={16} aria-hidden />
+          </span>
           <SelectorVista valor={vista} onChange={setVista} opciones={VISTAS_POS} />
         </div>
-        <p className="mb-2 hidden items-center gap-1.5 text-[11px] text-fg-faint lg:flex">
-          <Keyboard size={12} aria-hidden /> Enter agrega el primero · 3* multiplica · Esc limpia · F9 cobra
-        </p>
 
         <div className="flex gap-2 overflow-x-auto pb-1 scrollbar-none">
           <Chip activa={catActiva === 'all'} onClick={() => setCatActiva('all')}>

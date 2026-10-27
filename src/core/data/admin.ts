@@ -74,3 +74,23 @@ export async function actualizarPerfilUsuario(
 ): Promise<string | null> {
   return soloError(await supabase.from('profiles').update(cambios).eq('id', userId))
 }
+
+export interface PagoPlan {
+  id: string
+  plan: 'mensual' | 'anual' | 'dueno'
+  periodo_desde: string
+  periodo_hasta: string | null
+  nota: string | null
+  created_at: string
+}
+
+/** Historial de pagos del plan de una empresa (solo lo lee el administrador general). */
+export async function listarPagosPlan(empresaId: string, limite = 24): Promise<PagoPlan[]> {
+  const { data } = await supabase
+    .from('pagos_plan')
+    .select('id, plan, periodo_desde, periodo_hasta, nota, created_at')
+    .eq('empresa_id', empresaId)
+    .order('created_at', { ascending: false })
+    .limit(limite)
+  return (data as PagoPlan[]) ?? []
+}

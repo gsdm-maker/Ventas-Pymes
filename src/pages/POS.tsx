@@ -162,7 +162,7 @@ export function POS() {
         <CatalogoPos catalogo={catalogo} buscador={buscador} vista={vista} setVista={setVista} agregar={agregar} />
 
         {/* Ticket */}
-        <div className="hidden w-full flex-col rounded-2xl border border-border bg-panel p-4 lg:flex lg:h-full lg:w-[380px] lg:shrink-0 lg:overflow-hidden xl:w-[420px]">
+        <div className="hidden w-full flex-col rounded-2xl border border-border bg-panel p-4 lg:flex lg:h-full lg:w-[400px] lg:shrink-0 lg:overflow-hidden xl:w-[460px]">
           <TicketPanel {...panel} finalizar={finalizar} />
         </div>
 

@@ -10,12 +10,11 @@ import {
   YAxis,
   type TooltipProps
 } from 'recharts'
-import { AlertTriangle, Download, FlaskConical, Minus, Package, Table2, TrendingDown, TrendingUp, LineChart as IconoLinea } from 'lucide-react'
+import { AlertTriangle, FlaskConical, Minus, Package, Table2, TrendingDown, TrendingUp, LineChart as IconoLinea } from 'lucide-react'
 import { contarVentasSimuladas, listarProductosConStock, reportePropinas, reporteVentas, type FilaPropina } from '@/core/data/api'
 import { useAuth } from '@/core/auth/AuthProvider'
 import type { ProductoConStock, ReporteVentas } from '@/core/types'
 import { Card, CardBody, CardHeader } from '@/components/ui/Card'
-import { Button } from '@/components/ui/Button'
 import { Input, Select } from '@/components/ui/Input'
 import { EmptyState, LoadingState, PageHeader } from '@/components/ui/Feedback'
 import { cn } from '@/lib/cn'
@@ -148,28 +147,6 @@ export function Reportes() {
   const ranking = useMemo(() => [...(rep?.tiendas ?? [])].sort((a, b) => b.monto - a.monto), [rep])
   const totalMonto = rep?.totales.monto ?? 0
 
-  function exportarCSV() {
-    if (!rep) return
-    const sep = ';'
-    const lineas = [
-      ['Ventas por tienda', `${rep.desde} a ${rep.hasta}`].join(sep),
-      ['Tienda', 'Venta', 'N° ventas', 'Ticket promedio', 'Unidades', 'Venta período anterior'].join(sep),
-      ...ranking.map((t) =>
-        [t.nombre, t.monto, t.tickets, t.tickets ? Math.round(t.monto / t.tickets) : 0, t.unidades, t.monto_ant].join(sep)
-      ),
-      '',
-      ['Fecha', ...tiendasSerie.map(nombreTienda)].join(sep),
-      ...serieDiaria.map((f) => [f.fecha, ...tiendasSerie.map((id) => f[id] ?? 0)].join(sep))
-    ]
-    const blob = new Blob(['﻿' + lineas.join('\n')], { type: 'text/csv;charset=utf-8' })
-    const url = URL.createObjectURL(blob)
-    const a = document.createElement('a')
-    a.href = url
-    a.download = `ventas_tiendas_${rep.desde}_${rep.hasta}.csv`
-    a.click()
-    URL.revokeObjectURL(url)
-  }
-
   const t = rep?.totales
   const ticketProm = t && t.tickets ? Math.round(t.monto / t.tickets) : 0
   const ticketPromAnt = t && t.tickets_ant ? Math.round(t.monto_ant / t.tickets_ant) : 0
@@ -182,13 +159,6 @@ export function Reportes() {
           rep
             ? `Del ${formatDiaCorto(rep.desde)} al ${formatDiaCorto(rep.hasta)} · comparado con los ${rep.dias} días anteriores`
             : 'Seguimiento de ventas'
-        }
-        actions={
-          rep && rep.totales.tickets > 0 ? (
-            <Button size="sm" variant="secondary" onClick={exportarCSV}>
-              <Download size={14} /> Exportar CSV
-            </Button>
-          ) : undefined
         }
       />
 

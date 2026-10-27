@@ -23,6 +23,7 @@
     "test:restaurante": "node scripts/sql-remoto.mjs supabase/pruebas/restaurante.sql",
     "test:permisos": "node scripts/sql-remoto.mjs supabase/pruebas/modulos_permisos.sql",
     "test:ubicaciones": "node scripts/sql-remoto.mjs supabase/pruebas/ubicaciones.sql",
+    "test:planes": "node scripts/sql-remoto.mjs supabase/pruebas/planes.sql",
     "fn:serve": "supabase functions serve admin-users --env-file ./supabase/.env.local"
   },
   "dependencies": {

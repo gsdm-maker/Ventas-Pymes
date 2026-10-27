@@ -6,6 +6,7 @@ import { useTheme } from '@/core/theme/ThemeProvider'
 import { ACENTOS } from '@/core/theme/acentos'
 import { listarCategorias, listarMotivos, listarProveedores, listarUbicaciones } from '@/core/data/api'
 import { MODULOS, MODULO_LABEL, RUBRO_LABEL } from '@/core/auth/capabilities'
+import { etiquetaPlan, resumenPlan } from '@/core/auth/plan'
 import { Card, CardBody, CardHeader } from '@/components/ui/Card'
 import { Button } from '@/components/ui/Button'
 import { Badge } from '@/components/ui/Badge'
@@ -16,7 +17,7 @@ import { useConfirm } from '@/components/ui/confirm'
 import { ConfigReposicion } from '@/components/reposicion/ConfigReposicion'
 import { ConfigImpresionEquipo } from '@/components/impresion/ConfigImpresionEquipo'
 import { cn } from '@/lib/cn'
-import { formatFecha, hace } from '@/lib/format'
+import { hace } from '@/lib/format'
 import {
   actualizarEmpresa,
   agregarACatalogo,
@@ -195,7 +196,7 @@ export function Configuracion() {
               </span>
             </label>
             <Button onClick={() => void guardarEmpresa()} disabled={!admin}>Guardar</Button>
-            <p className="text-xs text-fg-muted">Plan actual: <b>{empresa?.plan}</b>{empresa?.prueba_hasta ? ` · vence el ${formatFecha(empresa.prueba_hasta)}` : ''}. El plan y el período de prueba los asigna el administrador general.</p>
+            <p className="text-xs text-fg-muted">Plan actual: <b>{empresa ? etiquetaPlan(empresa.plan) : '—'}</b>{empresa ? ` · ${resumenPlan(empresa)}` : ''}. El plan, el vencimiento y los pagos los gestiona el administrador general.</p>
           </CardBody>
         </Card>
 

@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { Plus, Building2, ChevronRight } from 'lucide-react'
 import { listarEmpresas } from '@/core/data/api'
-import type { Empresa, TipoNegocio } from '@/core/types'
+import type { Empresa, Plan, TipoNegocio } from '@/core/types'
 import { AdminTabs } from '@/pages/admin/AdminTabs'
 import { Card, CardBody } from '@/components/ui/Card'
 import { Button } from '@/components/ui/Button'
@@ -11,8 +11,8 @@ import { Field, Input, Select } from '@/components/ui/Input'
 import { Modal } from '@/components/ui/Modal'
 import { LoadingState, PageHeader } from '@/components/ui/Feedback'
 import { useToast } from '@/components/ui/Toast'
-import { formatFecha, hace } from '@/lib/format'
-import { PLAN_LABEL } from '@/core/auth/plan'
+import { DIAS_PRUEBA_DEFAULT, PLAN_DESCRIPCION, etiquetaPlan, tonoPlan, estadoPlan, resumenPlan } from '@/core/auth/plan'
+import { cn } from '@/lib/cn'
 import { RUBRO_LABEL, modulosPorRubro } from '@/core/auth/capabilities'
 import { adminUsers } from '@/core/data/admin'
 
@@ -21,13 +21,16 @@ export function AdminEmpresas() {
   const [empresas, setEmpresas] = useState<Empresa[]>([])
   const [cargando, setCargando] = useState(true)
   const [open, setOpen] = useState(false)
-  const [form, setForm] = useState({
+  const formVacio = {
     nombre: '',
-    prueba_dias: 15,
+    plan: 'prueba' as Plan,
+    prueba_dias: DIAS_PRUEBA_DEFAULT,
+    inicio: '',
     tipo_negocio: 'retail' as TipoNegocio,
     admin_email: '',
     admin_nombre: ''
-  })
+  }
+  const [form, setForm] = useState(formVacio)
   const [resultado, setResultado] = useState<{ email: string; clave: string } | null>(null)
   const [enviando, setEnviando] = useState(false)
 
@@ -45,11 +48,16 @@ export function AdminEmpresas() {
     if (!form.nombre.trim() || !form.admin_email.trim()) {
       return toast('Completa el nombre de la empresa y el correo del administrador', 'warning')
     }
+    if (form.plan === 'prueba' && (!Number.isInteger(form.prueba_dias) || form.prueba_dias < 1 || form.prueba_dias > 365)) {
+      return toast('Los días de prueba van de 1 a 365', 'warning')
+    }
     setEnviando(true)
     const { data, error } = await adminUsers<{ admin_email: string; clave_temporal: string }>({
         accion: 'crear_empresa',
         nombre: form.nombre.trim(),
-        prueba_dias: Number(form.prueba_dias) || 0,
+        plan: form.plan,
+        prueba_dias: form.prueba_dias,
+        inicio: form.inicio || undefined,
         tipo_negocio: form.tipo_negocio,
         modulos: modulosPorRubro(form.tipo_negocio),
         admin_email: form.admin_email.trim().toLowerCase(),
@@ -59,7 +67,7 @@ export function AdminEmpresas() {
     if (error || !data) return toast(error ?? 'Error', 'error')
     setResultado({ email: data.admin_email, clave: data.clave_temporal })
     setOpen(false)
-    setForm({ nombre: '', prueba_dias: 15, tipo_negocio: 'retail', admin_email: '', admin_nombre: '' })
+    setForm(formVacio)
     void cargar()
   }
 
@@ -68,7 +76,7 @@ export function AdminEmpresas() {
       <AdminTabs />
       <PageHeader
         title="Empresas"
-        subtitle="Crea empresas y asigna su administrador y período de prueba"
+        subtitle="Crea empresas, su administrador y su plan"
         actions={
           <Button onClick={() => setOpen(true)}>
             <Plus size={16} /> Nueva empresa
@@ -90,16 +98,23 @@ export function AdminEmpresas() {
                     </span>
                     <div>
                       <p className="text-sm font-medium text-fg">{e.nombre}</p>
-                      <p className="text-xs text-fg-muted">
-                        {e.plan === 'prueba' && e.prueba_hasta
-                          ? `Prueba hasta ${formatFecha(e.prueba_hasta)} (${hace(e.prueba_hasta)})`
-                          : `Creada ${hace(e.created_at)}`}
+                      <p
+                        className={cn(
+                          'text-xs',
+                          ['gracia', 'bloqueado'].includes(estadoPlan(e).fase)
+                            ? 'text-danger'
+                            : estadoPlan(e).fase === 'por_vencer'
+                              ? 'text-warning'
+                              : 'text-fg-muted'
+                        )}
+                      >
+                        {resumenPlan(e)}
                       </p>
                     </div>
                   </div>
                   <div className="flex items-center gap-3">
-                    <Badge tone={e.plan === 'pago' ? 'success' : e.plan === 'prueba' ? 'warning' : 'neutral'}>
-                      {PLAN_LABEL[e.plan]}
+                    <Badge tone={tonoPlan(e.plan)}>
+                      {etiquetaPlan(e.plan)}
                     </Badge>
                     <ChevronRight size={16} className="text-fg-faint" />
                   </div>
@@ -137,13 +152,32 @@ export function AdminEmpresas() {
               ))}
             </Select>
           </Field>
-          <Field label="Período de prueba (días)" hint="0 = sin prueba">
-            <Select value={form.prueba_dias} onChange={(e) => setForm({ ...form, prueba_dias: Number(e.target.value) })}>
-              {[0, 7, 15, 30, 60, 90].map((d) => (
-                <option key={d} value={d}>{d === 0 ? 'Sin prueba' : `${d} días`}</option>
-              ))}
-            </Select>
-          </Field>
+          <div className="grid gap-4 sm:grid-cols-2">
+            <Field label="Plan inicial" hint={PLAN_DESCRIPCION[form.plan]}>
+              <Select value={form.plan} onChange={(e) => setForm({ ...form, plan: e.target.value as Plan })}>
+                {(['prueba', 'mensual', 'anual', 'dueno'] as Plan[]).map((p) => (
+                  <option key={p} value={p}>{etiquetaPlan(p)}</option>
+                ))}
+              </Select>
+            </Field>
+            {form.plan === 'prueba' && (
+              <Field label="Días de prueba" hint="De 1 a 365">
+                <Input
+                  type="number"
+                  inputMode="numeric"
+                  min={1}
+                  max={365}
+                  value={form.prueba_dias}
+                  onChange={(e) => setForm({ ...form, prueba_dias: Math.round(Number(e.target.value) || 0) })}
+                />
+              </Field>
+            )}
+            {(form.plan === 'mensual' || form.plan === 'anual') && (
+              <Field label="Fecha de alta" hint="Vacío = hoy. Los ciclos se cuentan desde aquí.">
+                <Input type="date" value={form.inicio} onChange={(e) => setForm({ ...form, inicio: e.target.value })} />
+              </Field>
+            )}
+          </div>
           <div className="grid gap-4 sm:grid-cols-2">
             <Field label="Nombre del administrador">
               <Input value={form.admin_nombre} onChange={(e) => setForm({ ...form, admin_nombre: e.target.value })} placeholder="María Soto" />

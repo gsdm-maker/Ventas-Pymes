@@ -142,6 +142,21 @@ Anthropic, los patrones de diseño (Refactoring.Guru) y los pendientes anteriore
 - [x] 🤖 Catálogo de módulos y permisos: `npm run verificar:catalogo` compara TS, SQL y Edge Function
       y falla si se desalinean.
 
+## F6b. Pantallas más livianas y planes de suscripción (26-10-2026)
+- [x] 🤖 POS: cobro compacto (descuento plegable, desglose en una línea, total junto a «Cobrar»,
+      atajos en un ícono) y ticket más ancho: más alto para el detalle.
+- [x] 🤖 Inventario: filtros y títulos de columna fijos; solo el detalle se desplaza (como Reposición).
+- [x] 🤖 Reportes sin «Exportar CSV». Usuarios: «Crear usuario» como botón flotante.
+- [x] 🤖 Planes (0025): prueba (días configurables) · mensual (30 días desde el alta) · anual ·
+      dueño (pago único). Mensual/anual: días de gracia (5) antes del bloqueo; alertas al admin de la
+      empresa (franja + aviso emergente cada N horas, por defecto 1 al día); «Registrar pago» suma un
+      período respetando el ciclo; historial en `pagos_plan`. Pruebas: `supabase/pruebas/planes.sql`.
+- [x] 🤖 Consola: pestaña «Asistente IA» (cómo funciona, topes y uso); Resumen con empresas por vencer.
+- [x] 🤖 Asistente (0026): el máximo por persona es opcional (vacío = sin límite; solo cuenta la bolsa
+      diaria de la empresa, así una empresa de una persona no pierde cupo).
+- [ ] Desplegar: `db push` (0025 y 0026) → `functions deploy admin-users` y `asistente` → `git push`.
+- [ ] (Opcional) Aviso de vencimiento por correo (requiere servicio de envío y tarea programada).
+
 ## F7. Funciones de negocio pendientes (de la Bitácora)
 - [ ] Ajuste de inventario por conteo físico (el permiso existe, falta pantalla y RPC).
 - [ ] Cierre de caja diario por cajero y tienda.

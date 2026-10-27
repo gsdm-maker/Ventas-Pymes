@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { useNavigate, useParams } from 'react-router-dom'
+import { Link, useNavigate, useParams } from 'react-router-dom'
 import { ArrowLeft, UserPlus, Sparkles, KeyRound, MapPin } from 'lucide-react'
 import type { Empresa, PlanIa, PlanIaConfig, Profile, TipoNegocio, Ubicacion } from '@/core/types'
 import { MODULOS, MODULO_LABEL, RUBRO_LABEL, modulosPorRubro } from '@/core/auth/capabilities'
@@ -11,8 +11,8 @@ import { Field, Input, Select } from '@/components/ui/Input'
 import { Modal } from '@/components/ui/Modal'
 import { LoadingState, PageHeader } from '@/components/ui/Feedback'
 import { useToast } from '@/components/ui/Toast'
-import { formatFecha } from '@/lib/format'
-import { PLAN_LABEL } from '@/core/auth/plan'
+import { etiquetaPlan, resumenPlan } from '@/core/auth/plan'
+import { PlanSuscripcion } from '@/pages/admin/PlanSuscripcion'
 import { accesosPorUsuario, actualizarUbicacionesUsuario, listarPlanesIa } from '@/core/data/api'
 import { SelectorUbicaciones } from '@/components/usuarios/SelectorUbicaciones'
 import { asignadasActivas, resumenUbicaciones, sinUbicacionActiva } from '@/lib/ubicaciones'
@@ -65,15 +65,6 @@ export function AdminEmpresaDetalle() {
       return null
     }
     return data
-  }
-
-  async function cambiarPlan(plan: string) {
-    const dias = plan === 'prueba' ? 15 : 0
-    const r = await invocar({ accion: 'actualizar_plan', empresa_id: id, plan, prueba_dias: dias })
-    if (r) {
-      toast('Plan actualizado')
-      void cargar()
-    }
   }
 
   async function cambiarPlanIa(planIa: PlanIa | null) {
@@ -167,7 +158,7 @@ export function AdminEmpresaDetalle() {
       <AdminTabs />
       <PageHeader
         title={empresa.nombre}
-        subtitle={`Plan ${PLAN_LABEL[empresa.plan]}${empresa.prueba_hasta ? ` · hasta ${formatFecha(empresa.prueba_hasta)}` : ''}`}
+        subtitle={`Plan ${etiquetaPlan(empresa.plan)} · ${resumenPlan(empresa)}`}
         actions={
           <Button variant="ghost" size="sm" onClick={() => navigate('/admin/empresas')}>
             <ArrowLeft size={16} /> Volver
@@ -175,60 +166,58 @@ export function AdminEmpresaDetalle() {
         }
       />
 
+      {/* Fila 1: lo comercial (plan y asistente). Fila 2: lo operativo (módulos y usuarios). */}
       <div className="grid gap-5 lg:grid-cols-3">
+        <PlanSuscripcion empresa={empresa} onCambio={() => void cargar()} />
+
+        <Card>
+          <CardHeader title="Asistente con IA" subtitle="Socio IA: chat sobre stock, ventas y reposición" />
+          <CardBody className="space-y-3">
+            <div role="radiogroup" aria-label="Plan del asistente" className="grid grid-cols-2 gap-1.5">
+              <button
+                type="button"
+                role="radio"
+                aria-checked={!empresa.plan_ia}
+                onClick={() => void cambiarPlanIa(null)}
+                className={cn(
+                  'rounded-xl border px-3 py-2 text-left text-sm font-medium transition-colors',
+                  !empresa.plan_ia ? 'border-accent bg-accent-soft text-accent' : 'border-border text-fg-body hover:bg-surface'
+                )}
+              >
+                Sin asistente
+              </button>
+              {planesIa.map((p) => (
+                <button
+                  key={p.plan}
+                  type="button"
+                  role="radio"
+                  aria-checked={empresa.plan_ia === p.plan}
+                  onClick={() => void cambiarPlanIa(p.plan)}
+                  className={cn(
+                    'rounded-xl border px-3 py-2 text-left text-sm font-medium transition-colors',
+                    empresa.plan_ia === p.plan ? 'border-accent bg-accent-soft text-accent' : 'border-border text-fg-body hover:bg-surface'
+                  )}
+                >
+                  {p.nombre}
+                  <span className="block text-[11px] font-normal text-fg-muted">
+                    {p.mensajes_dia_empresa}/día
+                    {p.mensajes_dia_usuario ? ` · máx. ${p.mensajes_dia_usuario} por persona` : ' compartidos'}
+                  </span>
+                </button>
+              ))}
+            </div>
+            <ol className="list-decimal space-y-1 pl-4 text-xs text-fg-muted">
+              <li>Aquí eliges el plan: define cuántas preguntas al día tiene la empresa.</li>
+              <li>Los administradores de la empresa lo ven al tiro en su Dashboard.</li>
+              <li>Ellos dan o quitan el permiso «Asistente» a cada usuario en Usuarios.</li>
+            </ol>
+            <Link to="/admin/asistente" className="inline-block text-xs font-medium text-accent hover:underline">
+              Editar topes de los planes y ver el uso →
+            </Link>
+          </CardBody>
+        </Card>
+
         <div className="space-y-5">
-          <Card>
-            <CardHeader title="Plan y período de prueba" />
-            <CardBody className="space-y-3">
-              <div className="flex gap-2">
-                {(['prueba', 'gratis', 'pago'] as const).map((p) => (
-                  <Button key={p} size="sm" variant={empresa.plan === p ? 'primary' : 'secondary'} onClick={() => void cambiarPlan(p)}>
-                    {PLAN_LABEL[p]}
-                  </Button>
-                ))}
-              </div>
-              {empresa.prueba_hasta && <p className="text-xs text-fg-muted">Prueba hasta {formatFecha(empresa.prueba_hasta)}</p>}
-              <Button variant="secondary" block onClick={() => void cargarDemo()}>
-                <Sparkles size={16} /> Cargar datos de ejemplo
-              </Button>
-            </CardBody>
-          </Card>
-
-          <Card>
-            <CardHeader title="Asistente con IA" subtitle="Chat sobre stock, ventas, reposición y horarios" />
-            <CardBody className="space-y-3">
-              <div className="flex flex-wrap gap-2">
-                <Button size="sm" variant={!empresa.plan_ia ? 'primary' : 'secondary'} onClick={() => void cambiarPlanIa(null)}>
-                  Sin asistente
-                </Button>
-                {planesIa.map((p) => (
-                  <Button
-                    key={p.plan}
-                    size="sm"
-                    variant={empresa.plan_ia === p.plan ? 'primary' : 'secondary'}
-                    onClick={() => void cambiarPlanIa(p.plan)}
-                  >
-                    {p.nombre}
-                  </Button>
-                ))}
-              </div>
-              {(() => {
-                const actual = planesIa.find((p) => p.plan === empresa.plan_ia)
-                return actual ? (
-                  <p className="text-xs text-fg-muted">
-                    {actual.mensajes_dia_empresa} mensajes al día para la empresa, {actual.mensajes_dia_usuario} por
-                    usuario. Los topes de cada plan se editan en Resumen.
-                  </p>
-                ) : (
-                  <p className="text-xs text-fg-muted">
-                    Al activarlo, los administradores de la empresa lo ven en el Dashboard y pueden dar el permiso a
-                    otros usuarios.
-                  </p>
-                )
-              })()}
-            </CardBody>
-          </Card>
-
           <Card>
             <CardHeader title="Rubro y módulos" subtitle="Lo que la empresa puede usar" />
             <CardBody className="space-y-3">
@@ -260,6 +249,9 @@ export function AdminEmpresaDetalle() {
               </div>
               <Button block disabled={guardandoModulos} onClick={() => void guardarModulos()}>
                 {guardandoModulos ? 'Guardando…' : 'Guardar rubro y módulos'}
+              </Button>
+              <Button variant="ghost" block onClick={() => void cargarDemo()}>
+                <Sparkles size={16} /> Cargar datos de ejemplo
               </Button>
             </CardBody>
           </Card>

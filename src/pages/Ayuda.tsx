@@ -369,7 +369,7 @@ const TEMAS: Tema[] = [
           'Elige el período (hoy, 7 o 28 días, este mes, mes anterior o un rango) y, si quieres, una tienda.',
           'Cada cifra se compara con el período anterior del mismo largo.',
           'Pulsa una tienda del ranking para ver solo sus ventas.',
-          '«Exportar CSV» descarga los datos para abrirlos en Excel.'
+          '«Ver tabla» en la venta diaria muestra las cifras de cada día por tienda.'
         ],
         nota: 'El filtro de tienda de Reportes es propio: no depende de la ubicación elegida en la barra superior. Si aparece un aviso de ventas simuladas, el período incluye datos de demostración.'
       }
@@ -416,7 +416,8 @@ const TEMAS: Tema[] = [
         titulo: 'Datos de la empresa',
         pasos: [
           'Cambia el nombre, la moneda y si usas tallas y colores.',
-          'El plan, el período de prueba, el rubro y los módulos habilitados los define el administrador general del sistema.'
+          'El plan (prueba, mensual, anual o dueño), su vencimiento, el rubro y los módulos habilitados los define el administrador general del sistema.',
+          'Si tu plan está por vencer verás un aviso arriba de cada pantalla; al terminar los días de gracia el sistema se bloquea hasta registrar el pago (la información queda guardada).'
         ]
       },
       {

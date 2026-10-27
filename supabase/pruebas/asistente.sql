@@ -94,6 +94,22 @@ select pg_temp.probar('tope por empresa: lo usado por otro cuenta', '{{USUARIO_T
       update public.profiles set permissions = permissions || '{"asistente.usar": true}'
        where id = (select juan_id from zz_ctx);
       select public.registrar_uso_ia((select admin_id from zz_ctx)) $p$, 'service_role');
+select pg_temp.probar('sin límite por persona: una sola persona usa toda la bolsa (3 de 3)', '{{USUARIO_ADMIN}}', 'OK true · 3 · ',
+  $q$ select (r ->> 'permitido') || ' · ' || (r ->> 'usados_empresa') || ' · ' || coalesce(r ->> 'tope_usuario', '')
+        from public.registrar_uso_ia((select admin_id from zz_ctx)) r $q$,
+  $p$ update public.empresas set plan_ia = 'basico' where id = (select emp from zz_ctx);
+      update public.planes_ia set mensajes_dia_usuario = null, mensajes_dia_empresa = 3 where plan = 'basico';
+      select public.registrar_uso_ia((select admin_id from zz_ctx));
+      select public.registrar_uso_ia((select admin_id from zz_ctx)) $p$, 'service_role');
+select pg_temp.probar('sin límite por persona: la bolsa de la empresa igual corta', '{{USUARIO_ADMIN}}', 'OK false',
+  $q$ select public.registrar_uso_ia((select admin_id from zz_ctx)) ->> 'permitido' $q$,
+  $p$ update public.empresas set plan_ia = 'basico' where id = (select emp from zz_ctx);
+      update public.planes_ia set mensajes_dia_usuario = null, mensajes_dia_empresa = 2 where plan = 'basico';
+      select public.registrar_uso_ia((select admin_id from zz_ctx));
+      select public.registrar_uso_ia((select admin_id from zz_ctx)) $p$, 'service_role');
+select pg_temp.probar('tope por persona 0 se rechaza', '{{USUARIO_ADMIN}}', 'ERROR 23514',
+  $q$ with u as (update public.planes_ia set mensajes_dia_usuario = 0 where plan = 'basico' returning 1) select count(*)::text from u $q$,
+  null, 'service_role');
 select pg_temp.probar('devolver_uso_ia descuenta un error de OpenAI', '{{USUARIO_ADMIN}}', 'OK 0',
   $q$ select mensajes::text from public.uso_ia where user_id = (select admin_id from zz_ctx)
          and dia = public.hoy_negocio() $q$,

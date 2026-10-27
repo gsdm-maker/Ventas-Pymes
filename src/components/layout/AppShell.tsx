@@ -18,7 +18,8 @@ import { GRUPOS, NAV } from '@/components/layout/nav'
 import { cn } from '@/lib/cn'
 import { hace } from '@/lib/format'
 import { Select } from '@/components/ui/Input'
-import { PLAN_LABEL } from '@/core/auth/plan'
+import { etiquetaPlan } from '@/core/auth/plan'
+import { AvisoPlan } from '@/components/layout/AvisoPlan'
 import { CampanaAlertas } from '@/components/reposicion/AlertasStock'
 import { TituloSlotContext } from '@/components/layout/tituloSlot'
 import { LoadingState } from '@/components/ui/Feedback'
@@ -130,7 +131,7 @@ export function AppShell() {
           <div className="min-w-0">
             <p className="truncate text-sm font-semibold leading-tight text-fg">{empresa?.nombre ?? 'Mi Socio Pyme'}</p>
             {empresa && (
-              <p className="mt-0.5 text-[11px] leading-tight text-fg-muted">Plan {PLAN_LABEL[empresa.plan].toLowerCase()}</p>
+              <p className="mt-0.5 text-[11px] leading-tight text-fg-muted">Plan {etiquetaPlan(empresa.plan).toLowerCase()}</p>
             )}
           </div>
         </div>
@@ -258,6 +259,8 @@ export function AppShell() {
         </a>
         <main id="contenido-principal" className="flex-1 px-4 py-5 pb-24 lg:px-6 lg:pb-8">
           <TituloSlotContext.Provider value={tituloSlot}>
+            {/* Alertas de vencimiento del plan (solo para el admin de la empresa) */}
+            <AvisoPlan />
             {/* Mientras baja el código de una pantalla, la barra lateral y la superior quedan fijas */}
             <Suspense fallback={<LoadingState />}>
               <Outlet />

@@ -72,8 +72,10 @@ npm run dev
 
 Entra con el usuario creado. Como Admin general verás **Consola general** en el menú:
 
-- **Empresas:** crear empresa + su administrador + rubro + período de prueba (7/15/30/60/90 días).
-- **Detalle de empresa:** cambiar plan, **rubro y módulos habilitados** (Tienda · Restaurante ·
+- **Empresas:** crear empresa + su administrador + rubro + plan inicial (prueba de N días, mensual,
+  anual o dueño).
+- **Detalle de empresa:** plan y suscripción (registrar pago, días de gracia, alertas al admin,
+  historial de pagos), **rubro y módulos habilitados** (Tienda · Restaurante ·
   Tienda y restaurante), crear cuentas (con clave temporal), ubicaciones autorizadas, y
   *"Cargar datos de ejemplo"* (Boutique Aurora).
 - **Actividad:** auditoría de acciones.

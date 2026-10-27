@@ -140,10 +140,15 @@ function ChatAsistente({
     [enviando, mensajes, ubicacionId]
   )
 
+  // Lo que queda hoy: el menor entre el cupo personal (si el plan lo tiene) y la bolsa de la empresa
+  const quedaEmpresa =
+    uso?.tope_empresa != null && uso.usados_empresa != null ? Math.max(0, uso.tope_empresa - uso.usados_empresa) : null
+  const quedaPersona =
+    uso?.tope_usuario != null && uso.usados_usuario != null ? Math.max(0, uso.tope_usuario - uso.usados_usuario) : null
   const quedan =
-    uso?.tope_usuario !== undefined && uso.usados_usuario !== undefined
-      ? Math.max(0, uso.tope_usuario - uso.usados_usuario)
-      : null
+    quedaPersona !== null && quedaEmpresa !== null
+      ? Math.min(quedaPersona, quedaEmpresa)
+      : (quedaPersona ?? quedaEmpresa)
   const agotado = uso ? !uso.permitido : false
   const bloqueado = !enLinea || agotado || enviando
 
@@ -153,7 +158,7 @@ function ChatAsistente({
       onClose={onClose}
       eyebrow={
         uso?.plan_nombre
-          ? `Plan ${uso.plan_nombre}${quedan !== null ? ` · te quedan ${quedan} de ${uso.tope_usuario} mensajes hoy` : ''}`
+          ? `Plan ${uso.plan_nombre}${quedan !== null ? ` · ${quedan === 1 ? 'queda 1 mensaje' : `quedan ${quedan} mensajes`} hoy` : ''}`
           : 'Asistente con IA'
       }
       title={

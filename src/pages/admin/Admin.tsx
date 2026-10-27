@@ -1,14 +1,37 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { Link } from 'react-router-dom'
-import { Building2, ChevronRight, ShieldCheck } from 'lucide-react'
+import { AlertTriangle, Building2, ChevronRight, Clock, Lock } from 'lucide-react'
+import type { ReactNode } from 'react'
 import { listarEmpresas } from '@/core/data/api'
-import type { Empresa } from '@/core/types'
+import type { Empresa, Plan } from '@/core/types'
 import { AdminTabs } from '@/pages/admin/AdminTabs'
-import { Card, CardBody } from '@/components/ui/Card'
+import { Card, CardBody, CardHeader } from '@/components/ui/Card'
 import { Badge } from '@/components/ui/Badge'
 import { LoadingState, PageHeader } from '@/components/ui/Feedback'
-import { PLAN_LABEL } from '@/core/auth/plan'
-import { PlanesAsistente } from '@/pages/admin/PlanesAsistente'
+import { estadoPlan, etiquetaPlan, tonoPlan, resumenPlan, type EstadoPlan } from '@/core/auth/plan'
+import { cn } from '@/lib/cn'
+
+function Cifra({ icono, n, label, tono }: { icono: ReactNode; n: number; label: string; tono: string }) {
+  return (
+    <Card>
+      <CardBody className="flex items-center gap-3">
+        <span className={cn('grid size-10 place-items-center rounded-xl', tono)}>{icono}</span>
+        <div>
+          <p className="text-2xl font-semibold tabular-nums text-fg">{n}</p>
+          <p className="text-xs text-fg-muted">{label}</p>
+        </div>
+      </CardBody>
+    </Card>
+  )
+}
+
+const ORDEN_FASE: Record<EstadoPlan['fase'], number> = {
+  bloqueado: 0,
+  gracia: 1,
+  por_vencer: 2,
+  vigente: 3,
+  sin_vencimiento: 4
+}
 
 export function Admin() {
   const [empresas, setEmpresas] = useState<Empresa[]>([])
@@ -18,43 +41,93 @@ export function Admin() {
     listarEmpresas().then(setEmpresas).finally(() => setCargando(false))
   }, [])
 
-  const enPrueba = empresas.filter((e) => e.plan === 'prueba').length
-  const pagas = empresas.filter((e) => e.plan === 'pago').length
+  const filas = useMemo(
+    () =>
+      empresas
+        .map((e) => ({ e, estado: estadoPlan(e) }))
+        .sort(
+          (a, b) =>
+            ORDEN_FASE[a.estado.fase] - ORDEN_FASE[b.estado.fase] ||
+            (a.estado.vence?.getTime() ?? Infinity) - (b.estado.vence?.getTime() ?? Infinity)
+        ),
+    [empresas]
+  )
+  const atencion = filas.filter((f) => ['bloqueado', 'gracia', 'por_vencer'].includes(f.estado.fase))
+  const porPlan = (p: Plan) => empresas.filter((e) => e.plan === p).length
 
   return (
     <>
       <AdminTabs />
       <PageHeader title="Consola general" subtitle="Administración de la plataforma" />
 
-      <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
-        <Card><CardBody className="flex items-center gap-3">
-          <span className="grid size-10 place-items-center rounded-xl bg-accent-soft text-accent"><Building2 size={18} /></span>
-          <div><p className="text-2xl font-semibold text-fg">{empresas.length}</p><p className="text-xs text-fg-muted">Empresas</p></div>
-        </CardBody></Card>
-        <Card><CardBody className="flex items-center gap-3">
-          <span className="grid size-10 place-items-center rounded-xl bg-warning-soft text-warning"><ShieldCheck size={18} /></span>
-          <div><p className="text-2xl font-semibold text-fg">{enPrueba}</p><p className="text-xs text-fg-muted">En prueba</p></div>
-        </CardBody></Card>
-        <Card><CardBody className="flex items-center gap-3">
-          <span className="grid size-10 place-items-center rounded-xl bg-success-soft text-success"><ShieldCheck size={18} /></span>
-          <div><p className="text-2xl font-semibold text-fg">{pagas}</p><p className="text-xs text-fg-muted">Con plan de pago</p></div>
-        </CardBody></Card>
+      <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
+        <Cifra icono={<Building2 size={18} />} n={empresas.length} label="Empresas" tono="bg-accent-soft text-accent" />
+        <Cifra
+          icono={<Clock size={18} />}
+          n={filas.filter((f) => f.estado.fase === 'por_vencer').length}
+          label="Por vencer"
+          tono="bg-warning-soft text-warning"
+        />
+        <Cifra
+          icono={<AlertTriangle size={18} />}
+          n={filas.filter((f) => f.estado.fase === 'gracia').length}
+          label="En días de gracia"
+          tono="bg-danger-soft text-danger"
+        />
+        <Cifra
+          icono={<Lock size={18} />}
+          n={filas.filter((f) => f.estado.fase === 'bloqueado').length}
+          label="Bloqueadas"
+          tono="bg-surface-2 text-fg-muted"
+        />
       </div>
 
-      <PlanesAsistente />
+      <p className="mt-3 flex flex-wrap gap-2 text-xs text-fg-muted">
+        {(['prueba', 'mensual', 'anual', 'dueno'] as Plan[]).map((p) => (
+          <Badge key={p} tone={tonoPlan(p)}>
+            {etiquetaPlan(p)}: {porPlan(p)}
+          </Badge>
+        ))}
+      </p>
 
       <div className="mt-5">
         {cargando ? (
           <LoadingState />
         ) : (
           <Card>
+            <CardHeader
+              title={atencion.length ? 'Requieren atención' : 'Empresas'}
+              subtitle={
+                atencion.length
+                  ? 'Vencidas, en gracia o por vencer: registra el pago desde la ficha de la empresa'
+                  : 'Todas al día'
+              }
+            />
             <CardBody className="p-0">
               <div className="divide-y divide-border">
-                {empresas.map((e) => (
-                  <Link key={e.id} to={`/admin/empresas/${e.id}`} className="flex items-center justify-between px-5 py-4 hover:bg-surface">
-                    <span className="text-sm font-medium text-fg">{e.nombre}</span>
-                    <span className="flex items-center gap-3">
-                      <Badge tone={e.plan === 'pago' ? 'success' : e.plan === 'prueba' ? 'warning' : 'neutral'}>{PLAN_LABEL[e.plan]}</Badge>
+                {(atencion.length ? atencion : filas).map(({ e, estado }) => (
+                  <Link
+                    key={e.id}
+                    to={`/admin/empresas/${e.id}`}
+                    className="flex items-center justify-between gap-3 px-5 py-3.5 hover:bg-surface"
+                  >
+                    <div className="min-w-0">
+                      <p className="truncate text-sm font-medium text-fg">{e.nombre}</p>
+                      <p
+                        className={cn(
+                          'text-xs',
+                          estado.fase === 'bloqueado' || estado.fase === 'gracia'
+                            ? 'text-danger'
+                            : estado.fase === 'por_vencer'
+                              ? 'text-warning'
+                              : 'text-fg-muted'
+                        )}
+                      >
+                        {resumenPlan(e, estado)}
+                      </p>
+                    </div>
+                    <span className="flex shrink-0 items-center gap-3">
+                      <Badge tone={tonoPlan(e.plan)}>{etiquetaPlan(e.plan)}</Badge>
                       <ChevronRight size={16} className="text-fg-faint" />
                     </span>
                   </Link>
@@ -65,6 +138,11 @@ export function Admin() {
                   </p>
                 )}
               </div>
+              {atencion.length > 0 && (
+                <Link to="/admin/empresas" className="block border-t border-border px-5 py-3 text-xs font-medium text-accent hover:bg-surface">
+                  Ver todas las empresas →
+                </Link>
+              )}
             </CardBody>
           </Card>
         )}

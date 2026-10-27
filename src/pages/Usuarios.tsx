@@ -144,14 +144,18 @@ export function Usuarios() {
       <PageHeader
         title="Usuarios y permisos"
         subtitle="Cuentas con acceso a esta empresa"
-        actions={
-          gestiona && yo?.empresa_id ? (
-            <Button size="sm" onClick={() => setCrearOpen(true)}>
-              <UserPlus size={14} /> Crear usuario
-            </Button>
-          ) : undefined
-        }
       />
+
+      {/* Acción principal flotante (sobre la barra inferior en móvil), igual que en Productos */}
+      {gestiona && yo?.empresa_id && !crearOpen && (
+        <Button
+          onClick={() => setCrearOpen(true)}
+          aria-label="Crear usuario"
+          className="fixed bottom-[calc(5rem+env(safe-area-inset-bottom))] right-4 z-30 h-12 rounded-full px-4 shadow-lg sm:px-5 lg:bottom-8 lg:right-8"
+        >
+          <UserPlus size={18} /> <span className="hidden sm:inline">Crear usuario</span>
+        </Button>
+      )}
 
       {gestiona && (
         <div className="mb-4 flex items-start gap-2 rounded-xl border border-info/30 bg-info-soft px-4 py-3 text-xs text-info">

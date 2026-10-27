@@ -28,6 +28,7 @@ const Voucher = pagina(() => import('@/pages/Voucher'), 'Voucher')
 const Admin = pagina(() => import('@/pages/admin/Admin'), 'Admin')
 const AdminEmpresas = pagina(() => import('@/pages/admin/AdminEmpresas'), 'AdminEmpresas')
 const AdminEmpresaDetalle = pagina(() => import('@/pages/admin/AdminEmpresaDetalle'), 'AdminEmpresaDetalle')
+const AdminAsistente = pagina(() => import('@/pages/admin/AdminAsistente'), 'AdminAsistente')
 const AdminOwners = pagina(() => import('@/pages/admin/AdminOwners'), 'AdminOwners')
 const AdminActividad = pagina(() => import('@/pages/admin/AdminActividad'), 'AdminActividad')
 const NoEncontrado = pagina(() => import('@/pages/NoEncontrado'), 'NoEncontrado')
@@ -66,6 +67,7 @@ export default function App() {
         <Route path="admin" element={<Admin />} />
         <Route path="admin/empresas" element={<AdminEmpresas />} />
         <Route path="admin/empresas/:id" element={<AdminEmpresaDetalle />} />
+        <Route path="admin/asistente" element={<AdminAsistente />} />
         <Route path="admin/owners" element={<AdminOwners />} />
         <Route path="admin/actividad" element={<AdminActividad />} />
         <Route path="*" element={<NoEncontrado />} />

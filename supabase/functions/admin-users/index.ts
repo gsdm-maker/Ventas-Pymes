@@ -48,6 +48,37 @@ const MODULOS = [
 const RUBROS = ['retail', 'restaurante', 'mixto']
 // Espejo de planes_ia (migración 0023)
 const PLANES_IA = ['basico', 'pro', 'max']
+// Planes de suscripción (migración 0025)
+const PLANES = ['prueba', 'mensual', 'anual', 'dueno']
+
+/** Espejo de _plan_vigente() (0025) y estadoPlan() del front. */
+function planVigente(e: {
+  plan: string
+  prueba_hasta: string | null
+  plan_vence: string | null
+  dias_gracia: number | null
+}): boolean {
+  const ahora = Date.now()
+  if (e.plan === 'dueno') return true
+  if (e.plan === 'prueba') return !e.prueba_hasta || new Date(e.prueba_hasta).getTime() > ahora
+  if (e.plan === 'mensual' || e.plan === 'anual') {
+    if (!e.plan_vence) return false
+    return new Date(e.plan_vence).getTime() + (e.dias_gracia ?? 0) * 86400000 > ahora
+  }
+  return false
+}
+
+/** Fecha YYYY-MM-DD opcional: undefined si no viene, null si es inválida. */
+function fechaOpcional(valor: unknown): string | undefined | null {
+  if (valor === undefined || valor === null || valor === '') return undefined
+  const s = String(valor)
+  return /^\d{4}-\d{2}-\d{2}$/.test(s) && !Number.isNaN(Date.parse(s)) ? s : null
+}
+
+function enteroEntre(valor: unknown, min: number, max: number): number | null {
+  const n = Number(valor)
+  return Number.isInteger(n) && n >= min && n <= max ? n : null
+}
 
 function modulosValidos(valor: unknown): string[] | null {
   if (!Array.isArray(valor)) return null
@@ -94,12 +125,16 @@ Deno.serve(async (req) => {
   if (!esAdminGeneral) {
     const { data: emp } = await admin
       .from('empresas')
-      .select('plan, prueba_hasta')
+      .select('plan, prueba_hasta, plan_vence, dias_gracia')
       .eq('id', perfil.empresa_id)
       .single()
-    const vencida =
-      emp?.plan === 'prueba' && !!emp.prueba_hasta && new Date(emp.prueba_hasta).getTime() < Date.now()
-    if (!emp || vencida) return json({ error: 'El período de prueba de la empresa terminó' }, 403)
+    if (!emp || !planVigente(emp)) {
+      return json({
+        error: emp?.plan === 'prueba'
+          ? 'El período de prueba de la empresa terminó'
+          : 'La suscripción de la empresa está vencida'
+      }, 403)
+    }
   }
 
   const empresaRestringida = esAdminGeneral ? null : perfil.empresa_id
@@ -162,7 +197,9 @@ Deno.serve(async (req) => {
       case 'crear_empresa': {
         if (!esAdminGeneral) return json({ error: 'No autorizado' }, 403)
         const nombre = String(payload.nombre || '').trim()
+        const plan = String(payload.plan || 'prueba')
         const dias = Number(payload.prueba_dias ?? 15)
+        const inicio = fechaOpcional(payload.inicio)
         // Rubro: retail | restaurante | mixto. Sin módulos explícitos, restaurante y mixto
         // suman Mesas y Cocina
         const tipoNegocio = RUBROS.includes(String(payload.tipo_negocio)) ? String(payload.tipo_negocio) : 'retail'
@@ -174,16 +211,30 @@ Deno.serve(async (req) => {
         const adminNombre = String(payload.admin_nombre || '').trim()
         if (!nombre) return json({ error: 'Falta el nombre de la empresa' }, 400)
         if (!esEmailValido(adminEmail)) return json({ error: 'Correo de admin inválido' }, 400)
-        if (Number.isNaN(dias) || dias < 0 || dias > 365) return json({ error: 'Días de prueba inválidos' }, 400)
-
-        const pruebaHasta = dias > 0 ? new Date(Date.now() + dias * 86400000).toISOString() : null
+        if (!PLANES.includes(plan)) return json({ error: 'Plan inválido' }, 400)
+        if (plan === 'prueba' && (!Number.isInteger(dias) || dias < 1 || dias > 365)) {
+          return json({ error: 'Los días de prueba van de 1 a 365' }, 400)
+        }
+        if (inicio === null) return json({ error: 'Fecha de alta inválida' }, 400)
 
         const { data: empresa, error: empErr } = await admin
           .from('empresas')
-          .insert({ nombre, plan: 'prueba', prueba_hasta: pruebaHasta, modulos, tipo_negocio: tipoNegocio })
+          .insert({ nombre, plan: 'prueba', prueba_hasta: null, modulos, tipo_negocio: tipoNegocio })
           .select()
           .single()
         if (empErr) throw empErr
+        // El plan (vencimiento o pago inicial) lo fija la misma regla que al cambiarlo
+        const { error: planErr } = await admin.rpc('cambiar_plan_empresa', {
+          p_empresa: empresa.id,
+          p_plan: plan,
+          p_actor: perfil.id,
+          p_prueba_dias: plan === 'prueba' ? dias : 15,
+          p_inicio: inicio ?? null
+        })
+        if (planErr) {
+          await admin.from('empresas').delete().eq('id', empresa.id)
+          return json({ error: planErr.message }, 400)
+        }
 
         // Admin de la empresa
         const clave = claveTemporal()
@@ -213,7 +264,14 @@ Deno.serve(async (req) => {
           throw profErr
         }
 
-        await auditar(empresa.id, { nombre, prueba_dias: dias, admin_email: adminEmail, tipo_negocio: tipoNegocio })
+        await auditar(empresa.id, {
+          nombre,
+          plan,
+          prueba_dias: plan === 'prueba' ? dias : null,
+          inicio,
+          admin_email: adminEmail,
+          tipo_negocio: tipoNegocio
+        })
         return json({ ok: true, empresa, admin_email: adminEmail, clave_temporal: clave })
       }
 
@@ -300,25 +358,74 @@ Deno.serve(async (req) => {
         return json({ ok: true, email, clave_temporal: clave })
       }
 
-      // ---------- Cambiar plan / período de prueba (solo Owner) ----------
+      // ---------- Cambiar plan (solo Owner) ----------
+      // prueba: N días · mensual/anual: desde la fecha de alta, ciclo en curso pagado · dueno: pago único
       case 'actualizar_plan': {
         if (!esAdminGeneral) return json({ error: 'No autorizado' }, 403)
         const empresaId = String(payload.empresa_id || '')
         const plan = String(payload.plan || '')
-        if (!['prueba', 'gratis', 'pago'].includes(plan)) return json({ error: 'Plan inválido' }, 400)
+        if (!PLANES.includes(plan)) return json({ error: 'Plan inválido' }, 400)
         const dias = Number(payload.prueba_dias ?? 15)
         if (plan === 'prueba' && (!Number.isInteger(dias) || dias < 1 || dias > 365)) {
-          return json({ error: 'Días de prueba inválidos' }, 400)
+          return json({ error: 'Los días de prueba van de 1 a 365' }, 400)
         }
-        const { data: existe } = await admin.from('empresas').select('id').eq('id', empresaId).maybeSingle()
-        if (!existe) return json({ error: 'Empresa inexistente' }, 400)
-        const pruebaHasta = plan === 'prueba' ? new Date(Date.now() + dias * 86400000).toISOString() : null
-        const { error } = await admin
+        const inicio = fechaOpcional(payload.inicio)
+        if (inicio === null) return json({ error: 'Fecha de alta inválida' }, 400)
+        const nota = String(payload.nota ?? '').trim().slice(0, 200) || null
+        const { data: antes } = await admin
           .from('empresas')
-          .update({ plan, prueba_hasta: pruebaHasta })
+          .select('plan, prueba_hasta, plan_inicio, plan_vence')
           .eq('id', empresaId)
+          .maybeSingle()
+        if (!antes) return json({ error: 'Empresa inexistente' }, 400)
+        const { data, error } = await admin.rpc('cambiar_plan_empresa', {
+          p_empresa: empresaId,
+          p_plan: plan,
+          p_actor: perfil.id,
+          p_prueba_dias: plan === 'prueba' ? dias : 15,
+          p_inicio: inicio ?? null,
+          p_nota: nota
+        })
+        if (error) return json({ error: error.message }, 400)
+        await auditar(empresaId, { antes, plan, prueba_dias: plan === 'prueba' ? dias : null, inicio, resultado: data })
+        return json({ ok: true, ...(data as Record<string, unknown>) })
+      }
+
+      // ---------- Registrar el pago de un período mensual o anual (solo Owner) ----------
+      case 'registrar_pago': {
+        if (!esAdminGeneral) return json({ error: 'No autorizado' }, 403)
+        const empresaId = String(payload.empresa_id || '')
+        const nota = String(payload.nota ?? '').trim().slice(0, 200) || null
+        const { data, error } = await admin.rpc('registrar_pago_plan', {
+          p_empresa: empresaId,
+          p_actor: perfil.id,
+          p_nota: nota
+        })
+        if (error) return json({ error: error.message }, 400)
+        await auditar(empresaId, { nota, ...(data as Record<string, unknown>) })
+        return json({ ok: true, ...(data as Record<string, unknown>) })
+      }
+
+      // ---------- Días de gracia y alertas de vencimiento (solo Owner) ----------
+      case 'configurar_avisos': {
+        if (!esAdminGeneral) return json({ error: 'No autorizado' }, 403)
+        const empresaId = String(payload.empresa_id || '')
+        const diasGracia = enteroEntre(payload.dias_gracia, 0, 60)
+        const avisoDias = enteroEntre(payload.aviso_dias_antes, 0, 90)
+        const avisoHoras = enteroEntre(payload.aviso_cada_horas, 1, 720)
+        if (diasGracia === null) return json({ error: 'Los días de gracia van de 0 a 60' }, 400)
+        if (avisoDias === null) return json({ error: 'Los días de aviso van de 0 a 90' }, 400)
+        if (avisoHoras === null) return json({ error: 'La frecuencia va de 1 a 720 horas' }, 400)
+        const { data: antes } = await admin
+          .from('empresas')
+          .select('dias_gracia, aviso_dias_antes, aviso_cada_horas')
+          .eq('id', empresaId)
+          .maybeSingle()
+        if (!antes) return json({ error: 'Empresa inexistente' }, 400)
+        const cambios = { dias_gracia: diasGracia, aviso_dias_antes: avisoDias, aviso_cada_horas: avisoHoras }
+        const { error } = await admin.from('empresas').update(cambios).eq('id', empresaId)
         if (error) throw error
-        await auditar(empresaId, { plan, prueba_hasta: pruebaHasta })
+        await auditar(empresaId, { antes, ...cambios })
         return json({ ok: true })
       }
 
@@ -342,10 +449,15 @@ Deno.serve(async (req) => {
         const plan = String(payload.plan || '')
         if (!PLANES_IA.includes(plan)) return json({ error: 'Plan de asistente inválido' }, 400)
         const empresaDia = Number(payload.mensajes_dia_empresa)
-        const usuarioDia = Number(payload.mensajes_dia_usuario)
+        // Por persona: null = sin límite individual (solo cuenta la bolsa de la empresa)
+        const sinLimite = payload.mensajes_dia_usuario === null || payload.mensajes_dia_usuario === ''
+        const usuarioDia = sinLimite ? null : Number(payload.mensajes_dia_usuario)
         const entero = (n: number) => Number.isInteger(n) && n >= 1 && n <= 100000
-        if (!entero(empresaDia) || !entero(usuarioDia)) {
+        if (!entero(empresaDia) || (usuarioDia !== null && !entero(usuarioDia))) {
           return json({ error: 'Los topes deben ser números enteros entre 1 y 100.000' }, 400)
+        }
+        if (usuarioDia !== null && usuarioDia > empresaDia) {
+          return json({ error: 'El tope por persona no puede superar el de la empresa' }, 400)
         }
         const cambios = {
           mensajes_dia_empresa: empresaDia,

@@ -10,7 +10,7 @@ import { useToast } from '@/components/ui/Toast'
 import { formatMiles } from '@/lib/format'
 import { adminUsers } from '@/core/data/admin'
 
-/** Consola general: topes diarios de cada plan del asistente y uso por empresa. */
+/** Consola general · Asistente IA: topes diarios de cada plan y uso por empresa. */
 export function PlanesAsistente() {
   const toast = useToast()
   const [planes, setPlanes] = useState<PlanIaConfig[]>([])
@@ -27,6 +27,9 @@ export function PlanesAsistente() {
   }
 
   async function guardar(p: PlanIaConfig) {
+    if (p.mensajes_dia_usuario !== null && p.mensajes_dia_usuario > p.mensajes_dia_empresa) {
+      return toast('El máximo por persona no puede superar la bolsa de la empresa', 'warning')
+    }
     setGuardando(p.plan)
     const { error } = await adminUsers({
       accion: 'actualizar_planes_ia',
@@ -42,19 +45,24 @@ export function PlanesAsistente() {
   const conUso = uso.filter((u) => u.plan_ia || u.mes > 0)
 
   return (
-    <div className="mt-5 grid gap-5 lg:grid-cols-3">
-      <Card className="lg:col-span-2">
+    <div className="mt-5 space-y-5">
+      <Card>
         <CardHeader
-          title="Planes del asistente con IA"
-          subtitle="Todos los planes tienen las mismas funciones; cambia cuántas preguntas al día. Se aplica al momento."
+          title="Topes de cada plan"
+          subtitle="Preguntas al día. Se aplica al momento a todas las empresas con ese plan. Lo que no se usa en el día no se acumula."
         />
         <CardBody className="grid gap-4 sm:grid-cols-3">
           {planes.map((p) => (
             <div key={p.plan} className="space-y-3 rounded-xl border border-border p-4">
-              <p className="flex items-center gap-2 text-sm font-semibold text-fg">
-                <Sparkles size={15} className="text-accent" /> {p.nombre}
+              <p className="flex items-center justify-between gap-2 text-sm font-semibold text-fg">
+                <span className="flex items-center gap-2">
+                  <Sparkles size={15} className="text-accent" /> {p.nombre}
+                </span>
+                <span className="text-xs font-normal text-fg-muted">
+                  {uso.filter((u) => u.plan_ia === p.plan).length} empresa(s)
+                </span>
               </p>
-              <Field label="Mensajes al día por empresa">
+              <Field label="Bolsa diaria de la empresa" hint="La comparten todas las personas con permiso.">
                 <Input
                   type="number"
                   inputMode="numeric"
@@ -63,16 +71,23 @@ export function PlanesAsistente() {
                   onChange={(e) => cambiar(p.plan, { mensajes_dia_empresa: Number(e.target.value) })}
                 />
               </Field>
-              <Field label="Mensajes al día por usuario">
+              <Field
+                label="Máximo por persona al día"
+                hint={p.mensajes_dia_usuario ? 'Nadie puede usar más que esto, aunque sobre bolsa.' : 'Vacío = sin límite: cualquiera puede usar toda la bolsa.'}
+              >
                 <Input
                   type="number"
                   inputMode="numeric"
                   min={1}
-                  value={p.mensajes_dia_usuario}
-                  onChange={(e) => cambiar(p.plan, { mensajes_dia_usuario: Number(e.target.value) })}
+                  max={p.mensajes_dia_empresa}
+                  placeholder="Sin límite"
+                  value={p.mensajes_dia_usuario ?? ''}
+                  onChange={(e) =>
+                    cambiar(p.plan, { mensajes_dia_usuario: e.target.value === '' ? null : Number(e.target.value) })
+                  }
                 />
               </Field>
-              <Button size="sm" block disabled={guardando === p.plan} onClick={() => void guardar(p)}>
+              <Button size="sm" variant="secondary" block disabled={guardando === p.plan} onClick={() => void guardar(p)}>
                 {guardando === p.plan ? 'Guardando…' : 'Guardar'}
               </Button>
             </div>
@@ -81,26 +96,42 @@ export function PlanesAsistente() {
       </Card>
 
       <Card>
-        <CardHeader title="Uso del asistente" subtitle="Mensajes respondidos" />
+        <CardHeader title="Uso por empresa" subtitle="Mensajes respondidos hoy y en el mes" />
         <CardBody className="p-0">
-          <div className="divide-y divide-border">
-            {conUso.map((u) => (
-              <div key={u.empresa_id} className="flex items-center justify-between gap-3 px-5 py-3 text-sm">
-                <div className="min-w-0">
-                  <p className="truncate font-medium text-fg">{u.nombre}</p>
-                  <p className="text-xs text-fg-muted">
-                    Hoy {formatMiles(u.hoy)} · mes {formatMiles(u.mes)}
-                  </p>
-                </div>
-                <Badge tone={u.plan_ia ? 'accent' : 'neutral'}>
-                  {planes.find((p) => p.plan === u.plan_ia)?.nombre ?? 'Sin asistente'}
-                </Badge>
-              </div>
-            ))}
-            {conUso.length === 0 && (
-              <p className="px-5 py-4 text-sm text-fg-muted">Ninguna empresa tiene el asistente activado todavía.</p>
-            )}
-          </div>
+          {conUso.length === 0 ? (
+            <p className="px-5 py-4 text-sm text-fg-muted">Ninguna empresa tiene el asistente activado todavía.</p>
+          ) : (
+            <div className="overflow-x-auto">
+              <table className="w-full text-sm">
+                <thead>
+                  <tr className="border-b border-border text-left text-xs text-fg-muted">
+                    <th className="px-5 py-2.5 font-medium">Empresa</th>
+                    <th className="px-5 py-2.5 font-medium">Plan</th>
+                    <th className="px-5 py-2.5 text-right font-medium">Hoy</th>
+                    <th className="px-5 py-2.5 text-right font-medium">Mes</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {conUso.map((u) => {
+                    const plan = planes.find((p) => p.plan === u.plan_ia)
+                    return (
+                      <tr key={u.empresa_id} className="border-b border-border/60 last:border-0">
+                        <td className="px-5 py-2.5 font-medium text-fg">{u.nombre}</td>
+                        <td className="px-5 py-2.5">
+                          <Badge tone={plan ? 'accent' : 'neutral'}>{plan?.nombre ?? 'Sin asistente'}</Badge>
+                        </td>
+                        <td className="px-5 py-2.5 text-right tabular-nums text-fg-body">
+                          {formatMiles(u.hoy)}
+                          {plan && <span className="text-fg-faint"> / {formatMiles(plan.mensajes_dia_empresa)}</span>}
+                        </td>
+                        <td className="px-5 py-2.5 text-right tabular-nums text-fg-body">{formatMiles(u.mes)}</td>
+                      </tr>
+                    )
+                  })}
+                </tbody>
+              </table>
+            </div>
+          )}
         </CardBody>
       </Card>
     </div>

@@ -60,8 +60,8 @@ select pg_temp.probar('admin cambia el rubro', '{{USUARIO_ADMIN}}', 'ERROR P0001
   $q$ with u as (update public.empresas set tipo_negocio = 'mixto' where id = public.mi_empresa() returning 1) select count(*)::text from u $q$);
 select pg_temp.probar('admin extiende su período de prueba', '{{USUARIO_ADMIN}}', 'ERROR P0001',
   $q$ with u as (update public.empresas set prueba_hasta = now() + interval '365 days' where id = public.mi_empresa() returning 1) select count(*)::text from u $q$);
-select pg_temp.probar('admin cambia su plan a pago', '{{USUARIO_ADMIN}}', 'ERROR P0001',
-  $q$ with u as (update public.empresas set plan = 'pago' where id = public.mi_empresa() returning 1) select count(*)::text from u $q$);
+select pg_temp.probar('admin cambia su plan a mensual', '{{USUARIO_ADMIN}}', 'ERROR P0001',
+  $q$ with u as (update public.empresas set plan = 'mensual', plan_vence = now() + interval '1 year' where id = public.mi_empresa() returning 1) select count(*)::text from u $q$);
 select pg_temp.probar('admin edita el nombre (sin tocar módulos)', '{{USUARIO_ADMIN}}', 'OK 1',
   $q$ with u as (update public.empresas set nombre = nombre where id = public.mi_empresa() returning 1) select count(*)::text from u $q$);
 select pg_temp.probar('rubro tienda y restaurante (mixto) es válido', 'directo', 'OK 1',

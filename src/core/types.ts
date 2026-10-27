@@ -4,7 +4,8 @@
  * interfaces tipan los resultados en la capa de datos.
  */
 
-export type Plan = 'prueba' | 'gratis' | 'pago'
+/** Plan de suscripción (migración 0025). */
+export type Plan = 'prueba' | 'mensual' | 'anual' | 'dueno'
 
 /** Plan del asistente con IA (lo define el administrador general; null = sin asistente). */
 export type PlanIa = 'basico' | 'pro' | 'max'
@@ -13,7 +14,8 @@ export interface PlanIaConfig {
   plan: PlanIa
   nombre: string
   mensajes_dia_empresa: number
-  mensajes_dia_usuario: number
+  /** null = sin límite por persona: solo cuenta la bolsa diaria de la empresa */
+  mensajes_dia_usuario: number | null
   orden: number
 }
 
@@ -24,7 +26,8 @@ export interface UsoIa {
   plan?: PlanIa | null
   plan_nombre?: string | null
   usados_usuario?: number
-  tope_usuario?: number
+  /** null = el plan no tiene límite por persona */
+  tope_usuario?: number | null
   usados_empresa?: number
   tope_empresa?: number
 }
@@ -50,6 +53,16 @@ export interface Empresa {
   moneda: string
   plan: Plan
   prueba_hasta: string | null
+  /** Fecha de alta del plan mensual/anual (ancla de los ciclos) o del pago único */
+  plan_inicio?: string | null
+  /** Fin del período pagado (mensual/anual) */
+  plan_vence?: string | null
+  /** Días de uso después del vencimiento antes de bloquear */
+  dias_gracia?: number
+  /** Desde cuántos días antes del vencimiento se avisa al admin de la empresa */
+  aviso_dias_antes?: number
+  /** Cada cuántas horas se repite el aviso emergente (24 = una vez al día) */
+  aviso_cada_horas?: number
   modulos: string[]
   reposicion?: ParametrosReposicion
   /** retail | restaurante: valor por defecto de controla_stock en productos nuevos */

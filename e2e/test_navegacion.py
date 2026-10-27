@@ -29,6 +29,7 @@ PANTALLAS_ADMIN = {
 PANTALLAS_OWNER = {
     '/admin': 'Consola general',
     '/admin/empresas': 'Empresas',
+    '/admin/asistente': 'Asistente con IA',
     '/admin/owners': 'Administradores generales',
     '/admin/actividad': 'Actividad',
 }
@@ -108,4 +109,6 @@ def test_ficha_de_empresa_en_la_consola(pagina_owner):
     pagina_owner.locator('a[href^="/admin/empresas/"]').first.click()
     expect(pagina_owner.get_by_text('Asistente con IA')).to_be_visible(timeout=20_000)
     expect(pagina_owner.get_by_text('Rubro y módulos')).to_be_visible()
+    expect(pagina_owner.get_by_text('Plan y suscripción')).to_be_visible()
+    expect(pagina_owner.get_by_text('Historial de pagos')).to_be_visible()
     assert not errores, errores

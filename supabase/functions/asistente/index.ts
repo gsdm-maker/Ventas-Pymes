@@ -362,7 +362,8 @@ Deno.serve(async (req) => {
     plan: estado.plan ?? null,
     plan_nombre: estado.plan_nombre ?? null,
     usados_usuario: estado.usados_usuario ?? 0,
-    tope_usuario: estado.tope_usuario ?? 0,
+    // null = el plan no tiene límite por persona (solo la bolsa de la empresa)
+    tope_usuario: estado.tope_usuario ?? null,
     usados_empresa: estado.usados_empresa ?? 0,
     tope_empresa: estado.tope_empresa ?? 0,
     permitido: Boolean(estado.permitido),

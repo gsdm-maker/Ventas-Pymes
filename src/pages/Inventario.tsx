@@ -59,9 +59,12 @@ export function Inventario() {
 
   return (
     <>
-      <PageHeader title="Inventario" subtitle={ubicacionNombre} />
+      {/* Escritorio: encabezado y filtros fijos; solo el detalle hace scroll (como Reposición) */}
+      <div className="lg:flex lg:h-[calc(100dvh-7.25rem)] lg:flex-col">
+      <PageHeader title="Inventario" subtitle={`${ubicacionNombre}${cargando ? '' : ` · ${filtrados.length} producto(s)`}`} />
 
-      <div className="mb-4 flex flex-wrap items-center gap-2">
+      {/* En móvil los filtros quedan pegados bajo la barra superior */}
+      <div className="sticky top-16 z-20 -mx-4 mb-3 flex shrink-0 flex-wrap items-center gap-2 border-b border-border bg-shell/95 px-4 py-2 shadow-sm backdrop-blur lg:static lg:mx-0 lg:border-0 lg:bg-transparent lg:p-0 lg:shadow-none lg:backdrop-blur-none">
         <div className="relative min-w-52 flex-1">
           <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-fg-faint" />
           <Input className="pl-9" placeholder="Buscar por nombre o SKU…" value={busqueda} onChange={(e) => setBusqueda(e.target.value)} />
@@ -86,12 +89,13 @@ export function Inventario() {
       ) : filtrados.length === 0 ? (
         <EmptyState icon={<Package size={32} />} title="Sin resultados" description="Ajusta los filtros o la búsqueda." />
       ) : vista === 'lista' ? (
-        <Card>
-          <CardBody className="p-0">
-            <div className="overflow-x-auto">
+        <Card className="lg:flex lg:min-h-0 lg:flex-1 lg:flex-col lg:overflow-hidden">
+          <CardBody className="p-0 lg:min-h-0 lg:flex-1 lg:overflow-auto lg:overscroll-contain">
+            <div className="overflow-x-auto lg:overflow-visible">
               <table className="w-full text-sm">
-                <thead>
-                  <tr className="border-b border-border text-left text-xs uppercase tracking-wide text-fg-muted">
+                {/* Títulos de columna fijos mientras se desplaza el detalle */}
+                <thead className="[&_th]:sticky [&_th]:top-0 [&_th]:z-10 [&_th]:bg-panel [&_th]:shadow-[inset_0_-1px_0_rgb(var(--border))]">
+                  <tr className="text-left text-xs uppercase tracking-wide text-fg-muted">
                     <th className="px-4 py-3 font-medium">Producto</th>
                     {/* En el celular solo lo esencial: producto, disponible y estado */}
                     <th className="hidden px-4 py-3 font-medium md:table-cell">Categoría</th>
@@ -148,7 +152,8 @@ export function Inventario() {
           </CardBody>
         </Card>
       ) : (
-        <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5">
+        <div className="lg:-mr-2 lg:min-h-0 lg:flex-1 lg:overflow-y-auto lg:overscroll-contain lg:pr-2">
+        <div className="grid grid-cols-2 gap-3 pb-1 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5">
           {filtrados.map((p) => (
             <button
               key={p.id}
@@ -170,7 +175,9 @@ export function Inventario() {
             </button>
           ))}
         </div>
+        </div>
       )}
+      </div>
 
       <SidePanel
         open={!!productoSeleccionado}

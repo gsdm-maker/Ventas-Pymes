@@ -32,7 +32,6 @@ import type { FilaReposicion } from '@/core/types'
 import { Card, CardBody, CardHeader } from '@/components/ui/Card'
 import { Badge } from '@/components/ui/Badge'
 import { LoadingState, PageHeader } from '@/components/ui/Feedback'
-import { AvisoPrueba } from '@/core/auth/guards'
 import { AsistenteFlotante } from '@/components/asistente/AsistenteFlotante'
 import { cn } from '@/lib/cn'
 import { formatDiaCorto, formatFecha, formatMiles } from '@/lib/format'
@@ -92,7 +91,6 @@ export function Dashboard() {
         title="Dashboard"
         subtitle={`${empresa?.nombre ?? ''} · ${activa?.nombre ?? 'Todas las ubicaciones'}`}
       />
-      <AvisoPrueba />
       <AsistenteFlotante />
 
       {cargando || !resumen ? (
