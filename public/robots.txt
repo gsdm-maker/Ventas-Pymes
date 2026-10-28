@@ -1,0 +1,4 @@
+# Mi Socio Pyme es una aplicación privada: todas las pantallas requieren sesión.
+# No se listan rutas a propósito, para no publicar el mapa interno del sistema.
+User-agent: *
+Disallow: /

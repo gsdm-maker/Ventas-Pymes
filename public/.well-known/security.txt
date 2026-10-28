@@ -1,0 +1,6 @@
+# Si encontraste una falla de seguridad en Mi Socio Pyme, escríbenos.
+# Por favor no accedas a datos de otras empresas ni afectes el servicio.
+Contact: mailto:devseba763@gmail.com
+Expires: 2027-10-27T00:00:00.000Z
+Preferred-Languages: es, en
+Canonical: https://misociopyme.cl/.well-known/security.txt
