@@ -1,5 +1,5 @@
 import { Suspense, useState } from 'react'
-import { NavLink, Outlet, useNavigate } from 'react-router-dom'
+import { NavLink, Outlet, useLocation, useNavigate } from 'react-router-dom'
 import {
   Moon,
   Sun,
@@ -14,7 +14,7 @@ import {
 import { useAuth } from '@/core/auth/AuthProvider'
 import { useSync } from '@/core/offline/SyncProvider'
 import { useTheme } from '@/core/theme/ThemeProvider'
-import { GRUPOS, NAV } from '@/components/layout/nav'
+import { ADMIN_NAV, GRUPOS, NAV, type NavItem } from '@/components/layout/nav'
 import { cn } from '@/lib/cn'
 import { hace } from '@/lib/format'
 import { Select } from '@/components/ui/Input'
@@ -110,9 +110,22 @@ export function AppShell() {
   const [tituloSlot, setTituloSlot] = useState<HTMLElement | null>(null)
   const [menuMovil, setMenuMovil] = useState(false)
 
+  const { pathname } = useLocation()
   const visibles = NAV.filter((item) => !item.cap || can(item.cap))
-  // Barra inferior del celular: 4 accesos directos + «Más» con todos los módulos
-  const mobileItems = visibles.filter((i) => i.mobile).slice(0, 4)
+  const esOwner = !!profile?.es_owner
+  const enConsola = pathname.startsWith('/admin')
+  // Barra inferior del celular: 4 accesos directos + «Más» (siempre visible: ahí está salir).
+  // El Admin general en su consola (o sin empresa) ve las secciones de la consola; con empresa,
+  // 3 módulos + «Consola».
+  type ItemMovil = Pick<NavItem, 'to' | 'icon'> & { corto: string }
+  const corto = (i: NavItem): ItemMovil => ({ to: i.to, icon: i.icon, corto: i.label.split(' ')[0] })
+  const modulosMovil = visibles.filter((i) => i.mobile).map(corto)
+  const mobileItems: ItemMovil[] =
+    esOwner && (enConsola || modulosMovil.length === 0)
+      ? ADMIN_NAV.filter((a) => a.to !== '/admin/owners').slice(0, 4)
+      : esOwner
+        ? [...modulosMovil.slice(0, 3), { to: '/admin', icon: ShieldCheck, corto: 'Consola' }]
+        : modulosMovil.slice(0, 4)
 
   const iniciales = (profile?.nombre || profile?.email || '?')
     .split(' ')
@@ -270,34 +283,37 @@ export function AppShell() {
       </div>
 
       {/* Bottom nav móvil */}
-      {mobileItems.length > 0 && (
-        <nav className="fixed inset-x-0 bottom-0 z-40 flex border-t border-border bg-panel/95 pb-[env(safe-area-inset-bottom)] backdrop-blur lg:hidden">
-          {mobileItems.map((item) => (
-            <NavLink
-              key={item.to}
-              to={item.to}
-              end={item.to === '/'}
-              className={({ isActive }) =>
-                cn(
-                  'flex flex-1 flex-col items-center gap-0.5 py-2.5 text-[10px] font-medium transition-colors duration-200',
-                  isActive ? 'text-accent' : 'text-fg-muted active:text-fg'
-                )
-              }
-            >
-              <item.icon size={20} />
-              <span className="max-w-[72px] truncate">{item.label.split(' ')[0]}</span>
-            </NavLink>
-          ))}
-          <button
-            onClick={() => setMenuMovil(true)}
-            aria-label="Más módulos"
-            className="flex flex-1 flex-col items-center gap-0.5 py-2.5 text-[10px] font-medium text-fg-muted active:text-fg"
+      <nav
+        aria-label="Accesos rápidos"
+        className="fixed inset-x-0 bottom-0 z-40 flex border-t border-border bg-panel/95 pb-[env(safe-area-inset-bottom)] backdrop-blur lg:hidden"
+      >
+        {mobileItems.map((item) => (
+          <NavLink
+            key={item.to}
+            to={item.to}
+            // «/» y «/admin» solo se marcan exactos; Empresas sigue marcada en la ficha
+            end={item.to === '/' || item.to === '/admin'}
+            className={({ isActive }) =>
+              cn(
+                'flex min-w-0 flex-1 flex-col items-center gap-0.5 py-2.5 text-[10px] font-medium transition-colors duration-200',
+                // «Consola» queda marcada en cualquier sección de la consola
+                isActive || (item.corto === 'Consola' && enConsola) ? 'text-accent' : 'text-fg-muted active:text-fg'
+              )
+            }
           >
-            <Menu size={20} />
-            Más
-          </button>
-        </nav>
-      )}
+            <item.icon size={20} />
+            <span className="max-w-full truncate px-0.5">{item.corto}</span>
+          </NavLink>
+        ))}
+        <button
+          onClick={() => setMenuMovil(true)}
+          aria-label="Más opciones"
+          className="flex min-w-0 flex-1 flex-col items-center gap-0.5 py-2.5 text-[10px] font-medium text-fg-muted active:text-fg"
+        >
+          <Menu size={20} />
+          Más
+        </button>
+      </nav>
 
       {/* Menú completo en el celular: todos los módulos habilitados para el usuario */}
       <Modal open={menuMovil} onClose={() => setMenuMovil(false)} title="Menú">
@@ -330,16 +346,29 @@ export function AppShell() {
               </div>
             )
           })}
-          {profile?.es_owner && (
-            <button
-              onClick={() => {
-                setMenuMovil(false)
-                navigate('/admin')
-              }}
-              className="flex w-full items-center gap-2 rounded-xl border border-border px-3 py-2.5 text-sm text-fg-body active:bg-surface"
-            >
-              <ShieldCheck size={17} /> Consola general
-            </button>
+          {esOwner && (
+            <div>
+              <p className="pb-1.5 text-[11px] font-semibold uppercase tracking-wider text-fg-faint">Consola general</p>
+              <div className="grid grid-cols-2 gap-2">
+                {ADMIN_NAV.map((item) => (
+                  <NavLink
+                    key={item.to}
+                    to={item.to}
+                    end={item.to === '/admin'}
+                    onClick={() => setMenuMovil(false)}
+                    className={({ isActive }) =>
+                      cn(
+                        'flex items-center gap-2 rounded-xl border px-3 py-2.5 text-sm',
+                        isActive ? 'border-accent/40 bg-accent-soft font-medium text-accent' : 'border-border text-fg-body active:bg-surface'
+                      )
+                    }
+                  >
+                    <item.icon size={17} className="shrink-0" />
+                    <span className="line-clamp-2 leading-tight">{item.label}</span>
+                  </NavLink>
+                ))}
+              </div>
+            </div>
           )}
           <button
             onClick={() => {
@@ -360,7 +389,7 @@ export function AppShell() {
             <span className="grid size-8 shrink-0 place-items-center rounded-full bg-accent text-xs font-semibold text-on-accent">{iniciales}</span>
             <div className="min-w-0 flex-1">
               <p className="truncate text-sm font-medium text-fg">{profile?.nombre}</p>
-              <p className="truncate text-xs text-fg-muted">{empresa?.nombre}</p>
+              <p className="truncate text-xs text-fg-muted">{empresa?.nombre ?? (esOwner ? 'Admin general' : '')}</p>
             </div>
             <button
               onClick={() => void cerrarSesion()}

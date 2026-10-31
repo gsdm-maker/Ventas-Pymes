@@ -270,17 +270,17 @@ export function AdminEmpresaDetalle() {
           <CardBody className="p-0">
             <div className="divide-y divide-border">
               {usuarios.map((u) => (
-                <div key={u.id} className="flex flex-wrap items-center justify-between gap-3 px-5 py-3">
-                  <div>
-                    <p className="text-sm font-medium text-fg">{u.nombre}</p>
-                    <p className="text-xs text-fg-muted">{u.email}</p>
+                <div key={u.id} className="flex flex-wrap items-center justify-between gap-3 px-4 py-3 sm:px-5">
+                  <div className="min-w-0">
+                    <p className="truncate text-sm font-medium text-fg">{u.nombre}</p>
+                    <p className="truncate text-xs text-fg-muted">{u.email}</p>
                     {!u.es_owner && (
                       <p className={cn('mt-0.5 text-xs', sinUbicacionActiva(accesos[u.id], ubicaciones) ? 'text-warning' : 'text-fg-faint')}>
                         {resumenUbicaciones(accesos[u.id], ubicaciones)}
                       </p>
                     )}
                   </div>
-                  <div className="flex items-center gap-2">
+                  <div className="flex flex-wrap items-center gap-2">
                     <Badge tone="neutral">{u.puesto}</Badge>
                     <Badge tone={u.activo ? 'success' : 'blocked'} dot>{u.activo ? 'Activo' : 'Inactivo'}</Badge>
                     {!u.es_owner && (

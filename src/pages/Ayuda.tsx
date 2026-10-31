@@ -254,7 +254,7 @@ const TEMAS: Tema[] = [
         titulo: 'Recibir mercadería',
         pasos: [
           'Elige el destino (tienda o bodega) y, si quieres, el proveedor y el documento (factura o guía, número y fecha).',
-          'Busca cada producto (sirve el lector de código de barras) y escribe la cantidad recibida.',
+          'Busca cada producto (sirve el lector de código de barras) y escribe la cantidad recibida. En el teléfono, el botón de la cámara junto al buscador escanea los códigos: cada lectura suma una unidad, y si el código no existe abre «Crear producto» con el código ya puesto.',
           'Pulsa confirmar: el stock del destino se actualiza al instante.'
         ],
         nota: 'Opcionalmente puedes actualizar el costo del producto con lo que pagaste en esta compra.'

@@ -15,10 +15,10 @@ function Cifra({ icono, n, label, tono }: { icono: ReactNode; n: number; label: 
   return (
     <Card>
       <CardBody className="flex items-center gap-3">
-        <span className={cn('grid size-10 place-items-center rounded-xl', tono)}>{icono}</span>
-        <div>
+        <span className={cn('grid size-10 shrink-0 place-items-center rounded-xl', tono)}>{icono}</span>
+        <div className="min-w-0">
           <p className="text-2xl font-semibold tabular-nums text-fg">{n}</p>
-          <p className="text-xs text-fg-muted">{label}</p>
+          <p className="text-xs leading-tight text-fg-muted">{label}</p>
         </div>
       </CardBody>
     </Card>
@@ -60,7 +60,7 @@ export function Admin() {
       <AdminTabs />
       <PageHeader title="Consola general" subtitle="Administración de la plataforma" />
 
-      <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
+      <div className="grid grid-cols-2 gap-3 sm:gap-4 lg:grid-cols-4">
         <Cifra icono={<Building2 size={18} />} n={empresas.length} label="Empresas" tono="bg-accent-soft text-accent" />
         <Cifra
           icono={<Clock size={18} />}
@@ -109,7 +109,7 @@ export function Admin() {
                   <Link
                     key={e.id}
                     to={`/admin/empresas/${e.id}`}
-                    className="flex items-center justify-between gap-3 px-5 py-3.5 hover:bg-surface"
+                    className="flex items-center justify-between gap-3 px-4 py-3.5 hover:bg-surface sm:px-5"
                   >
                     <div className="min-w-0">
                       <p className="truncate text-sm font-medium text-fg">{e.nombre}</p>

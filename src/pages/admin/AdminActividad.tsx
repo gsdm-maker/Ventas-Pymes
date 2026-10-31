@@ -34,10 +34,10 @@ export function AdminActividad() {
           <CardBody className="p-0">
             <div className="divide-y divide-border">
               {filas.map((f) => (
-                <div key={f.id} className="flex items-center justify-between gap-3 px-5 py-3 text-sm">
-                  <div className="flex items-center gap-2">
+                <div key={f.id} className="flex flex-col gap-1.5 px-4 py-3 text-sm sm:flex-row sm:items-center sm:justify-between sm:gap-3 sm:px-5">
+                  <div className="flex min-w-0 flex-wrap items-center gap-2">
                     <Badge tone="neutral">{f.accion}</Badge>
-                    <span className="text-xs text-fg-muted">
+                    <span className="min-w-0 break-words text-xs text-fg-muted">
                       {f.detalle ? Object.entries(f.detalle).map(([k, v]) => `${k}=${String(v)}`).join(' · ') : ''}
                     </span>
                   </div>

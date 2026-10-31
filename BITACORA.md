@@ -494,6 +494,17 @@ control de stock con trazabilidad.
   `test_navegacion.py` (recorre todas las pantallas sin errores; las de la consola se saltan porque la cuenta
   «Admin general» de `Datakeys.md` ya no es administrador general). Skills ordenadas por categoría en
   `~/.claude/skills/` (índice en su `README.md`): `patrones-*`, `seguridad-*`, `diseno-*`, `calidad-*`, `pruebas-*`.
+- **Consola general en el teléfono (31-10-2026):** el Admin general sin empresa quedaba en blanco (el
+  Dashboard le negaba el acceso y `ModuloGuard` lo devolvía a «/»), y en móvil la barra inferior se ocultaba sin
+  módulos (sin menú ni Salir). Ahora `ModuloGuard` lo manda a `/admin` (al resto, a su primer módulo); la barra
+  inferior se ve siempre (patrón Lumix) con las secciones de la consola (`ADMIN_NAV` en `nav.ts`, una sola
+  fuente para pestañas, barra y «Más»); pestañas en una fila deslizable; filas sin desborde. Revisado a 390 y
+  360 px simulando el perfil de Admin general (la cuenta de `Datakeys.md` ya no lo es; el actual es otra).
+- **Escáner con la cámara en la recepción (31-10-2026):** botón de cámara en Ingreso de mercadería
+  (`src/components/ui/EscanerCamara.tsx`, reutilizable). Detector nativo del navegador (Android) o ZXing
+  (`@zxing/browser`, iPhone), cargado solo al abrir. Cada lectura suma 1 u. (código de barras o SKU), queda
+  abierto para escanear seguido; un código nuevo abre «Crear producto» con el código puesto. `netlify.toml`:
+  `camera=(self)` (antes bloqueada). Requiere https. Probado con cámara simulada (EAN-13 leído en 0,4 s).
 - `typecheck`, lint y `vite build` sin errores. Dev server en `http://localhost:5173`.
 
 ## 8. Skills de agente instaladas (`.agents/skills/`)

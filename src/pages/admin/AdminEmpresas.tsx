@@ -91,13 +91,13 @@ export function AdminEmpresas() {
           <CardBody className="p-0">
             <div className="divide-y divide-border">
               {empresas.map((e) => (
-                <Link key={e.id} to={`/admin/empresas/${e.id}`} className="flex items-center justify-between gap-3 px-5 py-4 hover:bg-surface">
-                  <div className="flex items-center gap-3">
-                    <span className="grid size-9 place-items-center rounded-lg bg-accent-soft text-accent">
+                <Link key={e.id} to={`/admin/empresas/${e.id}`} className="flex items-center justify-between gap-3 px-4 py-4 hover:bg-surface sm:px-5">
+                  <div className="flex min-w-0 items-center gap-3">
+                    <span className="grid size-9 shrink-0 place-items-center rounded-lg bg-accent-soft text-accent">
                       <Building2 size={16} />
                     </span>
-                    <div>
-                      <p className="text-sm font-medium text-fg">{e.nombre}</p>
+                    <div className="min-w-0">
+                      <p className="truncate text-sm font-medium text-fg">{e.nombre}</p>
                       <p
                         className={cn(
                           'text-xs',
@@ -112,7 +112,7 @@ export function AdminEmpresas() {
                       </p>
                     </div>
                   </div>
-                  <div className="flex items-center gap-3">
+                  <div className="flex shrink-0 items-center gap-2 sm:gap-3">
                     <Badge tone={tonoPlan(e.plan)}>
                       {etiquetaPlan(e.plan)}
                     </Badge>

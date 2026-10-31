@@ -14,6 +14,10 @@ import {
   BellRing,
   UtensilsCrossed,
   ChefHat,
+  ShieldCheck,
+  Building2,
+  Sparkles,
+  ScrollText,
   type LucideIcon
 } from 'lucide-react'
 import type { Capability } from '@/core/auth/capabilities'
@@ -48,6 +52,23 @@ export const GRUPOS: { key: NavItem['grupo']; label: string }[] = [
   { key: 'operacion', label: 'Operación' },
   { key: 'inventario', label: 'Inventario' },
   { key: 'admin', label: 'Administración' }
+]
+
+/** Secciones de la consola general (solo Admin general). Las usan las pestañas, la barra
+ *  inferior del celular y el menú «Más». `corto` es el texto de la barra inferior. */
+export interface AdminNavItem {
+  to: string
+  label: string
+  corto: string
+  icon: LucideIcon
+}
+
+export const ADMIN_NAV: AdminNavItem[] = [
+  { to: '/admin', label: 'Resumen', corto: 'Resumen', icon: ShieldCheck },
+  { to: '/admin/empresas', label: 'Empresas', corto: 'Empresas', icon: Building2 },
+  { to: '/admin/asistente', label: 'Asistente IA', corto: 'IA', icon: Sparkles },
+  { to: '/admin/owners', label: 'Admins generales', corto: 'Admins', icon: Users },
+  { to: '/admin/actividad', label: 'Actividad', corto: 'Actividad', icon: ScrollText }
 ]
 
 export { FileText }

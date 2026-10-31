@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
-import { Check, ChevronDown, FileText, Package, PackagePlus, Plus, Search, Trash2 } from 'lucide-react'
+import { Check, ChevronDown, FileText, Package, PackagePlus, Plus, ScanBarcode, Search, Trash2 } from 'lucide-react'
 import { useAuth } from '@/core/auth/AuthProvider'
 import { listarCategorias, listarProductosConStock, listarProveedores } from '@/core/data/api'
 import { invalidarAlertas } from '@/core/data/useAlertasStock'
@@ -10,6 +10,7 @@ import { Field, Input, Select, Textarea } from '@/components/ui/Input'
 import { PageHeader } from '@/components/ui/Feedback'
 import { useToast } from '@/components/ui/Toast'
 import { CrearProductoRapido } from '@/components/productos/CrearProductoRapido'
+import { EscanerCamara, type ResultadoEscaneo } from '@/components/ui/EscanerCamara'
 import { cn } from '@/lib/cn'
 import { formatCLP } from '@/lib/format'
 import { margenDesdePrecio } from '@/lib/precio'
@@ -43,6 +44,8 @@ export function Ingreso() {
   const [busqueda, setBusqueda] = useState('')
   const [abiertoBuscador, setAbiertoBuscador] = useState(false)
   const [creando, setCreando] = useState<string | null>(null)
+  const [codigoNuevo, setCodigoNuevo] = useState('')
+  const [escaneando, setEscaneando] = useState(false)
   // Documento del proveedor (opcional)
   const [conDocumento, setConDocumento] = useState(false)
   const [docTipo, setDocTipo] = useState('factura')
@@ -85,22 +88,39 @@ export function Ingreso() {
     }, 50)
   }
 
-  function agregar(p: ProductoConStock) {
+  function agregar(p: ProductoConStock, enfocarCantidad = true) {
     setBusqueda('')
     setAbiertoBuscador(false)
-    const existe = lineas.find((l) => l.producto_id === p.id)
-    if (existe) {
-      if (!p.variantes.length) {
-        setLineas((prev) => prev.map((l) => (l === existe ? { ...l, cantidades: { '': (l.cantidades[''] ?? 0) + 1 } } : l)))
-      }
-    } else {
-      setLineas((prev) => [
-        { producto_id: p.id, cantidades: p.variantes.length ? {} : { '': 1 }, costo_unitario: p.costo_referencia || 0 },
-        ...prev
-      ])
+    // Sobre la lista más reciente: al escanear seguido no se pierde ninguna unidad
+    setLineas((prev) => {
+      const existe = prev.find((l) => l.producto_id === p.id)
+      if (!existe)
+        return [{ producto_id: p.id, cantidades: p.variantes.length ? {} : { '': 1 }, costo_unitario: p.costo_referencia || 0 }, ...prev]
+      if (p.variantes.length) return prev
+      return prev.map((l) => (l === existe ? { ...l, cantidades: { '': (l.cantidades[''] ?? 0) + 1 } } : l))
+    })
+    // Foco en la cantidad para escribirla de inmediato (con la cámara no: abriría el teclado)
+    if (enfocarCantidad) enfocar(`[data-cantidad="${p.id}"]`)
+  }
+
+  /** Código leído con la cámara del teléfono: mismo criterio que el lector USB (código o SKU exacto). */
+  function alEscanear(codigo: string): ResultadoEscaneo {
+    const c = codigo.toLowerCase()
+    const p = productos.find((x) => x.codigo_barras?.toLowerCase() === c || x.sku.toLowerCase() === c)
+    if (p && (!p.activo || p.controla_stock === false))
+      return { ok: false, mensaje: `${p.nombre} no controla stock o está inactivo` }
+    if (p) {
+      agregar(p, false)
+      if (p.variantes.length) return { ok: true, mensaje: `${p.nombre}: escribe la cantidad por talla` }
+      const antes = lineas.find((l) => l.producto_id === p.id)?.cantidades[''] ?? 0
+      return { ok: true, mensaje: `+1 ${p.nombre} · ${antes + 1} en total` }
     }
-    // Foco en la cantidad para escribirla de inmediato
-    enfocar(`[data-cantidad="${p.id}"]`)
+    if (puedeCrear) {
+      setCodigoNuevo(codigo)
+      setCreando('')
+      return { ok: false, mensaje: 'Código nuevo: completa los datos del producto', cerrar: true }
+    }
+    return { ok: false, mensaje: `El código ${codigo} no está registrado` }
   }
 
   function onEnter() {
@@ -184,15 +204,16 @@ export function Ingreso() {
 
       <div className="grid gap-5 lg:grid-cols-3">
         <Card className="lg:col-span-2">
-          <CardHeader title="Productos recibidos" subtitle="Enter agrega el primer resultado · sirve con lector de código de barras" />
+          <CardHeader title="Productos recibidos" subtitle="Enter agrega el primer resultado · sirve con lector de código de barras o la cámara del teléfono" />
           <CardBody className="space-y-4">
             {/* Buscador con resultados y «crear producto» */}
-            <div className="relative">
+            <div className="flex gap-2">
+            <div className="relative min-w-0 flex-1">
               <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-fg-faint" aria-hidden />
               <Input
                 ref={buscador}
                 className="pl-9 text-base"
-                placeholder="Buscar por nombre, código o escanear…"
+                placeholder="Nombre, SKU o código…"
                 aria-label="Buscar producto para ingresar"
                 autoComplete="off"
                 value={busqueda}
@@ -237,6 +258,18 @@ export function Ingreso() {
                   {!resultados.length && !puedeCrear && <p className="px-3 py-2.5 text-sm text-fg-muted">Sin resultados.</p>}
                 </div>
               )}
+            </div>
+              <Button
+                type="button"
+                variant="secondary"
+                onClick={() => setEscaneando(true)}
+                aria-label="Escanear con la cámara"
+                title="Escanear con la cámara"
+                className="h-auto shrink-0 self-stretch px-3"
+              >
+                <ScanBarcode size={18} aria-hidden />
+                <span className="hidden sm:inline">Cámara</span>
+              </Button>
             </div>
 
             {lineas.length === 0 ? (
@@ -426,17 +459,24 @@ export function Ingreso() {
       <CrearProductoRapido
         abierto={creando !== null}
         nombreInicial={creando ?? ''}
+        codigoInicial={codigoNuevo}
         categorias={categorias}
         productos={productos}
-        onCerrar={() => setCreando(null)}
+        onCerrar={() => {
+          setCreando(null)
+          setCodigoNuevo('')
+        }}
         onCreado={(p) => {
           setCreando(null)
+          setCodigoNuevo('')
           setBusqueda('')
           setProductos((prev) => [...prev, p])
           setLineas((prev) => [{ producto_id: p.id, cantidades: { '': 1 }, costo_unitario: p.costo_referencia || 0 }, ...prev])
           enfocar(`[data-cantidad="${p.id}"]`)
         }}
       />
+
+      <EscanerCamara open={escaneando} onClose={() => setEscaneando(false)} onCodigo={alEscanear} />
     </>
   )
 }

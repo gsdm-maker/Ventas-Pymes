@@ -20,6 +20,7 @@ import { borrarFotoHuerfana, crearProducto } from '@/core/data/inventario'
 export function CrearProductoRapido({
   abierto,
   nombreInicial,
+  codigoInicial,
   costoInicial,
   categorias,
   productos,
@@ -28,6 +29,8 @@ export function CrearProductoRapido({
 }: {
   abierto: boolean
   nombreInicial: string
+  /** Código de barras ya leído (p. ej. con la cámara) */
+  codigoInicial?: string
   costoInicial?: number
   categorias: Categoria[]
   productos: ProductoConStock[]
@@ -56,9 +59,9 @@ export function CrearProductoRapido({
     setPrecio(0)
     setCategoria('')
     setMinimo(0)
-    setCodigo('')
+    setCodigo(codigoInicial ?? '')
     setFoto('')
-  }, [abierto, nombreInicial, costoInicial])
+  }, [abierto, nombreInicial, codigoInicial, costoInicial])
 
   function cambiarCosto(c: number) {
     setCosto(c)

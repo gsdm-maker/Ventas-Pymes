@@ -1,4 +1,4 @@
-import { Navigate, Outlet } from 'react-router-dom'
+import { Navigate, Outlet, useLocation } from 'react-router-dom'
 import type { ReactNode } from 'react'
 import { useAuth, useCapabilities } from '@/core/auth/AuthProvider'
 import { AppShell } from '@/components/layout/AppShell'
@@ -6,6 +6,8 @@ import { estadoPlan, planBloqueado, etiquetaPlan } from '@/core/auth/plan'
 import type { Capability } from '@/core/auth/capabilities'
 import { Button } from '@/components/ui/Button'
 import { Loader2, ShieldAlert, Clock } from 'lucide-react'
+import { NAV } from '@/components/layout/nav'
+import { EmptyState } from '@/components/ui/Feedback'
 
 function Pantalla({ children }: { children: ReactNode }) {
   return (
@@ -82,9 +84,22 @@ export function ModuloGuard({
   children: ReactNode
 }) {
   const { can } = useCapabilities()
-  if (!cap) return <>{children}</>
-  if (!can(cap)) return <Navigate to="/" replace />
-  return <>{children}</>
+  const { profile } = useAuth()
+  const { pathname } = useLocation()
+  if (!cap || can(cap)) return <>{children}</>
+  // Sin permiso: nunca volver a "/" a ciegas (si el Dashboard tampoco está, quedaba en blanco).
+  // El Admin general sin empresa va a su consola; el resto, al primer módulo que sí tenga.
+  if (profile?.es_owner && !profile.empresa_id) return <Navigate to="/admin" replace />
+  const destino = NAV.find((i) => i.to !== pathname && (!i.cap || can(i.cap)))?.to
+  if (destino) return <Navigate to={destino} replace />
+  if (profile?.es_owner) return <Navigate to="/admin" replace />
+  return (
+    <EmptyState
+      icon={<ShieldAlert size={32} />}
+      title="Sin módulos habilitados"
+      description="Pide al administrador de tu empresa que te habilite al menos un módulo."
+    />
+  )
 }
 
 export { Pantalla }
