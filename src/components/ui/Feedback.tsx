@@ -3,6 +3,7 @@ import { createPortal } from 'react-dom'
 import { Loader2 } from 'lucide-react'
 import { cn } from '@/lib/cn'
 import { TituloSlotContext } from '@/components/layout/tituloSlot'
+import { useMediaQuery } from '@/hooks/useMediaQuery'
 
 export function Spinner({ className }: { className?: string }) {
   return <Loader2 className={cn('size-5 animate-spin text-accent', className)} />
@@ -56,31 +57,30 @@ export function PageHeader({
   subtitle?: ReactNode
   actions?: ReactNode
 }) {
-  // En escritorio el título va a la barra superior (ahorra alto en todas las pantallas);
-  // aquí quedan solo las acciones. En móvil todo sigue dentro de la página.
+  // En escritorio título y acciones van a la barra superior (ahorra alto en todas las
+  // pantallas). En móvil todo sigue dentro de la página. Las acciones se montan en un
+  // solo lugar a la vez para no duplicar botones ni ids.
   const slot = useContext(TituloSlotContext)
-  return (
-    <>
-      {slot &&
-        createPortal(
-          <div className="flex min-w-0 items-baseline gap-2">
-            <h1 className="shrink-0 text-base font-semibold tracking-tight text-fg">{title}</h1>
-            {subtitle && <p className="truncate text-sm text-fg-muted">{subtitle}</p>}
-          </div>,
-          slot
-        )}
-      <div
-        className={cn(
-          'mb-5 flex flex-wrap items-end justify-between gap-3',
-          slot && (actions ? 'lg:mb-4 lg:justify-end' : 'lg:hidden')
-        )}
-      >
-        <div className={cn(slot && 'lg:hidden')}>
-          <h1 className="text-balance text-xl font-semibold tracking-tight text-fg">{title}</h1>
-          {subtitle && <p className="mt-1 text-sm text-fg-muted">{subtitle}</p>}
+  const escritorio = useMediaQuery('(min-width: 1024px)')
+  if (slot && escritorio) {
+    return createPortal(
+      <div className="flex min-w-0 flex-1 items-center gap-3">
+        <div className="flex min-w-0 items-baseline gap-2">
+          <h1 className="shrink-0 text-base font-semibold tracking-tight text-fg">{title}</h1>
+          {subtitle && <p className="truncate text-sm text-fg-muted">{subtitle}</p>}
         </div>
-        {actions && <div className="flex items-center gap-2">{actions}</div>}
+        {actions && <div className="ml-auto flex shrink-0 items-center gap-2">{actions}</div>}
+      </div>,
+      slot
+    )
+  }
+  return (
+    <div className="mb-5 flex flex-wrap items-end justify-between gap-3">
+      <div>
+        <h1 className="text-balance text-xl font-semibold tracking-tight text-fg">{title}</h1>
+        {subtitle && <p className="mt-1 text-sm text-fg-muted">{subtitle}</p>}
       </div>
-    </>
+      {actions && <div className="flex items-center gap-2">{actions}</div>}
+    </div>
   )
 }

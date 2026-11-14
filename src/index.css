@@ -181,6 +181,13 @@
   html {
     scroll-behavior: smooth;
   }
+  /* Escritorio más compacto: todo se mide en rem, así que letra, espacios
+     y botones bajan juntos (~6 %). El teléfono y la tablet quedan en 16px. */
+  @media (min-width: 1024px) {
+    html {
+      font-size: 15px;
+    }
+  }
   * {
     border-color: rgb(var(--border));
   }
@@ -196,7 +203,6 @@
       overscroll-behavior: none;
     }
   }
-  /* Tamaño base en inputs móviles para evitar zoom en iOS */
   input,
   select,
   textarea,
@@ -210,6 +216,16 @@
   a,
   [role='button'] {
     touch-action: manipulation;
+  }
+}
+
+/* iOS hace zoom al enfocar un campo con letra menor a 16px. Va fuera de
+   @layer para ganarle a text-sm/text-xs; solo en pantallas táctiles. */
+@media (pointer: coarse) {
+  input:not([type='checkbox'], [type='radio'], [type='range'], [type='file']),
+  select,
+  textarea {
+    font-size: 16px;
   }
 }
 
