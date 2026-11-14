@@ -10,12 +10,14 @@ import { CampoCodigoBarras } from '@/components/productos/CampoCodigoBarras'
 import { formatCLP } from '@/lib/format'
 import { margenDesdePrecio, precioDesdeMargen } from '@/lib/precio'
 import { skuAutomatico } from '@/lib/sku'
-import { borrarFotoHuerfana, crearProducto } from '@/core/data/inventario'
+import { borrarFotoHuerfana, crearPresentacionDevuelta, crearProducto } from '@/core/data/inventario'
 
 /**
  * Ficha simple para crear un producto sin salir de otra pantalla (p. ej. la
  * recepción): foto, nombre, costo → margen → precio, categoría, stock mínimo y
  * código de barras. Siempre controla stock (se está ingresando mercadería).
+ * Con `permitirCaja` se puede indicar que viene en caja/pack: se crea la presentación
+ * junto con el producto (precio de la caja = unidades sueltas, editable después).
  */
 export function CrearProductoRapido({
   abierto,
@@ -24,6 +26,7 @@ export function CrearProductoRapido({
   costoInicial,
   categorias,
   productos,
+  permitirCaja = false,
   onCerrar,
   onCreado
 }: {
@@ -34,6 +37,8 @@ export function CrearProductoRapido({
   costoInicial?: number
   categorias: Categoria[]
   productos: ProductoConStock[]
+  /** Muestra «Viene en caja de…» (recepción de mercadería) */
+  permitirCaja?: boolean
   onCerrar: () => void
   onCreado: (p: ProductoConStock) => void
 }) {
@@ -49,6 +54,9 @@ export function CrearProductoRapido({
   const [codigo, setCodigo] = useState('')
   const [foto, setFoto] = useState('')
   const [guardando, setGuardando] = useState(false)
+  // Caja/pack opcional: unidades que trae y si el código leído es el de la caja
+  const [porCaja, setPorCaja] = useState('')
+  const [codigoEsDeCaja, setCodigoEsDeCaja] = useState(false)
 
   useEffect(() => {
     if (!abierto) return
@@ -61,6 +69,8 @@ export function CrearProductoRapido({
     setMinimo(0)
     setCodigo(codigoInicial ?? '')
     setFoto('')
+    setPorCaja('')
+    setCodigoEsDeCaja(false)
   }, [abierto, nombreInicial, codigoInicial, costoInicial])
 
   function cambiarCosto(c: number) {
@@ -89,6 +99,9 @@ export function CrearProductoRapido({
     if (!empresa) return
     if (!nombre.trim()) return toast('Escribe el nombre del producto', 'warning')
     if (!precio) return toast('Indica el precio de venta (o costo y margen)', 'warning')
+    const factor = permitirCaja ? Math.floor(Number(porCaja) || 0) : 0
+    if (porCaja !== '' && factor < 2) return toast('Una caja o pack trae al menos 2 unidades', 'warning')
+    const codigoCaja = factor >= 2 && codigoEsDeCaja ? codigo.trim() : ''
     setGuardando(true)
     const cat = categorias.find((c) => c.id === categoria)
     const fila = {
@@ -100,15 +113,32 @@ export function CrearProductoRapido({
       precio_venta: precio,
       costo_referencia: costo,
       stock_minimo: minimo,
-      codigo_barras: codigo.trim() || null,
+      codigo_barras: (codigoCaja ? '' : codigo.trim()) || null,
       foto_url: foto || null,
       controla_stock: true,
       activo: true
     }
     const { data, error } = await crearProducto(fila)
+    if (error) {
+      setGuardando(false)
+      return toast(error, 'error')
+    }
+    let caja = null
+    if (factor >= 2) {
+      const r = await crearPresentacionDevuelta({
+        producto_id: id,
+        empresa_id: empresa.id,
+        nombre: `Caja x${factor}`,
+        factor,
+        precio_venta: factor * precio,
+        codigo_barras: codigoCaja || null
+      })
+      caja = r.data
+      // El producto ya existe: si la caja falla se avisa y se recibe en unidades
+      if (r.error) toast(`Producto creado, pero la caja no: ${r.error}`, 'warning')
+    }
     setGuardando(false)
-    if (error) return toast(error, 'error')
-    toast(`Producto «${fila.nombre}» creado (${fila.sku})`)
+    toast(caja ? `«${fila.nombre}» y su ${caja.nombre} creados (${fila.sku})` : `Producto «${fila.nombre}» creado (${fila.sku})`)
     onCreado({
       ...(data as ProductoConStock),
       categoria_nombre: cat?.nombre ?? null,
@@ -117,6 +147,7 @@ export function CrearProductoRapido({
       transito: 0,
       estado_stock: 'sin',
       variantes: [],
+      presentaciones: caja ? [caja] : [],
       legado: 0
     })
   }
@@ -177,6 +208,31 @@ export function CrearProductoRapido({
               onChange={setCodigo}
             />
           </Field>
+          {permitirCaja && (
+            <div className="space-y-2 rounded-xl border border-border p-3">
+              <Field
+                label="¿Viene en caja o pack? Unidades por caja"
+                hint={
+                  Number(porCaja) >= 2
+                    ? `Se recibe por cajas y el stock suma unidades. Se vende como «Caja x${Math.floor(Number(porCaja))}» a ${formatCLP(Math.floor(Number(porCaja)) * precio)} (lo cambias en Productos).`
+                    : 'Déjalo vacío si llega por unidad.'
+                }
+              >
+                <Input type="number" inputMode="numeric" min={2} placeholder="Ej: 50" value={porCaja}
+                  onChange={(e) => setPorCaja(e.target.value)} />
+              </Field>
+              {Number(porCaja) >= 2 && costo > 0 && (
+                <p className="text-xs text-fg-muted">El costo neto de arriba es por unidad: la caja sale {formatCLP(costo * Math.floor(Number(porCaja)))}.</p>
+              )}
+              {Number(porCaja) >= 2 && codigo.trim() !== '' && (
+                <label className="flex items-center gap-2 text-sm text-fg-body">
+                  <input type="checkbox" checked={codigoEsDeCaja} onChange={(e) => setCodigoEsDeCaja(e.target.checked)}
+                    className="size-4 accent-[rgb(var(--accent))]" />
+                  El código de barras es el de la caja, no el de la unidad
+                </label>
+              )}
+            </div>
+          )}
           <p className="text-xs text-fg-muted">Tallas, marca y descripción se agregan después en Productos.</p>
         </div>
       )}

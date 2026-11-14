@@ -10,6 +10,7 @@ import { Field, Input, Select, Textarea } from '@/components/ui/Input'
 import { PageHeader } from '@/components/ui/Feedback'
 import { useToast } from '@/components/ui/Toast'
 import { CrearProductoRapido } from '@/components/productos/CrearProductoRapido'
+import { NuevaCajaRapida } from '@/components/productos/NuevaCajaRapida'
 import { EscanerCamara, type ResultadoEscaneo } from '@/components/ui/EscanerCamara'
 import { cn } from '@/lib/cn'
 import { formatCLP } from '@/lib/format'
@@ -53,6 +54,8 @@ export function Ingreso() {
   const [abiertoBuscador, setAbiertoBuscador] = useState(false)
   const [creando, setCreando] = useState<string | null>(null)
   const [codigoNuevo, setCodigoNuevo] = useState('')
+  // Producto al que se le está creando una caja desde la recepción
+  const [cajaPara, setCajaPara] = useState<string | null>(null)
   const [escaneando, setEscaneando] = useState(false)
   // Documento del proveedor (opcional)
   const [conDocumento, setConDocumento] = useState(false)
@@ -378,13 +381,15 @@ export function Ingreso() {
                           ))
                         ) : (
                           <>
-                          {(cajas.length > 0 || porCaja) && (
+                          {(cajas.length > 0 || porCaja || puedeCrear) && (
                             <label className="w-36">
                               <span className="mb-0.5 block text-[11px] font-medium text-fg-muted">Recibir en</span>
                               <Select
                                 aria-label={`Recibir ${p.nombre} en`}
                                 value={String(l.factor)}
-                                onChange={(e) => setFactor(p.id, Number(e.target.value) || 1)}
+                                onChange={(e) =>
+                                  e.target.value === 'nueva' ? setCajaPara(p.id) : setFactor(p.id, Number(e.target.value) || 1)
+                                }
                                 className="py-1.5"
                               >
                                 <option value="1">Unidades</option>
@@ -394,6 +399,7 @@ export function Ingreso() {
                                 {porCaja && !cajas.some((x) => x.factor === l.factor) && (
                                   <option value={l.factor}>{nombreCaja}</option>
                                 )}
+                                {puedeCrear && <option value="nueva">+ Nueva caja…</option>}
                               </Select>
                             </label>
                           )}
@@ -539,6 +545,7 @@ export function Ingreso() {
         codigoInicial={codigoNuevo}
         categorias={categorias}
         productos={productos}
+        permitirCaja
         onCerrar={() => {
           setCreando(null)
           setCodigoNuevo('')
@@ -548,8 +555,24 @@ export function Ingreso() {
           setCodigoNuevo('')
           setBusqueda('')
           setProductos((prev) => [...prev, p])
-          setLineas((prev) => [{ producto_id: p.id, cantidades: { '': 1 }, costo_unitario: p.costo_referencia || 0, factor: 1 }, ...prev])
+          // Si se creó con caja, la línea parte en cajas (costo por caja = costo unitario × unidades)
+          const factor = p.presentaciones?.[0]?.factor ?? 1
+          setLineas((prev) => [{ producto_id: p.id, cantidades: { '': 1 }, costo_unitario: (p.costo_referencia || 0) * factor, factor }, ...prev])
           enfocar(`[data-cantidad="${p.id}"]`)
+        }}
+      />
+
+      <NuevaCajaRapida
+        producto={cajaPara ? prod(cajaPara) ?? null : null}
+        onCerrar={() => setCajaPara(null)}
+        onCreada={(x) => {
+          setCajaPara(null)
+          setProductos((prev) =>
+            prev.map((p) => (p.id === x.producto_id ? { ...p, presentaciones: [...(p.presentaciones ?? []), x] } : p))
+          )
+          // La línea pasa a recibirse en la caja recién creada
+          setFactor(x.producto_id, x.factor)
+          enfocar(`[data-cantidad="${x.producto_id}"]`)
         }}
       />
 

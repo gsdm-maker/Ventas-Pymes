@@ -113,7 +113,8 @@ export function Productos() {
     setOpen(true)
   }
 
-  async function guardar() {
+  /** `yNuevo`: tras crear, deja la ficha en blanco para cargar el siguiente producto. */
+  async function guardar(yNuevo = false) {
     if (!form.nombre.trim()) return toast('Escribe el nombre del producto', 'warning')
     const payload = {
       empresa_id: empresa?.id,
@@ -135,9 +136,22 @@ export function Productos() {
     }
     const error = await guardarProducto(payload, form.id || idNuevo, !!form.id)
     if (error) return toast(error, 'error')
-    toast(form.id ? 'Producto actualizado' : 'Producto creado')
-    setOpen(false)
+    if (yNuevo && !form.id) {
+      // Se espera la lista nueva para que el SKU automático del siguiente no se repita
+      await cargar()
+      toast('Producto creado')
+      nuevo()
+      return
+    }
     void cargar()
+    if (form.id) {
+      toast('Producto actualizado')
+      setOpen(false)
+      return
+    }
+    // Recién creado: la ficha queda abierta en modo edición para agregarle cajas, packs o tallas
+    setForm({ ...form, id: idNuevo, sku: payload.sku })
+    toast('Producto creado. En «Más opciones» puedes agregarle cajas o packs.')
   }
 
   const puedeEditar = can('productos.gestionar')
@@ -373,6 +387,9 @@ export function Productos() {
           puedeEditar ? (
             <>
               <Button variant="secondary" onClick={cerrarFicha}>Cancelar</Button>
+              {!form.id && (
+                <Button variant="secondary" onClick={() => void guardar(true)}>Guardar y nuevo</Button>
+              )}
               <Button onClick={() => void guardar()}>Guardar</Button>
             </>
           ) : (

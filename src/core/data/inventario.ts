@@ -106,6 +106,14 @@ export async function crearPresentacion(
   return mensajePresentacion(resultado(await supabase.from('producto_presentaciones').insert(datos)))
 }
 
+/** Igual que `crearPresentacion`, pero devuelve la fila creada (para usarla sin recargar). */
+export async function crearPresentacionDevuelta(
+  datos: DatosPresentacion & Pick<ProductoPresentacion, 'producto_id' | 'empresa_id'>
+): Promise<{ data: ProductoPresentacion | null; error: string | null }> {
+  const r = resultado<ProductoPresentacion>(await supabase.from('producto_presentaciones').insert(datos).select().single())
+  return { data: r.data, error: mensajePresentacion(r) }
+}
+
 export async function actualizarPresentacion(
   id: string,
   cambios: Partial<DatosPresentacion & Pick<ProductoPresentacion, 'activa'>>
