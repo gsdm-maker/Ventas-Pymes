@@ -1,12 +1,13 @@
 import type { ReactNode, RefObject } from 'react'
 import { Keyboard, LayoutGrid, Rows3, Search } from 'lucide-react'
-import type { ProductoConStock } from '@/core/types'
+import type { ProductoConStock, ProductoPresentacion } from '@/core/types'
 import { Input } from '@/components/ui/Input'
 import { Modal } from '@/components/ui/Modal'
 import { SelectorVista, type OpcionVista } from '@/components/ui/SelectorVista'
 import { cn } from '@/lib/cn'
 import { etiquetaVariante } from '@/lib/variantes'
 import { formatCLP } from '@/lib/format'
+import { precioPorUnidad, presentacionesVendibles } from '@/lib/presentaciones'
 import type { CatalogoPos as DatosCatalogo } from '@/components/pos/useCatalogoPos'
 import type { VistaPos } from '@/components/pos/tipos'
 
@@ -20,12 +21,12 @@ interface CatalogoPosProps {
   buscador: RefObject<HTMLInputElement>
   vista: VistaPos
   setVista: (v: VistaPos) => void
-  agregar: (p: ProductoConStock, cantidad?: number) => void
+  agregar: (p: ProductoConStock, cantidad?: number, presentacion?: ProductoPresentacion | null) => void
 }
 
 /** Buscador, categorías y productos del POS (lista compacta o botones con foto). */
 export function CatalogoPos({ catalogo, buscador, vista, setVista, agregar }: CatalogoPosProps) {
-  const { categorias, catActiva, setCatActiva, busqueda, setBusqueda, termino, cantidadBusqueda, filtrados } = catalogo
+  const { categorias, catActiva, setCatActiva, busqueda, setBusqueda, termino, cantidadBusqueda, filtrados, escaneo } = catalogo
   return (
     <div className="flex min-w-0 flex-1 flex-col pb-24 lg:min-h-0 lg:pb-0">
       <div className="sticky top-16 z-20 -mx-4 mb-3 border-b border-border bg-shell/95 px-4 py-2 shadow-sm backdrop-blur lg:static lg:mx-0 lg:mb-0 lg:rounded-t-2xl lg:border lg:border-b-0 lg:bg-panel lg:p-3 lg:shadow-none">
@@ -42,7 +43,11 @@ export function CatalogoPos({ catalogo, buscador, vista, setVista, agregar }: Ca
               value={busqueda}
               onChange={(e) => setBusqueda(e.target.value)}
               onKeyDown={(e) => {
-                if (e.key === 'Enter' && filtrados[0] && termino) {
+                if (e.key !== 'Enter' || !termino) return
+                if (escaneo) {
+                  e.preventDefault()
+                  agregar(escaneo.producto, cantidadBusqueda, escaneo.presentacion)
+                } else if (filtrados[0]) {
                   e.preventDefault()
                   agregar(filtrados[0], cantidadBusqueda)
                 }
@@ -182,6 +187,47 @@ export function ElegirVariante({
               <span className="text-xs tabular-nums text-fg-muted">{producto.legado} u. antiguas</span>
             </button>
           )}
+        </div>
+      )}
+    </Modal>
+  )
+}
+
+/** Producto que también se vende por caja/pack: unidad suelta o una presentación. */
+export function ElegirPresentacion({
+  producto,
+  onElegir,
+  onCerrar
+}: {
+  producto: ProductoConStock | null
+  onElegir: (presentacion: ProductoPresentacion | null) => void
+  onCerrar: () => void
+}) {
+  const controla = producto?.controla_stock !== false
+  const stock = producto?.disponible ?? 0
+  const opcion =
+    'min-w-28 rounded-xl border border-border px-3 py-2 text-left text-sm transition-colors hover:border-accent hover:bg-accent-soft/40 disabled:cursor-not-allowed disabled:opacity-40'
+  return (
+    <Modal open={!!producto} onClose={onCerrar} title={producto ? `${producto.nombre}: ¿unidad o caja?` : ''} size="sm">
+      {producto && (
+        <div className="flex flex-wrap gap-2">
+          <button autoFocus disabled={controla && stock <= 0} onClick={() => onElegir(null)} className={opcion}>
+            <span className="block font-medium text-fg">Unidad</span>
+            <span className="block text-sm tabular-nums text-fg">{formatCLP(producto.precio_venta)}</span>
+            {controla && <span className="text-xs tabular-nums text-fg-muted">{stock} u.</span>}
+          </button>
+          {presentacionesVendibles(producto).map((x) => {
+            const alcanza = Math.floor(stock / x.factor)
+            return (
+              <button key={x.id} disabled={controla && alcanza <= 0} onClick={() => onElegir(x)} className={opcion}>
+                <span className="block font-medium text-fg">{x.nombre}</span>
+                <span className="block text-sm tabular-nums text-fg">{formatCLP(x.precio_venta)}</span>
+                <span className="text-xs tabular-nums text-fg-muted">
+                  {formatCLP(precioPorUnidad(x))} c/u{controla ? (alcanza > 0 ? ` · alcanza ${alcanza}` : ' · sin stock') : ''}
+                </span>
+              </button>
+            )
+          })}
         </div>
       )}
     </Modal>

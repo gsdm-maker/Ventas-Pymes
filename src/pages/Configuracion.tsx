@@ -15,6 +15,7 @@ import { PageHeader } from '@/components/ui/Feedback'
 import { useToast } from '@/components/ui/Toast'
 import { useConfirm } from '@/components/ui/confirm'
 import { ConfigReposicion } from '@/components/reposicion/ConfigReposicion'
+import { UnidadesMedida } from '@/components/productos/UnidadesMedida'
 import { ConfigImpresionEquipo } from '@/components/impresion/ConfigImpresionEquipo'
 import { cn } from '@/lib/cn'
 import { etiquetaNivel } from '@/lib/niveles'
@@ -334,6 +335,8 @@ export function Configuracion() {
             </div>
           </CardBody>
         </Card>
+
+        <UnidadesMedida editable={admin} />
 
         <Card>
           <CardHeader title="Proveedores" />

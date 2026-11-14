@@ -4,6 +4,7 @@ import { listarCategorias, listarProductosConStock, rankingVentas } from '@/core
 import { pendientesPorProducto } from '@/core/offline/respaldo'
 import { useToast } from '@/components/ui/Toast'
 import { aplicarPendientes } from '@/lib/variantes'
+import { buscarPresentacionPorCodigo } from '@/lib/presentaciones'
 
 // Con conexión, la copia local del catálogo se renueva cada 5 minutos aunque no se venda:
 // si se corta internet, el POS vende con un stock de hace como máximo ese tiempo
@@ -76,12 +77,26 @@ export function useCatalogoPos(ubicacionId: string | null) {
       .filter((p) => {
         if (catActiva !== 'all' && p.categoria_id !== catActiva) return false
         if (!termino) return true
-        return p.nombre.toLowerCase().includes(termino) || p.sku.toLowerCase().includes(termino) || (p.codigo_barras ?? '') === termino
+        return (
+          p.nombre.toLowerCase().includes(termino) ||
+          p.sku.toLowerCase().includes(termino) ||
+          (p.codigo_barras ?? '').toLowerCase() === termino ||
+          (p.presentaciones ?? []).some((x) => x.activa && (x.codigo_barras ?? '').toLowerCase() === termino)
+        )
       })
       .sort((a, b) => (ranking.get(b.id) ?? 0) - (ranking.get(a.id) ?? 0) || a.nombre.localeCompare(b.nombre))
   }, [productos, catActiva, termino, ranking])
 
-  return { categorias, catActiva, setCatActiva, busqueda, setBusqueda, termino, cantidadBusqueda, filtrados, recargar }
+  // Código escaneado: el de una caja/pack la agrega directo; el del producto, la unidad suelta
+  const escaneo = useMemo(() => {
+    if (!termino) return null
+    const caja = buscarPresentacionPorCodigo(productos, termino)
+    if (caja?.presentacion.se_vende) return caja
+    const prod = productos.find((p) => (p.codigo_barras ?? '').toLowerCase() === termino)
+    return prod ? { producto: prod, presentacion: null } : null
+  }, [productos, termino])
+
+  return { categorias, catActiva, setCatActiva, busqueda, setBusqueda, termino, cantidadBusqueda, filtrados, escaneo, recargar }
 }
 
 export type CatalogoPos = ReturnType<typeof useCatalogoPos>

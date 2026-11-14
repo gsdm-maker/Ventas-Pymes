@@ -9,8 +9,12 @@ export interface Linea {
   descripcion: string
   precio_unitario: number
   cantidad: number
-  /** Infinity si el producto no controla stock */
+  /** Stock en unidades base; Infinity si el producto no controla stock */
   disponible: number
+  /** Caja/pack vendido (null o ausente = unidad suelta) */
+  presentacion_id?: string | null
+  /** Unidades base por cada unidad de la línea (1 = suelta) */
+  factor?: number
 }
 
 export type VistaPos = 'lista' | 'botones'

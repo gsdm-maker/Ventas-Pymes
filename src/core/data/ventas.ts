@@ -5,7 +5,17 @@ import { resultado, type Resultado } from '@/core/data/resultado'
 /** Mismos argumentos que la cola offline (EJECUTORES en SyncProvider): un solo formato. */
 export interface DatosVenta {
   ubicacion_id: string
-  items: { producto_id: string; variante_id: string | null; descripcion?: string; cantidad: number; precio_unitario: number }[]
+  items: {
+    producto_id: string
+    variante_id: string | null
+    descripcion?: string
+    cantidad: number
+    precio_unitario: number
+    /** Caja/pack: el servidor toma su precio y descuenta `factor` unidades por cada una */
+    presentacion_id?: string | null
+    /** Solo informativo (cola offline): el servidor usa el factor de la base */
+    factor?: number
+  }[]
   descuento_tipo: 'porcentaje' | 'monto'
   descuento_valor: number
   medio_pago: string

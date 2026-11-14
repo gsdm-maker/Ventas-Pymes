@@ -3,7 +3,7 @@ import { CheckCircle2, CloudOff, Minus, Percent, Plus, ShoppingCart, Trash2, X }
 import { Button } from '@/components/ui/Button'
 import { Input } from '@/components/ui/Input'
 import { cn } from '@/lib/cn'
-import { clave } from '@/lib/variantes'
+import { claveLinea } from '@/lib/presentaciones'
 import { formatCLP } from '@/lib/format'
 import { MEDIO_PAGO, MEDIOS_PAGO, montosSugeridos } from '@/lib/mediosPago'
 import type { TicketPos } from '@/components/pos/useTicketPos'
@@ -87,7 +87,7 @@ export function TicketPanel({ ticket, puedeCobrar, enviando, finalizar, online, 
         ) : (
           lineas.map((l) => (
             <div
-              key={clave(l.producto_id, l.variante_id)}
+              key={claveLinea(l)}
               className="flex items-center gap-2 rounded-xl bg-surface py-1.5 pl-3 pr-1.5"
             >
               <div className="min-w-0 flex-1">
@@ -98,7 +98,7 @@ export function TicketPanel({ ticket, puedeCobrar, enviando, finalizar, online, 
               </div>
               <div className="flex items-center">
                 <button
-                  onClick={() => cambiarCantidad(clave(l.producto_id, l.variante_id), -1)}
+                  onClick={() => cambiarCantidad(claveLinea(l), -1)}
                   aria-label={`Disminuir cantidad de ${l.descripcion}`}
                   className="grid size-7 place-items-center rounded-md text-fg-muted hover:bg-surface-2 hover:text-fg"
                 >
@@ -106,7 +106,7 @@ export function TicketPanel({ ticket, puedeCobrar, enviando, finalizar, online, 
                 </button>
                 <span className="w-6 text-center text-sm font-medium tabular-nums">{l.cantidad}</span>
                 <button
-                  onClick={() => cambiarCantidad(clave(l.producto_id, l.variante_id), 1)}
+                  onClick={() => cambiarCantidad(claveLinea(l), 1)}
                   aria-label={`Aumentar cantidad de ${l.descripcion}`}
                   className="grid size-7 place-items-center rounded-md text-fg-muted hover:bg-surface-2 hover:text-fg"
                 >
@@ -117,7 +117,7 @@ export function TicketPanel({ ticket, puedeCobrar, enviando, finalizar, online, 
                 {formatCLP(l.precio_unitario * l.cantidad)}
               </span>
               <button
-                onClick={() => eliminarLinea(clave(l.producto_id, l.variante_id))}
+                onClick={() => eliminarLinea(claveLinea(l))}
                 aria-label={`Eliminar ${l.descripcion} del ticket`}
                 className="grid size-7 place-items-center rounded-md text-fg-faint hover:bg-danger-soft hover:text-danger"
               >

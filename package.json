@@ -25,6 +25,7 @@
     "test:ubicaciones": "node scripts/sql-remoto.mjs supabase/pruebas/ubicaciones.sql",
     "test:planes": "node scripts/sql-remoto.mjs supabase/pruebas/planes.sql",
     "test:niveles": "node scripts/sql-remoto.mjs supabase/pruebas/niveles.sql",
+    "test:presentaciones": "node scripts/sql-remoto.mjs supabase/pruebas/presentaciones.sql",
     "fn:serve": "supabase functions serve admin-users --env-file ./supabase/.env.local"
   },
   "dependencies": {

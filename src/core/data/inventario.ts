@@ -1,5 +1,5 @@
 import { supabase } from '@/core/supabase/client'
-import type { Movimiento, Producto, ProductoVariante, Stock, TransferenciaItem } from '@/core/types'
+import type { Movimiento, Producto, ProductoPresentacion, ProductoVariante, Stock, TransferenciaItem } from '@/core/types'
 import { resultado, soloError, type Resultado } from '@/core/data/resultado'
 
 // ---------------- Productos ----------------
@@ -79,6 +79,38 @@ export async function crearVariantes(filas: Partial<ProductoVariante>[]): Promis
 
 export async function cambiarActivaVariante(id: string, activa: boolean): Promise<string | null> {
   return soloError(await supabase.from('producto_variantes').update({ activa }).eq('id', id))
+}
+
+// ---------------- Presentaciones (caja, pack) ----------------
+export async function listarPresentaciones(productoId: string): Promise<ProductoPresentacion[]> {
+  const { data } = await supabase.from('producto_presentaciones').select('*').eq('producto_id', productoId).order('factor')
+  return (data as ProductoPresentacion[]) ?? []
+}
+
+function mensajePresentacion(r: Resultado<unknown>): string | null {
+  if (!r.error) return null
+  if (r.codigo === '23505') {
+    return r.error.includes('codigo')
+      ? 'Ese código de barras ya lo tiene otra presentación'
+      : 'Este producto ya tiene una presentación con esa cantidad'
+  }
+  if (r.codigo === '23514') return 'Revisa los datos: nombre de hasta 40 letras y al menos 2 unidades'
+  return r.error
+}
+
+type DatosPresentacion = Pick<ProductoPresentacion, 'nombre' | 'factor' | 'precio_venta' | 'codigo_barras'>
+
+export async function crearPresentacion(
+  datos: DatosPresentacion & Pick<ProductoPresentacion, 'producto_id' | 'empresa_id'>
+): Promise<string | null> {
+  return mensajePresentacion(resultado(await supabase.from('producto_presentaciones').insert(datos)))
+}
+
+export async function actualizarPresentacion(
+  id: string,
+  cambios: Partial<DatosPresentacion & Pick<ProductoPresentacion, 'activa'>>
+): Promise<string | null> {
+  return mensajePresentacion(resultado(await supabase.from('producto_presentaciones').update(cambios).eq('id', id)))
 }
 
 // ---------------- Bodega: transferencias y recepciones ----------------

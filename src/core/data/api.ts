@@ -16,6 +16,7 @@ import type {
   Producto,
   ProductoConStock,
   ProductoVariante,
+  ProductoPresentacion,
   VarianteConStock,
   NivelPlanConfig,
   PlanIaConfig,
@@ -26,7 +27,8 @@ import type {
   Transferencia,
   UsoIa,
   Venta,
-  Voucher
+  Voucher,
+  UnidadMedida
 } from '@/core/types'
 
 function estadoStock(disponible: number, minimo: number, controla = true): EstadoStock {
@@ -55,6 +57,14 @@ export async function listarCategorias(): Promise<Categoria[]> {
     const { data, error } = await supabase.from('categorias').select('*').order('nombre')
     if (error) throw error
     return (data as Categoria[]) ?? []
+  })
+}
+
+export async function listarUnidades(): Promise<UnidadMedida[]> {
+  return conRespaldo('unidades_medida', async () => {
+    const { data, error } = await supabase.from('unidades_medida').select('*').order('codigo')
+    if (error) throw error
+    return (data as UnidadMedida[]) ?? []
   })
 }
 
@@ -93,12 +103,15 @@ async function cargarProductosConStock(ubicacionId: string | null): Promise<Prod
     { data: productos, error: e1 },
     { data: categorias, error: e2 },
     { data: stock, error: e3 },
-    { data: variantes, error: e4 }
+    { data: variantes, error: e4 },
+    { data: presentaciones }
   ] = await Promise.all([
     supabase.from('productos').select('*').order('nombre'),
     supabase.from('categorias').select('id, nombre'),
     stockQuery,
-    supabase.from('producto_variantes').select('*').eq('activa', true).order('sku')
+    supabase.from('producto_variantes').select('*').eq('activa', true).order('sku'),
+    // Si falla (p. ej. tabla aún no disponible), el catálogo sigue funcionando sin cajas
+    supabase.from('producto_presentaciones').select('*').eq('activa', true).order('factor')
   ])
   const error = e1 ?? e2 ?? e3 ?? e4
   if (error) throw error
@@ -123,6 +136,10 @@ async function cargarProductosConStock(ubicacionId: string | null): Promise<Prod
     variantesDe.set(v.producto_id, [...(variantesDe.get(v.producto_id) ?? []), { ...v, ...st }])
   }
   for (const lista of variantesDe.values()) lista.sort(compararVariantes)
+  const presentacionesDe = new globalThis.Map<string, ProductoPresentacion[]>()
+  for (const x of (presentaciones ?? []) as ProductoPresentacion[]) {
+    presentacionesDe.set(x.producto_id, [...(presentacionesDe.get(x.producto_id) ?? []), x])
+  }
 
   const catMap = new globalThis.Map((categorias ?? []).map((c) => [c.id, c.nombre]))
   const stockMap = new globalThis.Map<string, Stock>()
@@ -147,7 +164,8 @@ async function cargarProductosConStock(ubicacionId: string | null): Promise<Prod
       transito: s?.transito ?? 0,
       estado_stock: estadoStock(disponible, p.stock_minimo, p.controla_stock !== false),
       variantes: variantesDe.get(p.id) ?? [],
-      legado: variantesDe.has(p.id) ? sinVariante.get(p.id) ?? 0 : 0
+      legado: variantesDe.has(p.id) ? sinVariante.get(p.id) ?? 0 : 0,
+      presentaciones: presentacionesDe.get(p.id) ?? []
     }
   })
 }

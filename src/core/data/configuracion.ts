@@ -2,10 +2,19 @@ import { supabase } from '@/core/supabase/client'
 import type { ParametrosReposicion, TipoUbicacion } from '@/core/types'
 import { soloError } from '@/core/data/resultado'
 
-export type TablaCatalogo = 'categorias' | 'motivos_salida' | 'proveedores'
+export type TablaCatalogo = 'categorias' | 'motivos_salida' | 'proveedores' | 'unidades_medida'
 
 export async function agregarACatalogo(tabla: TablaCatalogo, fila: Record<string, unknown>): Promise<string | null> {
   return soloError(await supabase.from(tabla).insert(fila))
+}
+
+export async function agregarUnidades(
+  empresaId: string,
+  filas: { codigo: string; nombre: string }[]
+): Promise<string | null> {
+  const r = await supabase.from('unidades_medida').insert(filas.map((f) => ({ empresa_id: empresaId, ...f })))
+  if (r.error?.code === '23505') return 'Ya existe una unidad con ese código'
+  return soloError(r)
 }
 
 export async function eliminarDeCatalogo(tabla: TablaCatalogo, id: string): Promise<string | null> {

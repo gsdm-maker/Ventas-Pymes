@@ -59,9 +59,11 @@ export async function pendientesPorProducto(ubicacionId: string): Promise<Map<st
       const k = clave(String(op.payload.producto_id), op.payload.variante_id as string | null)
       m.set(k, (m.get(k) ?? 0) + Number(op.payload.cantidad))
     } else {
-      for (const it of (op.payload.items as { producto_id: string; variante_id?: string | null; cantidad: number }[]) ?? []) {
+      type Item = { producto_id: string; variante_id?: string | null; cantidad: number; factor?: number }
+      for (const it of (op.payload.items as Item[]) ?? []) {
         const k = clave(it.producto_id, it.variante_id)
-        m.set(k, (m.get(k) ?? 0) + Number(it.cantidad))
+        // Una caja de 50 en la cola ocupa 50 unidades
+        m.set(k, (m.get(k) ?? 0) + Number(it.cantidad) * (Number(it.factor) || 1))
       }
     }
   }

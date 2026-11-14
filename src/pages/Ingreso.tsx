@@ -15,14 +15,22 @@ import { cn } from '@/lib/cn'
 import { formatCLP } from '@/lib/format'
 import { margenDesdePrecio } from '@/lib/precio'
 import { etiquetaVariante } from '@/lib/variantes'
+import { buscarPresentacionPorCodigo } from '@/lib/presentaciones'
 import { registrarEntrada } from '@/core/data/inventario'
 
-/** Una línea por producto; las tallas van en la misma fila ('' = sin talla). */
+/**
+ * Una línea por producto; las tallas van en la misma fila ('' = sin talla).
+ * `factor` > 1: se recibe por caja/pack (cantidad en cajas y costo por caja); al guardar se
+ * envían unidades y costo por unidad.
+ */
 interface Linea {
   producto_id: string
   cantidades: Record<string, number>
   costo_unitario: number
+  factor: number
 }
+
+const costoPorUnidad = (l: Linea) => (l.costo_unitario ? Math.round(l.costo_unitario / (l.factor || 1)) : 0)
 
 const TIPOS_DOC = [
   { v: 'factura', label: 'Factura' },
@@ -76,7 +84,13 @@ export function Ingreso() {
     return productos
       // Solo se recibe lo que controla stock; la lista completa sirve para SKU y códigos únicos
       .filter((p) => p.activo && p.controla_stock !== false)
-      .filter((p) => p.nombre.toLowerCase().includes(termino) || p.sku.toLowerCase().includes(termino) || p.codigo_barras === termino)
+      .filter(
+        (p) =>
+          p.nombre.toLowerCase().includes(termino) ||
+          p.sku.toLowerCase().includes(termino) ||
+          p.codigo_barras === termino ||
+          (p.presentaciones ?? []).some((x) => x.activa && x.codigo_barras?.toLowerCase() === termino)
+      )
       .slice(0, 8)
   }, [productos, termino])
 
@@ -88,16 +102,35 @@ export function Ingreso() {
     }, 50)
   }
 
-  function agregar(p: ProductoConStock, enfocarCantidad = true) {
+  /** `factor` > 1: se escaneó el código de una caja/pack de ese tamaño. */
+  function agregar(p: ProductoConStock, enfocarCantidad = true, factor = 1) {
     setBusqueda('')
     setAbiertoBuscador(false)
     // Sobre la lista más reciente: al escanear seguido no se pierde ninguna unidad
     setLineas((prev) => {
       const existe = prev.find((l) => l.producto_id === p.id)
       if (!existe)
-        return [{ producto_id: p.id, cantidades: p.variantes.length ? {} : { '': 1 }, costo_unitario: p.costo_referencia || 0 }, ...prev]
+        return [
+          {
+            producto_id: p.id,
+            cantidades: p.variantes.length ? {} : { '': 1 },
+            costo_unitario: (p.costo_referencia || 0) * factor,
+            factor
+          },
+          ...prev
+        ]
       if (p.variantes.length) return prev
-      return prev.map((l) => (l === existe ? { ...l, cantidades: { '': (l.cantidades[''] ?? 0) + 1 } } : l))
+      return prev.map((l) => {
+        if (l !== existe) return l
+        if (l.factor === factor) return { ...l, cantidades: { '': (l.cantidades[''] ?? 0) + 1 } }
+        // Se mezclan cajas y unidades: la línea pasa a contarse en unidades
+        return {
+          ...l,
+          factor: 1,
+          costo_unitario: costoPorUnidad(l),
+          cantidades: { '': (l.cantidades[''] ?? 0) * l.factor + factor }
+        }
+      })
     })
     // Foco en la cantidad para escribirla de inmediato (con la cámara no: abriría el teclado)
     if (enfocarCantidad) enfocar(`[data-cantidad="${p.id}"]`)
@@ -106,9 +139,14 @@ export function Ingreso() {
   /** Código leído con la cámara del teléfono: mismo criterio que el lector USB (código o SKU exacto). */
   function alEscanear(codigo: string): ResultadoEscaneo {
     const c = codigo.toLowerCase()
-    const p = productos.find((x) => x.codigo_barras?.toLowerCase() === c || x.sku.toLowerCase() === c)
+    const caja = buscarPresentacionPorCodigo(productos, codigo)
+    const p = caja?.producto ?? productos.find((x) => x.codigo_barras?.toLowerCase() === c || x.sku.toLowerCase() === c)
     if (p && (!p.activo || p.controla_stock === false))
       return { ok: false, mensaje: `${p.nombre} no controla stock o está inactivo` }
+    if (caja && p) {
+      agregar(p, false, caja.presentacion.factor)
+      return { ok: true, mensaje: `+1 ${caja.presentacion.nombre} de ${p.nombre} (${caja.presentacion.factor} u.)` }
+    }
     if (p) {
       agregar(p, false)
       if (p.variantes.length) return { ok: true, mensaje: `${p.nombre}: escribe la cantidad por talla` }
@@ -124,7 +162,9 @@ export function Ingreso() {
   }
 
   function onEnter() {
-    if (resultados[0]) agregar(resultados[0])
+    const caja = buscarPresentacionPorCodigo(productos, termino)
+    if (caja && resultados.some((r) => r.id === caja.producto.id)) agregar(caja.producto, true, caja.presentacion.factor)
+    else if (resultados[0]) agregar(resultados[0])
     else if (termino && puedeCrear) setCreando(busqueda.trim())
   }
 
@@ -132,10 +172,17 @@ export function Ingreso() {
     setLineas((prev) => prev.map((l) => (l.producto_id === pid ? { ...l, cantidades: { ...l.cantidades, [varKey]: Math.max(0, n) } } : l)))
   const setCosto = (pid: string, c: number) =>
     setLineas((prev) => prev.map((l) => (l.producto_id === pid ? { ...l, costo_unitario: Math.max(0, c) } : l)))
+  // Recibir por unidad o por caja: el costo se pasa a la nueva medida (mismo costo por unidad)
+  const setFactor = (pid: string, factor: number) =>
+    setLineas((prev) =>
+      prev.map((l) => (l.producto_id === pid ? { ...l, factor, costo_unitario: costoPorUnidad(l) * factor } : l))
+    )
 
-  const unidadesLinea = (l: Linea) => Object.values(l.cantidades).reduce((a, n) => a + (n || 0), 0)
+  // Cantidad escrita (en cajas si la línea va por caja) y unidades reales
+  const cantidadLinea = (l: Linea) => Object.values(l.cantidades).reduce((a, n) => a + (n || 0), 0)
+  const unidadesLinea = (l: Linea) => cantidadLinea(l) * (l.factor || 1)
   const totalUnidades = lineas.reduce((a, l) => a + unidadesLinea(l), 0)
-  const neto = lineas.reduce((a, l) => a + unidadesLinea(l) * (l.costo_unitario || 0), 0)
+  const neto = lineas.reduce((a, l) => a + cantidadLinea(l) * (l.costo_unitario || 0), 0)
   const iva = Math.round(neto * 0.19)
 
   async function confirmar() {
@@ -146,8 +193,9 @@ export function Ingreso() {
         .map(([varKey, n]) => ({
           producto_id: l.producto_id,
           variante_id: varKey || null,
-          cantidad: n,
-          costo_unitario: l.costo_unitario || null
+          // Por caja: 3 cajas de 50 = 150 u.; el costo se guarda por unidad
+          cantidad: n * (l.factor || 1),
+          costo_unitario: costoPorUnidad(l) || null
         }))
     )
     if (!items.length) return toast('Ingresa al menos una cantidad', 'warning')
@@ -280,8 +328,12 @@ export function Ingreso() {
                   const p = prod(l.producto_id)
                   if (!p) return null
                   const unidades = unidadesLinea(l)
-                  const costoCambio = l.costo_unitario > 0 && p.costo_referencia > 0 && l.costo_unitario !== p.costo_referencia
-                  const margenNuevo = margenDesdePrecio(l.costo_unitario, p.precio_venta)
+                  const cUnidad = costoPorUnidad(l)
+                  const costoCambio = cUnidad > 0 && p.costo_referencia > 0 && cUnidad !== p.costo_referencia
+                  const margenNuevo = margenDesdePrecio(cUnidad, p.precio_venta)
+                  const cajas = p.variantes.length ? [] : (p.presentaciones ?? []).filter((x) => x.activa)
+                  const porCaja = l.factor > 1
+                  const nombreCaja = cajas.find((x) => x.factor === l.factor)?.nombre ?? `Caja x${l.factor}`
                   return (
                     <div key={l.producto_id} className="space-y-2 py-3">
                       <div className="flex items-center gap-3">
@@ -292,7 +344,11 @@ export function Ingreso() {
                         )}
                         <div className="min-w-0 flex-1">
                           <p className="truncate text-sm font-medium text-fg">{p.nombre}</p>
-                          <p className="text-xs text-fg-muted">{p.sku} · {unidades} u.{l.costo_unitario > 0 ? ` · ${formatCLP(unidades * l.costo_unitario)}` : ''}</p>
+                          <p className="text-xs text-fg-muted">
+                            {p.sku} · {unidades} u.
+                            {l.costo_unitario > 0 ? ` · ${formatCLP(cantidadLinea(l) * l.costo_unitario)}` : ''}
+                            {porCaja && cUnidad > 0 ? ` · ${formatCLP(cUnidad)} c/u` : ''}
+                          </p>
                         </div>
                         <button
                           onClick={() => setLineas((prev) => prev.filter((x) => x !== l))}
@@ -321,8 +377,28 @@ export function Ingreso() {
                             </label>
                           ))
                         ) : (
+                          <>
+                          {(cajas.length > 0 || porCaja) && (
+                            <label className="w-36">
+                              <span className="mb-0.5 block text-[11px] font-medium text-fg-muted">Recibir en</span>
+                              <Select
+                                aria-label={`Recibir ${p.nombre} en`}
+                                value={String(l.factor)}
+                                onChange={(e) => setFactor(p.id, Number(e.target.value) || 1)}
+                                className="py-1.5"
+                              >
+                                <option value="1">Unidades</option>
+                                {cajas.map((x) => (
+                                  <option key={x.id} value={x.factor}>{x.nombre} ({x.factor} u.)</option>
+                                ))}
+                                {porCaja && !cajas.some((x) => x.factor === l.factor) && (
+                                  <option value={l.factor}>{nombreCaja}</option>
+                                )}
+                              </Select>
+                            </label>
+                          )}
                           <label className="w-24">
-                            <span className="mb-0.5 block text-[11px] font-medium text-fg-muted">Cantidad</span>
+                            <span className="mb-0.5 block text-[11px] font-medium text-fg-muted">{porCaja ? 'Cajas' : 'Cantidad'}</span>
                             <Input
                               type="number"
                               inputMode="numeric"
@@ -335,9 +411,10 @@ export function Ingreso() {
                               className="py-1.5 text-center"
                             />
                           </label>
+                          </>
                         )}
                         <label className="w-32">
-                          <span className="mb-0.5 block text-[11px] font-medium text-fg-muted">Costo neto c/u</span>
+                          <span className="mb-0.5 block text-[11px] font-medium text-fg-muted">{porCaja ? 'Costo neto por caja' : 'Costo neto c/u'}</span>
                           <Input
                             type="number"
                             inputMode="numeric"
@@ -471,7 +548,7 @@ export function Ingreso() {
           setCodigoNuevo('')
           setBusqueda('')
           setProductos((prev) => [...prev, p])
-          setLineas((prev) => [{ producto_id: p.id, cantidades: { '': 1 }, costo_unitario: p.costo_referencia || 0 }, ...prev])
+          setLineas((prev) => [{ producto_id: p.id, cantidades: { '': 1 }, costo_unitario: p.costo_referencia || 0, factor: 1 }, ...prev])
           enfocar(`[data-cantidad="${p.id}"]`)
         }}
       />

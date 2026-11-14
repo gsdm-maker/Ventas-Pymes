@@ -1,8 +1,10 @@
 import { useEffect, useMemo, useState, type ReactNode } from 'react'
 import { Plus, Package, Search, ChevronDown } from 'lucide-react'
 import { useAuth } from '@/core/auth/AuthProvider'
-import { listarCategorias, listarProductosConStock } from '@/core/data/api'
+import { listarCategorias, listarProductosConStock, listarUnidades } from '@/core/data/api'
+import { opcionesUnidad, unidadesVigentes, type Unidad } from '@/lib/unidades'
 import { GestorVariantes } from '@/components/productos/GestorVariantes'
+import { GestorPresentaciones } from '@/components/productos/GestorPresentaciones'
 import { FotoProducto } from '@/components/productos/FotoProducto'
 import { CampoCodigoBarras } from '@/components/productos/CampoCodigoBarras'
 import { margenDesdePrecio, precioDesdeMargen } from '@/lib/precio'
@@ -46,6 +48,7 @@ export function Productos() {
   const conCocina = !!empresa?.modulos.includes('cocina')
   const [productos, setProductos] = useState<ProductoConStock[]>([])
   const [categorias, setCategorias] = useState<Categoria[]>([])
+  const [unidades, setUnidades] = useState<Unidad[]>([])
   const [cargando, setCargando] = useState(true)
   const [open, setOpen] = useState(false)
   const [masOpciones, setMasOpciones] = useState(false)
@@ -59,9 +62,14 @@ export function Productos() {
 
   async function cargar() {
     setCargando(true)
-    const [p, c] = await Promise.all([listarProductosConStock(null), listarCategorias()])
+    const [p, c, u] = await Promise.all([
+      listarProductosConStock(null),
+      listarCategorias(),
+      listarUnidades().catch(() => [])
+    ])
     setProductos(p)
     setCategorias(c)
+    setUnidades(u)
     setCargando(false)
   }
 
@@ -72,7 +80,11 @@ export function Productos() {
   function nuevo() {
     setMasOpciones(false)
     // En un restaurante lo habitual es vender platos sin inventario; las bebidas se marcan a mano
-    setForm({ ...vacio, controla_stock: empresa?.tipo_negocio !== 'restaurante' })
+    setForm({
+      ...vacio,
+      controla_stock: empresa?.tipo_negocio !== 'restaurante',
+      unidad_medida: unidadesVigentes(unidades).some((u) => u.codigo === 'UN') ? 'UN' : unidadesVigentes(unidades)[0].codigo
+    })
     setIdNuevo(crypto.randomUUID())
     setOpen(true)
   }
@@ -492,8 +504,12 @@ export function Productos() {
                     </span>
                   </label>
                 )}
-                <Field label="Unidad de medida">
-                  <Input value={form.unidad_medida} onChange={(e) => setForm({ ...form, unidad_medida: e.target.value })} />
+                <Field label="Unidad de medida" hint="La lista se define en Configuración.">
+                  <Select value={form.unidad_medida} onChange={(e) => setForm({ ...form, unidad_medida: e.target.value })}>
+                    {opcionesUnidad(unidades, form.unidad_medida).map((u) => (
+                      <option key={u.codigo} value={u.codigo}>{u.codigo} · {u.nombre}</option>
+                    ))}
+                  </Select>
                 </Field>
               </Seccion>
 
@@ -502,6 +518,14 @@ export function Productos() {
                   <GestorVariantes productoId={form.id} sku={form.sku} empresaId={empresa.id} />
                 ) : (
                   <p className="text-xs text-fg-muted">Guarda el producto para agregarle tallas o colores.</p>
+                ))}
+
+              {/* Cajas y packs: solo productos sin tallas/colores */}
+              {!productos.find((x) => x.id === form.id)?.variantes.length &&
+                (form.id ? (
+                  <GestorPresentaciones productoId={form.id} empresaId={empresa?.id ?? ''} precioUnidad={Number(form.precio_venta) || 0} />
+                ) : (
+                  <p className="text-xs text-fg-muted">Guarda el producto para agregarle cajas o packs (p. ej. «Caja x50»).</p>
                 ))}
             </div>
           )}

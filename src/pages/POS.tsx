@@ -3,11 +3,11 @@ import { useAuth } from '@/core/auth/AuthProvider'
 import { useSync } from '@/core/offline/SyncProvider'
 import { invalidarAlertas } from '@/core/data/useAlertasStock'
 import { registrarVenta } from '@/core/data/ventas'
-import type { ProductoConStock } from '@/core/types'
+import type { ProductoConStock, ProductoPresentacion } from '@/core/types'
 import { Modal } from '@/components/ui/Modal'
 import { PageHeader } from '@/components/ui/Feedback'
 import { useToast } from '@/components/ui/Toast'
-import { CatalogoPos, ElegirVariante } from '@/components/pos/CatalogoPos'
+import { CatalogoPos, ElegirPresentacion, ElegirVariante } from '@/components/pos/CatalogoPos'
 import { TicketPanel, TicketResumenMovil } from '@/components/pos/TicketPanel'
 import { useCatalogoPos } from '@/components/pos/useCatalogoPos'
 import { useTicketPos } from '@/components/pos/useTicketPos'
@@ -15,6 +15,7 @@ import type { UltimaVenta, VistaPos } from '@/components/pos/tipos'
 import { desglosarIVA } from '@/lib/format'
 import { imprimirDocumento, leerConfigImpresion, ticketVentaHtml, type TicketVenta } from '@/lib/impresion'
 import { MEDIO_PAGO, referenciaPara } from '@/lib/mediosPago'
+import { presentacionesVendibles } from '@/lib/presentaciones'
 
 /**
  * Punto de venta. Esta pantalla solo coordina: el catálogo (useCatalogoPos + CatalogoPos), el
@@ -32,6 +33,8 @@ export function POS() {
   const [ticketAbierto, setTicketAbierto] = useState(false)
   // Producto con tallas/colores: primero se elige la variante
   const [eligiendo, setEligiendo] = useState<{ producto: ProductoConStock; cantidad: number } | null>(null)
+  // Producto que también se vende por caja/pack: se elige unidad o presentación
+  const [eligiendoCaja, setEligiendoCaja] = useState<{ producto: ProductoConStock; cantidad: number } | null>(null)
 
   const catalogo = useCatalogoPos(ubicacionActiva)
   const ticket = useTicketPos(profile && ubicacionActiva ? `misociopyme:ticket:${profile.id}:${ubicacionActiva}` : null)
@@ -43,9 +46,14 @@ export function POS() {
     if (window.matchMedia('(pointer: fine)').matches) buscador.current?.focus()
   }
 
-  function agregar(p: ProductoConStock, cantidad = 1) {
+  /**
+   * `presentacion`: undefined = preguntar si tiene cajas/packs; null = unidad suelta (se escaneó
+   * el código del producto); una presentación = se escaneó el código de esa caja.
+   */
+  function agregar(p: ProductoConStock, cantidad = 1, presentacion?: ProductoPresentacion | null) {
     if (p.variantes?.length) setEligiendo({ producto: p, cantidad })
-    else ticket.agregarLinea(p, null, p.disponible, '', cantidad)
+    else if (presentacion === undefined && presentacionesVendibles(p).length) setEligiendoCaja({ producto: p, cantidad })
+    else ticket.agregarLinea(p, null, p.disponible, '', cantidad, presentacion ?? null)
     catalogo.setBusqueda('')
     enfocarBuscador()
   }
@@ -76,7 +84,9 @@ export function POS() {
       variante_id: l.variante_id,
       descripcion: l.descripcion,
       cantidad: l.cantidad,
-      precio_unitario: l.precio_unitario
+      precio_unitario: l.precio_unitario,
+      presentacion_id: l.presentacion_id ?? null,
+      factor: l.factor ?? 1
     }))
     const payload = {
       ubicacion_id: ubicacionActiva,
@@ -187,6 +197,19 @@ export function POS() {
         onElegir={(varianteId, stock, etiqueta) => {
           if (eligiendo) ticket.agregarLinea(eligiendo.producto, varianteId, stock, etiqueta, eligiendo.cantidad)
           setEligiendo(null)
+        }}
+      />
+
+      <ElegirPresentacion
+        producto={eligiendoCaja?.producto ?? null}
+        onCerrar={() => setEligiendoCaja(null)}
+        onElegir={(presentacion) => {
+          if (eligiendoCaja) {
+            const { producto, cantidad } = eligiendoCaja
+            ticket.agregarLinea(producto, null, producto.disponible, '', cantidad, presentacion)
+          }
+          setEligiendoCaja(null)
+          enfocarBuscador()
         }}
       />
     </>

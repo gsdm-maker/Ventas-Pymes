@@ -215,6 +215,20 @@ export interface MotivoSalida {
   created_at: string
 }
 
+/** Otra forma de vender o comprar un producto: «Caja x50» = 50 unidades, con precio y código propios */
+export interface ProductoPresentacion {
+  id: string
+  empresa_id: string
+  producto_id: string
+  nombre: string
+  /** Unidades base que trae (2 o más) */
+  factor: number
+  precio_venta: number
+  codigo_barras: string | null
+  se_vende: boolean
+  activa: boolean
+}
+
 export interface UnidadMedida {
   id: string
   empresa_id: string
@@ -344,6 +358,10 @@ export interface VentaItem {
   precio_unitario: number
   total_linea: number
   cantidad_devuelta: number
+  /** Presentación vendida (caja, pack); null = unidad suelta */
+  presentacion_id?: string | null
+  /** Unidades base por cada unidad vendida (1 = unidad suelta) */
+  factor?: number
 }
 
 export interface Voucher {
@@ -393,6 +411,8 @@ export interface ProductoConStock extends Producto {
   variantes: VarianteConStock[]
   /** Stock antiguo sin talla de un producto que ya tiene variantes */
   legado: number
+  /** Cajas/packs activos del producto (solo productos sin variantes) */
+  presentaciones: ProductoPresentacion[]
 }
 
 export type EstadoReposicion = 'quebrado' | 'por_quebrar' | 'bajo_minimo' | 'ok'

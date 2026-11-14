@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
-import type { MedioPago, ProductoConStock } from '@/core/types'
+import type { MedioPago, ProductoConStock, ProductoPresentacion } from '@/core/types'
 import { useToast } from '@/components/ui/Toast'
-import { clave } from '@/lib/variantes'
+import { claveLinea, unidadesEnTicket } from '@/lib/presentaciones'
 import { desglosarIVA } from '@/lib/format'
 import { MEDIO_PAGO, referenciaCompleta } from '@/lib/mediosPago'
 import type { Linea } from '@/components/pos/tipos'
@@ -50,25 +50,50 @@ export function useTicketPos(claveTicket: string | null) {
     }
   }, [lineas, claveTicket])
 
-  function agregarLinea(p: ProductoConStock, varianteId: string | null, stock: number, etiqueta: string, cantidad = 1) {
+  /**
+   * Agrega al ticket. `presentacion` (caja, pack) cobra su precio y ocupa `factor` unidades del
+   * stock; las unidades sueltas y las cajas del mismo producto comparten ese stock.
+   */
+  function agregarLinea(
+    p: ProductoConStock,
+    varianteId: string | null,
+    stock: number,
+    etiqueta: string,
+    cantidad = 1,
+    presentacion: ProductoPresentacion | null = null
+  ) {
     // Sin control de stock (platos, servicios): siempre se puede vender
     const controla = p.controla_stock !== false
+    const factor = presentacion?.factor ?? 1
+    const nueva = {
+      producto_id: p.id,
+      variante_id: varianteId,
+      presentacion_id: presentacion?.id ?? null,
+      factor
+    }
     setLineas((prev) => {
-      const ex = prev.find((l) => l.producto_id === p.id && l.variante_id === varianteId)
-      const yaEnTicket = ex?.cantidad ?? 0
-      if (controla && yaEnTicket + cantidad > stock) {
-        toast(stock - yaEnTicket > 0 ? `Solo quedan ${stock - yaEnTicket} u.` : 'Sin stock en esta ubicación', 'warning')
+      const k = claveLinea({ ...nueva, cantidad })
+      const ex = prev.find((l) => claveLinea(l) === k)
+      const libres = stock - unidadesEnTicket(prev, p.id, varianteId)
+      if (controla && cantidad * factor > libres) {
+        const alcanza = Math.floor(Math.max(0, libres) / factor)
+        toast(
+          alcanza > 0
+            ? presentacion ? `Solo alcanza para ${alcanza} × ${presentacion.nombre}` : `Solo quedan ${alcanza} u.`
+            : presentacion && libres > 0 ? `Quedan ${libres} u.: no alcanza para una ${presentacion.nombre}` : 'Sin stock en esta ubicación',
+          'warning'
+        )
         return prev
       }
       if (ex) return prev.map((l) => (l === ex ? { ...l, cantidad: l.cantidad + cantidad } : l))
+      const base = etiqueta ? `${p.nombre} · ${etiqueta}` : p.nombre
       return [
         ...prev,
         {
-          producto_id: p.id,
-          variante_id: varianteId,
-          codigo: p.variantes?.find((v) => v.id === varianteId)?.sku ?? p.sku,
-          descripcion: etiqueta ? `${p.nombre} · ${etiqueta}` : p.nombre,
-          precio_unitario: p.precio_venta,
+          ...nueva,
+          codigo: presentacion?.codigo_barras || p.variantes?.find((v) => v.id === varianteId)?.sku || p.sku,
+          descripcion: presentacion ? `${base} · ${presentacion.nombre}` : base,
+          precio_unitario: presentacion?.precio_venta ?? p.precio_venta,
           cantidad,
           disponible: controla ? stock : Number.POSITIVE_INFINITY
         }
@@ -76,16 +101,21 @@ export function useTicketPos(claveTicket: string | null) {
     })
   }
 
-  function cambiarCantidad(claveLinea: string, delta: number) {
+  function cambiarCantidad(k: string, delta: number) {
     setLineas((prev) =>
       prev
-        .map((l) => (clave(l.producto_id, l.variante_id) === claveLinea ? { ...l, cantidad: Math.min(l.cantidad + delta, l.disponible) } : l))
+        .map((l) => {
+          if (claveLinea(l) !== k) return l
+          // Tope: el stock que dejan libre las demás líneas del mismo producto
+          const libres = l.disponible - unidadesEnTicket(prev, l.producto_id, l.variante_id, k)
+          return { ...l, cantidad: Math.min(l.cantidad + delta, Math.floor(libres / (l.factor ?? 1))) }
+        })
         .filter((l) => l.cantidad > 0)
     )
   }
 
-  function eliminarLinea(claveLinea: string) {
-    setLineas((prev) => prev.filter((x) => clave(x.producto_id, x.variante_id) !== claveLinea))
+  function eliminarLinea(k: string) {
+    setLineas((prev) => prev.filter((x) => claveLinea(x) !== k))
   }
 
   /** Deja la caja lista para la siguiente venta (conserva el medio de pago elegido). */
