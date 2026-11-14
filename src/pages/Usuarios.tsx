@@ -16,6 +16,7 @@ import { Modal } from '@/components/ui/Modal'
 import { LoadingState, PageHeader } from '@/components/ui/Feedback'
 import { useToast } from '@/components/ui/Toast'
 import { actualizarPerfilUsuario, adminUsers } from '@/core/data/admin'
+import { AvisoSubirPlan } from '@/components/plan/AvisoSubirPlan'
 
 const puestos: Puesto[] = ['admin', 'bodega', 'tienda', 'auditor']
 
@@ -43,6 +44,14 @@ export function Usuarios() {
   const [resultado, setResultado] = useState<{ email: string; clave: string } | null>(null)
 
   const ubicacionesEmpresa = ubicaciones.filter((u) => u.empresa_id === empresa?.id)
+  // Plan Socio: cada cuenta usa los permisos de su puesto (la base rechaza los ajustes a medida)
+  const permisosAMedida = empresa?.nivel !== 's'
+  const avisoPermisos = (
+    <AvisoSubirPlan
+      tono="info"
+      mensaje="En el plan Socio cada usuario tiene los permisos de su puesto. Con Socio Pro puedes ajustar los permisos de cada persona."
+    />
+  )
 
   useEffect(() => {
     recargar().finally(() => setCargando(false))
@@ -73,7 +82,7 @@ export function Usuarios() {
     if (!editando) return
     if (ubiSel !== null && ubiSel.length === 0) return toast('Marca al menos una ubicación o elige «Todas»', 'warning')
     setGuardando(true)
-    const error = await actualizarPerfilUsuario(editando.id, { puesto, permissions: permisos })
+    const error = await actualizarPerfilUsuario(editando.id, { puesto, permissions: permisosAMedida ? permisos : {} })
     if (error) {
       setGuardando(false)
       return toast(error, 'error')
@@ -117,7 +126,7 @@ export function Usuarios() {
       nombre: form.nombre.trim(),
       role: form.role,
       puesto: form.puesto,
-      permissions: form.permisos,
+      permissions: permisosAMedida ? form.permisos : {},
       ubicaciones: form.ubicaciones ?? []
     })
     if (r) {
@@ -233,7 +242,8 @@ export function Usuarios() {
             </Select>
           </label>
 
-          {editando && (
+          {editando && !permisosAMedida && avisoPermisos}
+          {editando && permisosAMedida && (
             <EditorPermisos
               role={editando.role}
               puesto={puesto}
@@ -304,7 +314,7 @@ export function Usuarios() {
             </Field>
           </div>
           <div className="border-t border-border pt-4">
-            <EditorPermisos
+            {!permisosAMedida ? avisoPermisos : <EditorPermisos
               role={form.role}
               puesto={form.puesto}
               permisos={form.permisos}
@@ -312,7 +322,7 @@ export function Usuarios() {
               modulosEmpresa={modulosEmpresa}
               conAsistente={!!empresa?.plan_ia}
               puedeOtorgar={can}
-            />
+            />}
           </div>
           {ubicacionesEmpresa.length > 0 && (
             <SelectorUbicaciones

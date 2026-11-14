@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react'
 import { AlertTriangle, Clock } from 'lucide-react'
 import { useAuth } from '@/core/auth/AuthProvider'
-import { estadoPlan, etiquetaPlan, resumenPlan } from '@/core/auth/plan'
+import { AVISO_CADA_HORAS, AVISO_DIAS_ANTES, estadoPlan, etiquetaPlan, resumenPlan } from '@/core/auth/plan'
 import { Modal } from '@/components/ui/Modal'
 import { Button } from '@/components/ui/Button'
 import { cn } from '@/lib/cn'
@@ -26,9 +26,9 @@ function guardarUltimoAviso(empresaId: string) {
 
 /**
  * Alertas de vencimiento para el administrador de la empresa (no para el resto del equipo):
- * - Franja fija arriba de todas las pantallas mientras el plan está por vencer o en gracia.
- * - Aviso emergente cada `aviso_cada_horas` horas (24 = una vez al día), por equipo.
- * Los plazos los configura el administrador general en la ficha de la empresa.
+ * - Franja fija arriba de todas las pantallas desde 1 día antes del vencimiento y durante la gracia.
+ * - Aviso emergente una vez al día, por equipo.
+ * Los días de gracia los configura el administrador general en la ficha de la empresa.
  */
 export function AvisoPlan() {
   const { empresa, profile } = useAuth()
@@ -36,11 +36,14 @@ export function AvisoPlan() {
 
   const esAdmin = !!profile && !profile.es_owner && profile.role === 'admin'
   const estado = estadoPlan(empresa)
-  const alerta = esAdmin && !!empresa && (estado.fase === 'por_vencer' || estado.fase === 'gracia')
+  const alerta =
+    esAdmin &&
+    !!empresa &&
+    (estado.fase === 'gracia' || (estado.fase === 'por_vencer' && (estado.dias ?? 0) <= AVISO_DIAS_ANTES))
 
   useEffect(() => {
     if (!alerta || !empresa) return
-    const cadaMs = (empresa.aviso_cada_horas ?? 24) * 3600000
+    const cadaMs = AVISO_CADA_HORAS * 3600000
     if (Date.now() - leerUltimoAviso(empresa.id) >= cadaMs) setEmergente(true)
   }, [alerta, empresa])
 

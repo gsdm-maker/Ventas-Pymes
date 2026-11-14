@@ -43,7 +43,7 @@ update public.profiles set permissions = permissions - 'asistente.usar'
 select pg_temp.probar('sin plan: el admin no puede usar el asistente', '{{USUARIO_ADMIN}}', 'OK false',
   $q$ select public.mi_uso_ia() ->> 'permitido' $q$);
 select pg_temp.probar('con plan Pro: el admin puede', '{{USUARIO_ADMIN}}', 'OK true · Pro · 40',
-  $q$ select (r ->> 'permitido') || ' · ' || (r ->> 'plan_nombre') || ' · ' || (r ->> 'tope_usuario')
+  $q$ select (r ->> 'permitido') || ' · ' || (r ->> 'plan_nombre') || ' · ' || (r ->> 'tope_empresa')
         from public.mi_uso_ia() r $q$,
   $p$ update public.empresas set plan_ia = 'pro' where id = (select emp from zz_ctx) $p$);
 select pg_temp.probar('mi_uso_ia no expone el id de empresa', '{{USUARIO_ADMIN}}', 'OK false',

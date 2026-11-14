@@ -43,6 +43,11 @@ export function PlanesAsistente() {
   }
 
   const conUso = uso.filter((u) => u.plan_ia || u.mes > 0)
+  // Empresas que hoy agotaron (o casi) su bolsa: las candidatas a subir de plan
+  const enTope = conUso
+    .map((u) => ({ u, tope: planes.find((p) => p.plan === u.plan_ia)?.mensajes_dia_empresa ?? 0 }))
+    .filter(({ u, tope }) => tope > 0 && u.hoy >= Math.ceil(tope * 0.75))
+    .sort((a, b) => b.u.hoy / b.tope - a.u.hoy / a.tope)
 
   return (
     <div className="mt-5 space-y-5">
@@ -94,6 +99,26 @@ export function PlanesAsistente() {
           ))}
         </CardBody>
       </Card>
+
+      {enTope.length > 0 && (
+        <Card>
+          <CardHeader
+            title="Para ofrecer subir de plan"
+            subtitle="Empresas que hoy usaron 75 % o más de sus mensajes del asistente"
+          />
+          <CardBody className="space-y-2">
+            {enTope.map(({ u, tope }) => (
+              <p key={u.empresa_id} className="flex items-center justify-between gap-3 text-sm">
+                <span className="truncate font-medium text-fg">{u.nombre}</span>
+                <span className="flex shrink-0 items-center gap-2 tabular-nums text-fg-body">
+                  {formatMiles(u.hoy)} / {formatMiles(tope)}
+                  <Badge tone={u.hoy >= tope ? 'warning' : 'info'}>{u.hoy >= tope ? 'en el tope' : 'cerca'}</Badge>
+                </span>
+              </p>
+            ))}
+          </CardBody>
+        </Card>
+      )}
 
       <Card>
         <CardHeader title="Uso por empresa" subtitle="Mensajes respondidos hoy y en el mes" />

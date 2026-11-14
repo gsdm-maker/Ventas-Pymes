@@ -50,6 +50,26 @@ const RUBROS = ['retail', 'restaurante', 'mixto']
 const PLANES_IA = ['basico', 'pro', 'max']
 // Planes de suscripción (migración 0025)
 const PLANES = ['prueba', 'mensual', 'anual', 'dueno']
+// Niveles de plan (migración 0027): Socio · Socio Pro · Socio Pro Max · A medida
+const NIVELES = ['s', 'm', 'l', 'medida']
+// La prueba muestra Socio Pro (decidido 14-11-2026)
+const NIVEL_PRUEBA = 'm'
+// El plan manda: módulos y asistente solo se ajustan a mano en «A medida» (o en empresas
+// antiguas sin nivel, para no dejarlas trabadas hasta que se les asigne uno)
+const seAjustaAMano = (nivel: string | null) => nivel === null || nivel === 'medida'
+const SOLO_A_MEDIDA = 'Los módulos y el asistente los fija el plan. Para ajustarlos a mano, pasa la empresa a «A medida».'
+
+/** Tope opcional para «a medida»: null = sin límite; undefined = valor inválido. */
+function topeOpcional(valor: unknown): number | null | undefined {
+  if (valor === undefined || valor === null || valor === '') return null
+  const n = Number(valor)
+  return Number.isInteger(n) && n >= 1 && n <= 1000000 ? n : undefined
+}
+
+/** Errores de tope de plan (hint «tope_plan:…» de la base): son del usuario, no del servidor. */
+function esErrorDeTope(error: { hint?: string | null } | null): boolean {
+  return Boolean(error?.hint?.startsWith('tope_plan:'))
+}
 
 /** Espejo de _plan_vigente() (0025) y estadoPlan() del front. */
 function planVigente(e: {
@@ -73,6 +93,13 @@ function fechaOpcional(valor: unknown): string | undefined | null {
   if (valor === undefined || valor === null || valor === '') return undefined
   const s = String(valor)
   return /^\d{4}-\d{2}-\d{2}$/.test(s) && !Number.isNaN(Date.parse(s)) ? s : null
+}
+
+/** Precio en CLP (entero, 0 a 100 millones). null si es inválido. */
+const PRECIO_MAX = 100_000_000
+function precioValido(valor: unknown): number | null {
+  if (valor === undefined || valor === null || valor === '') return null
+  return enteroEntre(valor, 0, PRECIO_MAX)
 }
 
 function enteroEntre(valor: unknown, min: number, max: number): number | null {
@@ -200,13 +227,10 @@ Deno.serve(async (req) => {
         const plan = String(payload.plan || 'prueba')
         const dias = Number(payload.prueba_dias ?? 15)
         const inicio = fechaOpcional(payload.inicio)
-        // Rubro: retail | restaurante | mixto. Sin módulos explícitos, restaurante y mixto
-        // suman Mesas y Cocina
+        // Rubro: retail | restaurante | mixto. Los módulos y el asistente los fija el nivel
+        // (aplicar_nivel o, con anual, el trigger); esta lista es solo el punto de partida
         const tipoNegocio = RUBROS.includes(String(payload.tipo_negocio)) ? String(payload.tipo_negocio) : 'retail'
-        const modulos = payload.modulos === undefined
-          ? MODULOS.filter((m) => tipoNegocio !== 'retail' || (m !== 'mesas' && m !== 'cocina'))
-          : modulosValidos(payload.modulos)
-        if (!modulos) return json({ error: 'Módulos inválidos' }, 400)
+        const modulos = MODULOS.filter((m) => tipoNegocio !== 'retail' || (m !== 'mesas' && m !== 'cocina'))
         const adminEmail = String(payload.admin_email || '').trim().toLowerCase()
         const adminNombre = String(payload.admin_nombre || '').trim()
         if (!nombre) return json({ error: 'Falta el nombre de la empresa' }, 400)
@@ -216,6 +240,9 @@ Deno.serve(async (req) => {
           return json({ error: 'Los días de prueba van de 1 a 365' }, 400)
         }
         if (inicio === null) return json({ error: 'Fecha de alta inválida' }, 400)
+        // «medida» se configura después de crear la empresa (con sus topes)
+        const nivel = payload.nivel === undefined ? NIVEL_PRUEBA : String(payload.nivel)
+        if (!['s', 'm', 'l'].includes(nivel)) return json({ error: 'Nivel inválido' }, 400)
 
         const { data: empresa, error: empErr } = await admin
           .from('empresas')
@@ -234,6 +261,21 @@ Deno.serve(async (req) => {
         if (planErr) {
           await admin.from('empresas').delete().eq('id', empresa.id)
           return json({ error: planErr.message }, 400)
+        }
+        // Nivel: el anual ya quedó en Socio Pro Max (trigger de la base); si no, el pedido
+        // o Socio Pro (lo que muestra la prueba)
+        if (plan !== 'anual') {
+          const { error: nivelErr } = await admin.rpc('aplicar_nivel', {
+            p_empresa: empresa.id,
+            p_nivel: nivel,
+            p_max_productos: null,
+            p_max_ubicaciones: null,
+            p_max_usuarios: null
+          })
+          if (nivelErr) {
+            await admin.from('empresas').delete().eq('id', empresa.id)
+            return json({ error: nivelErr.message }, 400)
+          }
         }
 
         // Admin de la empresa
@@ -269,6 +311,7 @@ Deno.serve(async (req) => {
           plan,
           prueba_dias: plan === 'prueba' ? dias : null,
           inicio,
+          nivel: plan === 'anual' ? 'l' : nivel,
           admin_email: adminEmail,
           tipo_negocio: tipoNegocio
         })
@@ -312,6 +355,29 @@ Deno.serve(async (req) => {
         if (vErr) throw vErr
         if (rechazo) return json({ error: rechazo }, 403)
 
+        // Topes del nivel (la base los vuelve a exigir con un trigger): se revisan antes de
+        // crear la cuenta de Auth para no dejar cuentas a medio crear
+        const { data: topes, error: tErr } = await admin.rpc('_topes_empresa', { p_emp: empresaId })
+        if (tErr) throw tErr
+        const tope = (topes as Array<{ nivel: string | null; nombre: string; max_usuarios: number | null; permisos_a_medida: boolean }> | null)?.[0]
+        if (tope?.nivel) {
+          if (!tope.permisos_a_medida && Object.keys(permissions).length > 0) {
+            return json({ error: `Tu plan ${tope.nombre} no incluye permisos a medida por usuario: se usan los del puesto. Para ajustarlos, sube de plan.`, tope: 'permisos' }, 400)
+          }
+          if (tope.max_usuarios !== null) {
+            const { count, error: nErr } = await admin
+              .from('profiles')
+              .select('id', { count: 'exact', head: true })
+              .eq('empresa_id', empresaId)
+              .eq('activo', true)
+              .eq('es_owner', false)
+            if (nErr) throw nErr
+            if ((count ?? 0) >= tope.max_usuarios) {
+              return json({ error: `Tu plan ${tope.nombre} permite hasta ${tope.max_usuarios} ${tope.max_usuarios === 1 ? 'usuario' : 'usuarios'}. Para agregar más, sube de plan.`, tope: 'usuarios' }, 400)
+            }
+          }
+        }
+
         // Las ubicaciones autorizadas deben ser de la misma empresa
         if (ubicaciones.length) {
           const { data: validas, error: uErr } = await admin
@@ -341,6 +407,7 @@ Deno.serve(async (req) => {
           .eq('id', created.user.id)
         if (profErr) {
           await admin.auth.admin.deleteUser(created.user.id)
+          if (esErrorDeTope(profErr)) return json({ error: profErr.message, tope: profErr.hint!.slice(10) }, 400)
           return json({ error: `No se pudo asignar la cuenta: ${profErr.message}` }, 500)
         }
 
@@ -435,8 +502,9 @@ Deno.serve(async (req) => {
         const empresaId = String(payload.empresa_id || '')
         const planIa = payload.plan_ia === null ? null : String(payload.plan_ia || '')
         if (planIa !== null && !PLANES_IA.includes(planIa)) return json({ error: 'Plan de asistente inválido' }, 400)
-        const { data: antes } = await admin.from('empresas').select('plan_ia').eq('id', empresaId).maybeSingle()
+        const { data: antes } = await admin.from('empresas').select('plan_ia, nivel').eq('id', empresaId).maybeSingle()
         if (!antes) return json({ error: 'Empresa inexistente' }, 400)
+        if (!seAjustaAMano(antes.nivel)) return json({ error: SOLO_A_MEDIDA }, 400)
         const { error } = await admin.from('empresas').update({ plan_ia: planIa }).eq('id', empresaId)
         if (error) throw error
         await auditar(empresaId, { antes: antes.plan_ia, plan_ia: planIa })
@@ -471,27 +539,146 @@ Deno.serve(async (req) => {
         return json({ ok: true })
       }
 
-      // ---------- Rubro y módulos habilitados (solo Owner) ----------
-      case 'actualizar_modulos': {
+      // ---------- Rubro (solo Owner) ----------
+      // Con nivel estándar la base recalcula los módulos del nivel para el rubro nuevo;
+      // con «medida» o sin nivel solo suma o quita Mesas y Cocina
+      case 'actualizar_rubro': {
         if (!esAdminGeneral) return json({ error: 'No autorizado' }, 403)
         const empresaId = String(payload.empresa_id || '')
         const tipoNegocio = String(payload.tipo_negocio || '')
-        const modulos = modulosValidos(payload.modulos)
         if (!RUBROS.includes(tipoNegocio)) return json({ error: 'Rubro inválido' }, 400)
-        if (!modulos) return json({ error: 'Módulos inválidos' }, 400)
         const { data: antes } = await admin
           .from('empresas')
           .select('tipo_negocio, modulos')
           .eq('id', empresaId)
           .maybeSingle()
         if (!antes) return json({ error: 'Empresa inexistente' }, 400)
-        const { error } = await admin
+        const { data, error } = await admin.rpc('cambiar_rubro', { p_empresa: empresaId, p_rubro: tipoNegocio })
+        if (error) return json({ error: error.message }, 400)
+        await auditar(empresaId, { antes, tipo_negocio: tipoNegocio, modulos: data })
+        return json({ ok: true, modulos: data })
+      }
+
+      // ---------- Módulos a mano (solo Owner, solo «A medida» o sin nivel) ----------
+      case 'actualizar_modulos': {
+        if (!esAdminGeneral) return json({ error: 'No autorizado' }, 403)
+        const empresaId = String(payload.empresa_id || '')
+        const modulos = modulosValidos(payload.modulos)
+        if (!modulos || modulos.length === 0) return json({ error: 'Módulos inválidos' }, 400)
+        const { data: antes } = await admin
           .from('empresas')
-          .update({ tipo_negocio: tipoNegocio, modulos })
+          .select('modulos, nivel')
           .eq('id', empresaId)
+          .maybeSingle()
+        if (!antes) return json({ error: 'Empresa inexistente' }, 400)
+        if (!seAjustaAMano(antes.nivel)) return json({ error: SOLO_A_MEDIDA }, 400)
+        const { error } = await admin.from('empresas').update({ modulos }).eq('id', empresaId)
         if (error) throw error
-        await auditar(empresaId, { antes, tipo_negocio: tipoNegocio, modulos })
+        await auditar(empresaId, { antes: antes.modulos, modulos })
         return json({ ok: true })
+      }
+
+      // ---------- Nivel del plan (solo Owner) ----------
+      // s/m/l copian módulos (según rubro), asistente y topes del catálogo; «medida» deja
+      // módulos y asistente como estén y fija los topes indicados (vacío = sin límite)
+      case 'actualizar_nivel': {
+        if (!esAdminGeneral) return json({ error: 'No autorizado' }, 403)
+        const empresaId = String(payload.empresa_id || '')
+        const nivel = String(payload.nivel || '')
+        if (!NIVELES.includes(nivel)) return json({ error: 'Nivel inválido' }, 400)
+        const maxProductos = nivel === 'medida' ? topeOpcional(payload.max_productos) : null
+        const maxUbicaciones = nivel === 'medida' ? topeOpcional(payload.max_ubicaciones) : null
+        const maxUsuarios = nivel === 'medida' ? topeOpcional(payload.max_usuarios) : null
+        if (maxProductos === undefined || maxUbicaciones === undefined || maxUsuarios === undefined) {
+          return json({ error: 'Los topes deben ser números enteros mayores que cero, o quedar vacíos' }, 400)
+        }
+        // Precio cotizado de «A medida»: si no viene, se conserva el que tenía
+        const sinPrecio = payload.precio_medida === undefined
+        const precio = nivel === 'medida' && !sinPrecio ? precioValido(payload.precio_medida) : null
+        if (nivel === 'medida' && !sinPrecio && payload.precio_medida !== null && precio === null) {
+          return json({ error: 'El precio debe ser un número entero en pesos' }, 400)
+        }
+        const { data: antes } = await admin
+          .from('empresas')
+          .select('nivel, modulos, plan_ia, max_productos, max_ubicaciones, max_usuarios, precio_medida')
+          .eq('id', empresaId)
+          .maybeSingle()
+        if (!antes) return json({ error: 'Empresa inexistente' }, 400)
+        const { data, error } = await admin.rpc('aplicar_nivel', {
+          p_empresa: empresaId,
+          p_nivel: nivel,
+          p_max_productos: maxProductos,
+          p_max_ubicaciones: maxUbicaciones,
+          p_max_usuarios: maxUsuarios,
+          p_precio: nivel === 'medida' ? (sinPrecio ? (antes.precio_medida ?? null) : precio) : null
+        })
+        if (error) return json({ error: error.message }, 400)
+        await auditar(empresaId, { antes, resultado: data })
+        return json({ ok: true, resultado: data })
+      }
+
+      // ---------- Precio de referencia de Socio / Socio Pro / Socio Pro Max (solo Owner) ----------
+      case 'actualizar_precio_nivel': {
+        if (!esAdminGeneral) return json({ error: 'No autorizado' }, 403)
+        const nivel = String(payload.nivel || '')
+        if (!['s', 'm', 'l'].includes(nivel)) return json({ error: 'Plan inválido' }, 400)
+        const mensual = precioValido(payload.precio_mensual)
+        if (mensual === null) return json({ error: 'El precio mensual debe ser un número entero en pesos' }, 400)
+        const sinAnual = payload.precio_anual === null || payload.precio_anual === '' || payload.precio_anual === undefined
+        const anual = sinAnual ? null : precioValido(payload.precio_anual)
+        if (!sinAnual && anual === null) return json({ error: 'El precio anual debe ser un número entero en pesos' }, 400)
+        if (nivel === 'l' && anual === null) {
+          return json({ error: 'Socio Pro Max se vende anual: indica su precio anual' }, 400)
+        }
+        const { data: antes } = await admin
+          .from('niveles_plan')
+          .select('precio_mensual, precio_anual')
+          .eq('nivel', nivel)
+          .maybeSingle()
+        if (!antes) return json({ error: 'Plan inexistente' }, 400)
+        const { error } = await admin
+          .from('niveles_plan')
+          .update({ precio_mensual: mensual, precio_anual: anual })
+          .eq('nivel', nivel)
+        if (error) throw error
+        await auditar(null, { nivel, antes, precio_mensual: mensual, precio_anual: anual })
+        return json({ ok: true })
+      }
+
+      // ---------- Crear un plan «A medida» para una empresa, de una vez (solo Owner) ----------
+      case 'crear_a_medida': {
+        if (!esAdminGeneral) return json({ error: 'No autorizado' }, 403)
+        const empresaId = String(payload.empresa_id || '')
+        const modulos = modulosValidos(payload.modulos)
+        if (!modulos || modulos.length === 0) return json({ error: 'Marca al menos un módulo' }, 400)
+        const planIa = payload.plan_ia === null || payload.plan_ia === '' ? null : String(payload.plan_ia || '')
+        if (planIa !== null && !PLANES_IA.includes(planIa)) return json({ error: 'Plan de asistente inválido' }, 400)
+        const maxProductos = topeOpcional(payload.max_productos)
+        const maxUbicaciones = topeOpcional(payload.max_ubicaciones)
+        const maxUsuarios = topeOpcional(payload.max_usuarios)
+        if (maxProductos === undefined || maxUbicaciones === undefined || maxUsuarios === undefined) {
+          return json({ error: 'Los topes deben ser números enteros mayores que cero, o quedar vacíos' }, 400)
+        }
+        const precio = precioValido(payload.precio_medida)
+        if (precio === null) return json({ error: 'Indica el precio mensual cotizado (entero en pesos)' }, 400)
+        const { data: antes } = await admin
+          .from('empresas')
+          .select('nivel, modulos, plan_ia, max_productos, max_ubicaciones, max_usuarios, precio_medida')
+          .eq('id', empresaId)
+          .maybeSingle()
+        if (!antes) return json({ error: 'Empresa inexistente' }, 400)
+        const { data, error } = await admin.rpc('aplicar_a_medida', {
+          p_empresa: empresaId,
+          p_modulos: modulos,
+          p_plan_ia: planIa,
+          p_max_productos: maxProductos,
+          p_max_ubicaciones: maxUbicaciones,
+          p_max_usuarios: maxUsuarios,
+          p_precio: precio
+        })
+        if (error) return json({ error: error.message }, 400)
+        await auditar(empresaId, { antes, resultado: data, modulos, plan_ia: planIa, precio_medida: precio })
+        return json({ ok: true, resultado: data })
       }
 
       // ---------- Activar / desactivar usuario ----------
@@ -645,6 +832,9 @@ Deno.serve(async (req) => {
         return json({ error: 'Acción desconocida' }, 400)
     }
   } catch (e) {
-    return json({ error: (e as Error).message || 'Error interno' }, 500)
+    // Un tope de plan no es una falla del servidor: se informa tal cual para que la app ofrezca subir de plan
+    const err = e as { message?: string; hint?: string | null }
+    if (esErrorDeTope(err)) return json({ error: err.message, tope: err.hint!.slice(10) }, 400)
+    return json({ error: err.message || 'Error interno' }, 500)
   }
 })

@@ -5,6 +5,7 @@ import { miUsoIa, preguntarAsistente, type TurnoAsistente } from '@/core/data/ap
 import type { UsoIa } from '@/core/types'
 import { SidePanel } from '@/components/ui/SidePanel'
 import { cn } from '@/lib/cn'
+import { AvisoSubirPlan } from '@/components/plan/AvisoSubirPlan'
 
 interface Mensaje extends TurnoAsistente {
   error?: boolean
@@ -150,6 +151,11 @@ function ChatAsistente({
       ? Math.min(quedaPersona, quedaEmpresa)
       : (quedaPersona ?? quedaEmpresa)
   const agotado = uso ? !uso.permitido : false
+  // Se acabó (o está por acabarse) la bolsa diaria de la empresa: es lo que se amplía subiendo de plan
+  const bolsaAgotada = agotado && uso?.tope_empresa != null && (uso.usados_empresa ?? 0) >= uso.tope_empresa
+  const pocosMensajes = !agotado && quedaEmpresa !== null && quedaEmpresa > 0 && quedaEmpresa <= 2
+  // El nombre interno del asistente (Básico/Pro/Max) no se muestra: solo el del plan comercial
+  const nombrePlan = uso?.nivel ? uso.plan_nombre : null
   const bloqueado = !enLinea || agotado || enviando
 
   return (
@@ -157,9 +163,12 @@ function ChatAsistente({
       open={abierto}
       onClose={onClose}
       eyebrow={
-        uso?.plan_nombre
-          ? `Plan ${uso.plan_nombre}${quedan !== null ? ` · ${quedan === 1 ? 'queda 1 mensaje' : `quedan ${quedan} mensajes`} hoy` : ''}`
-          : 'Asistente con IA'
+        [
+          nombrePlan ? `Plan ${nombrePlan}` : 'Asistente con IA',
+          quedan !== null ? `${quedan === 1 ? 'queda 1 mensaje' : `quedan ${quedan} mensajes`} hoy` : null
+        ]
+          .filter(Boolean)
+          .join(' · ')
       }
       title={
         <span className="flex items-center gap-2">
@@ -224,8 +233,16 @@ function ChatAsistente({
             <WifiOff size={14} /> Sin conexión: el asistente vuelve cuando regrese internet.
           </p>
         )}
-        {agotado && uso?.motivo && (
+        {agotado && uso?.motivo && (bolsaAgotada ? (
+          <AvisoSubirPlan mensaje={`${uso.motivo} ¿Lo usan harto? Un plan mayor trae más mensajes al día.`} />
+        ) : (
           <p className="rounded-xl bg-warning-soft px-3 py-2 text-xs text-warning">{uso.motivo}</p>
+        ))}
+        {pocosMensajes && (
+          <AvisoSubirPlan
+            tono="info"
+            mensaje={`A tu empresa le ${quedaEmpresa === 1 ? 'queda 1 mensaje' : `quedan ${quedaEmpresa} mensajes`} del asistente hoy.`}
+          />
         )}
 
         {mensajes.length === 0 ? (

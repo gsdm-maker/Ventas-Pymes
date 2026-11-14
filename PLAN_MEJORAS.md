@@ -170,3 +170,140 @@ Anthropic, los patrones de diseño (Refactoring.Guru) y los pendientes anteriore
 1. **F1** (minutos) → 2. **F2** (tus acciones en Supabase/OpenAI + 1 secreto) → 3. **F3** (bug de
 comandas) → 4. **F5** (pruebas automáticas, protegen todo lo que sigue) → 5. **F6** (refactors con
 pruebas detrás) → 6. **F7** según prioridad del negocio. **F4** corre en paralelo con el uso real.
+
+---
+
+# Plan comercial: planes que calzan con el sistema · 14-11-2026
+
+Objetivo: que la landing (misociopyme.cl/#planes) y el sistema digan lo mismo. Hoy la landing vende
+S/M/L, pero el sistema solo tiene «forma de pago» (prueba/mensual/anual/dueño) + módulos sueltos +
+plan de IA; el S/M/L se arma a mano y hay promesas que no calzan (reposición «solo en M», POS solo en
+L, «tiendas y restaurantes» en L cuando mesas/cocina dependen del rubro).
+
+## G0. Idea central: dos ejes que se combinan
+
+| Eje | Qué define | Valores |
+|---|---|---|
+| **Nivel** (nuevo) | Qué funciones y cuánto: módulos, topes, IA | S · M · L · **A medida** |
+| **Membresía** (ya existe, 0025; hoy se llama «plan») | Cómo paga y cuándo vence | Prueba · Mensual · Anual · Dueño (pago único) |
+
+Ejemplos: «Socio Pro · Mensual», «Socio Pro Max · Anual», «A medida · Dueño».
+
+## G1. Niveles (acordado 14-11-2026)
+
+| | **Socio** (S) $10.000/mes | **Socio Pro** (M) $20.000/mes | **Socio Pro Max** (L) $30.000/mes |
+|---|---|---|---|
+| POS (venta y caja) | ✅ | ✅ | ✅ |
+| Inventario, entradas, salidas, vouchers | ✅ | ✅ | ✅ |
+| Alertas y reposición | ✅ | ✅ | ✅ |
+| Tallas y colores (una prenda = 1 producto) | ✅ | ✅ | ✅ |
+| Sin internet | ✅ | ✅ | ✅ |
+| **Productos** | 200 | 2.000 | sin límite |
+| **Locales** (tiendas + bodegas) | 2 | 5 | sin límite |
+| **Usuarios** | 3 | 8 | sin límite |
+| Restaurante (mesas, cocina, cuentas abiertas) | — | ✅ | ✅ |
+| Bodega y transferencias | ✅ (desde 14-11-2026) | ✅ | ✅ |
+| Reportes | día y mes | completos | completos |
+| Permisos por usuario | — (dueño + cajero fijos) | ✅ | ✅ |
+| **Asistente IA** (mensajes/día, empresa) | **8** | **40** | **150** |
+
+- **A medida:** el admin general elige módulos, topes e IA a mano (cualquier combinación) y fija el
+  precio acordado. La empresa ve «Plan a medida». Los niveles estándar ya no se tocan a mano
+  (ver G4.4, «el plan manda»).
+- **Restaurante en M y L:** al elegir nivel, mesas/cocina se habilitan si el rubro es restaurante o
+  mixto (se mantiene `modulosPorRubro`).
+- **Prueba:** 15 días con funciones del nivel que se le asigne (por defecto M) e IA de 40/día, para
+  que conozca un plan mejor que el que probablemente contrate.
+- **Nombres (decidido 14-11-2026):** S = **Socio** · M = **Socio Pro** · L = **Socio Pro Max**.
+
+## G2. Membresías (lo que ya existe, más precios por decidir)
+
+| Membresía | Cómo funciona (ya hecho en 0025) | Precio sugerido (decidir) |
+|---|---|---|
+| Prueba | Días configurables; al terminar se bloquea | Gratis, 15 días |
+| Mensual | 30 días desde el alta; 5 días de gracia | Precio del nivel |
+| Anual | Un año desde el alta; 5 días de gracia | **Decidido 14-11-2026:** un solo anual, siempre **Socio Pro Max** (beneficios del máximo), **11 × $30.000 = $330.000/año** (1 mes gratis) |
+| Dueño | Pago único, sin vencimiento | **Decidido 14-11-2026: sin precio publicado.** La landing invita a contactar y se envía cotización a medida (referencia interna: 24–30 meses del nivel) |
+
+**Ojo con Dueño + IA:** la IA cuesta todos los meses (proveedor de IA). Un pago único con IA para siempre
+es pérdida segura. Al cotizar, la IA (y la boleta electrónica) se ofrecen como mensualidad aparte o
+no se incluyen; se define caso a caso en la cotización. Lo mismo para la boleta electrónica (costo mensual de SharkPOS).
+
+## G3. La IA como gancho para subir de plan
+- [ ] Bajar cupos en `planes_ia`: Básico 8 · Pro 40 · Max 150 (hoy 30/150/600). Prueba con 40.
+- [ ] Aviso cuando quedan 2 mensajes: «Te quedan 2 hoy. En <nivel siguiente> tienes N al día».
+- [ ] Al agotarse: mensaje con botón «Subir de plan» → WhatsApp con texto listo
+      («Hola, quiero subir a <nivel>»).
+- [ ] Consola del admin general: empresas que llegan seguido al tope (candidatas a subir).
+- Mismo gancho con los topes: «143 de 200 productos», aviso al 90 % y botón para subir.
+
+## G4. Sistema: tareas
+1. [x] **Migración** `0027_niveles_plan.sql` (hecha, sin aplicar en producción):
+   - tabla `niveles_plan` (s, m, l): módulos, `plan_ia`, `max_productos`, `max_ubicaciones`,
+     `max_usuarios`, reportes completos sí/no, precio mensual (referencia). RLS: todos leen, nadie escribe.
+   - `empresas.nivel` (s/m/l/medida) + topes propios para «a medida» (`max_*` en la empresa, null = del nivel).
+   - Función `_topes_empresa(empresa)` que devuelve los topes vigentes (nivel o a medida).
+   - Triggers antes de insertar en `productos` (cuenta productos base, no variantes), `ubicaciones`
+     (activas) y perfiles: si se pasa del tope → error claro «Tu plan permite 200 productos…».
+   - Lo existente sobre el tope **no se borra**: solo se impide crear más (y reactivar ubicaciones).
+   - `proteger_empresa`: solo el admin general cambia nivel y topes.
+   - RPC `aplicar_nivel(empresa, nivel)`: copia módulos e IA del nivel.
+   - Membresía anual fuerza nivel L (al registrar pago anual se aplica L; no se puede anual con S/M).
+   - Cupos nuevos de `planes_ia` (G3).
+2. [x] **Pruebas** en `supabase/pruebas/niveles.sql` (37 casos, `npm run test:niveles`); antes se pensó en `supabase/pruebas/planes.sql` (topes por nivel, a medida, empresa ya sobre el
+       tope, no-admin no puede cambiar nivel) y `permisos.sql`. Probar con `--antes`.
+3. [x] **Edge Function `admin-users`**: validar tope de usuarios al crear (mensaje claro). También: `nivel` al crear empresa, acción `actualizar_nivel`, errores de tope como 400.
+4. [x] **Consola admin general**: selector de nivel (aplica módulos e IA; aviso si L/M con rubro
+       retail no trae restaurante), campos de topes para «a medida», etiqueta «personalizado»;
+       renombrar «Plan» → «Membresía» en pantalla.
+       **14-11-2026 · el plan manda** (como Square y los «entitlements» de Stripe): una sola tarjeta
+       «Plan de la empresa» (1 plan → 2 rubro → 3 qué incluye) junto a «Membresía». Con Socio, Socio Pro
+       o Socio Pro Max, módulos y asistente son de solo lectura; cambiar el rubro los recalcula en la
+       base (`cambiar_rubro`, acción `actualizar_rubro`). `actualizar_modulos` y `actualizar_plan_ia`
+       solo se aceptan con «A medida» o sin nivel. Crear empresa pide plan, rubro y membresía
+       (ya no envía módulos). niveles.sql: 44 casos.
+       **14-11-2026 · pestaña «Planes y precios»** (`/admin/planes`): los tres planes lado a lado leídos de
+       `niveles_plan`, ingreso mensual estimado, editar el precio de referencia (acción
+       `actualizar_precio_nivel`; `niveles_plan.precio_anual`, solo Pro Max) y crear un plan a medida
+       de una vez (acción `crear_a_medida` → `aplicar_a_medida`: módulos, asistente, topes y precio
+       cotizado en `empresas.precio_medida`, protegido por `proteger_empresa`). El precio a medida
+       también se edita en el detalle. Los precios son de referencia: la landing se actualiza aparte.
+       niveles.sql: 57 casos.
+5. [x] **App de la empresa**: «Socio Pro · Mensual · vence el…» en Configuración; medidores de
+       productos/locales/usuarios; avisos al 90 % y al tope (también offline: validar antes de crear
+       con los topes cacheados); botón «Subir de plan» por WhatsApp; reportes del S limitados a día y mes.
+       Hecho, salvo la validación offline (crear productos y locales ya exige conexión). El botón usa
+       `VITE_WHATSAPP_VENTAS` (configurarlo en Netlify); sin esa variable el aviso sale sin botón.
+       En S se ocultan los permisos a medida en Usuarios; el asistente avisa con 2 mensajes o menos y al
+       agotarse, y ya no muestra los nombres internos Básico/Pro/Max.
+6. [ ] Typecheck, lint, `test:planes`, `test:permisos`, `test:seguridad` (hecho 14-11-2026, todo pasa); `/security-review`
+       (toca permisos); revisión del dueño en el navegador.
+7. [ ] Desplegar con OK: `db push` → `functions deploy admin-users asistente` → `git push`.
+       Asignar nivel a las empresas actuales según lo que pagan hoy.
+
+## G5. Landing: tareas (se envían en `LANDING_CORRECCIONES.md`)
+- [ ] Tabla de planes = G1 (mismos nombres, números y orden que el sistema).
+- [ ] Destacar que **todos los planes traen POS** y funcionan sin internet.
+- [ ] M como «Más elegido»: tiendas con sucursal/bodega **y restaurantes**.
+- [ ] IA como función destacada («Tu socio que responde sobre tu negocio»), con el cupo de cada plan.
+- [ ] Tarjeta aparte «Anual: todo Socio Pro Max por $330.000 al año (1 mes gratis, $27.500/mes)».
+- [ ] Bloque bajo la tabla, sin precio: «¿Necesitas algo distinto? Plan a medida» y «¿Prefieres pagar
+      una vez? Licencia de dueño» → botón «Pedir cotización» (WhatsApp con texto listo y/o formulario).
+      La cotización la arma el dueño del sistema; en la app se configura como «A medida» y/o «Dueño».
+- [ ] Preguntas nuevas: diferencia entre planes, qué pasa al llegar al tope (no se pierde nada),
+      cambio de plan en cualquier momento, ¿emite boleta electrónica? (próximamente / extra).
+
+## G6. Extra futuro: boleta electrónica (SharkPOS)
+Extra en cualquier nivel (~$7.990–9.990/mes; SharkPOS cobra $5.990/RUT). Requiere Edge Function con
+la clave, tabla de documentos con RLS, webhook, timbre en el ticket y nota de crédito en devoluciones.
+Definir con un contador qué hacer con ventas sin internet (contingencia SII). Va después de G4.
+
+## G7. Decisiones pendientes del dueño
+1. ~~Nombres~~ (decidido: Socio · Socio Pro · Socio Pro Max).
+2. ~~Precio anual~~ (decidido: anual = Socio Pro Max, $330.000).
+3. ~~Licencia Dueño~~ (decidido: por cotización desde la landing; IA aparte se define en cada cotización).
+4. ~~Nivel de la prueba~~ (decidido: Socio Pro, 15 días).
+5. ~~Landing~~ (decidido: las correcciones se envían en `LANDING_CORRECCIONES.md`).
+
+**Orden:** decisiones G7 → G4 (pasos 1–2 primero, son la base) → G5 en paralelo con G4.5 → G4.6–7 →
+G6 más adelante.

@@ -18,6 +18,7 @@ import {
   Building2,
   Sparkles,
   ScrollText,
+  Layers,
   type LucideIcon
 } from 'lucide-react'
 import type { Capability } from '@/core/auth/capabilities'
@@ -66,6 +67,7 @@ export interface AdminNavItem {
 export const ADMIN_NAV: AdminNavItem[] = [
   { to: '/admin', label: 'Resumen', corto: 'Resumen', icon: ShieldCheck },
   { to: '/admin/empresas', label: 'Empresas', corto: 'Empresas', icon: Building2 },
+  { to: '/admin/planes', label: 'Planes y precios', corto: 'Planes', icon: Layers },
   { to: '/admin/asistente', label: 'Asistente IA', corto: 'IA', icon: Sparkles },
   { to: '/admin/owners', label: 'Admins generales', corto: 'Admins', icon: Users },
   { to: '/admin/actividad', label: 'Actividad', corto: 'Actividad', icon: ScrollText }

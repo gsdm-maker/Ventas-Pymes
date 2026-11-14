@@ -7,6 +7,45 @@
 /** Plan de suscripción (migración 0025). */
 export type Plan = 'prueba' | 'mensual' | 'anual' | 'dueno'
 
+/** Nivel del plan (migración 0027): Socio · Socio Pro · Socio Pro Max · A medida. */
+export type Nivel = 's' | 'm' | 'l' | 'medida'
+
+/** Fila del catálogo niveles_plan (s, m, l). null en los topes = sin límite. */
+export interface NivelPlanConfig {
+  nivel: Exclude<Nivel, 'medida'>
+  nombre: string
+  precio_mensual: number
+  /** null = no se vende con membresía anual */
+  precio_anual: number | null
+  modulos: string[]
+  plan_ia: PlanIa | null
+  max_productos: number | null
+  max_ubicaciones: number | null
+  max_usuarios: number | null
+  reportes_completos: boolean
+  permisos_a_medida: boolean
+  orden: number
+}
+
+/** Uso de un recurso frente al tope del plan (tope null = sin límite). */
+export interface UsoRecurso {
+  usados: number
+  tope: number | null
+}
+
+/** Respuesta de uso_plan(): nivel vigente, siguiente nivel y medidores. */
+export interface UsoPlan {
+  /** null = empresa sin nivel asignado (sin topes) */
+  nivel: Nivel | null
+  nombre: string | null
+  reportes_completos: boolean
+  permisos_a_medida: boolean
+  siguiente: { nivel: Nivel; nombre: string } | null
+  productos: UsoRecurso
+  ubicaciones: UsoRecurso
+  usuarios: UsoRecurso
+}
+
 /** Plan del asistente con IA (lo define el administrador general; null = sin asistente). */
 export type PlanIa = 'basico' | 'pro' | 'max'
 
@@ -25,6 +64,8 @@ export interface UsoIa {
   motivo: string | null
   plan?: PlanIa | null
   plan_nombre?: string | null
+  /** Nivel del plan de la empresa; sin nivel, plan_nombre es el nombre interno del asistente */
+  nivel?: Nivel | null
   usados_usuario?: number
   /** null = el plan no tiene límite por persona */
   tope_usuario?: number | null
@@ -71,6 +112,14 @@ export interface Empresa {
   usa_variantes?: boolean
   /** Plan del asistente con IA; null = sin asistente */
   plan_ia?: PlanIa | null
+  /** Nivel del plan; null = sin nivel (sin topes) */
+  nivel?: Nivel | null
+  /** Topes propios del nivel «medida» (null = sin límite) */
+  max_productos?: number | null
+  max_ubicaciones?: number | null
+  max_usuarios?: number | null
+  /** Precio mensual cotizado de «A medida» (CLP); null en los niveles estándar */
+  precio_medida?: number | null
   created_at: string
 }
 

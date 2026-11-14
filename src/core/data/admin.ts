@@ -43,6 +43,11 @@ export async function sembrarDemo(empresaId: string): Promise<string | null> {
   return soloError(await supabase.rpc('sembrar_demo', { p_empresa: empresaId }))
 }
 
+/** Empezar de cero: borra los datos de operación (0028). `confirmacion` = nombre de la empresa. */
+export async function vaciarEmpresa(empresaId: string, confirmacion: string): Promise<string | null> {
+  return soloError(await supabase.rpc('vaciar_empresa', { p_empresa: empresaId, p_confirmacion: confirmacion }))
+}
+
 
 export interface FilaAuditoria {
   id: string

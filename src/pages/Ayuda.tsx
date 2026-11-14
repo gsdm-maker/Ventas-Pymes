@@ -473,7 +473,7 @@ const TEMAS: Tema[] = [
       {
         titulo: 'Límites del plan',
         pasos: [
-          'Los planes Básico, Pro y Max tienen las mismas funciones; cambia el tope de mensajes al día por usuario y por empresa. Arriba del chat ves cuántos te quedan.',
+          'El asistente funciona igual en todos los planes; lo que cambia es cuántos mensajes al día tiene tu empresa: 8 en Socio, 40 en Socio Pro y 150 en Socio Pro Max. Arriba del chat ves cuántos te quedan.',
           'Los mensajes se renuevan cada día. Si hay un error al responder, ese mensaje no se descuenta.',
           'El plan lo define el administrador del sistema; el administrador de tu empresa decide quién puede usar el asistente (Usuarios → permisos → «Usar el asistente con IA»).'
         ]

@@ -50,7 +50,14 @@ export function ConfigReposicion() {
     try {
       const n = await simularHistoria(12)
       invalidarAlertas()
-      toast(`${n} ventas simuladas cargadas`)
+      if (n === 0) {
+        toast(
+          'No se generó nada: la historia simulada necesita al menos una tienda activa con productos (y stock en esa tienda si el producto controla stock).',
+          'warning'
+        )
+      } else {
+        toast(`${n} ventas simuladas cargadas`)
+      }
     } catch (e) {
       toast((e as Error).message, 'error')
     } finally {

@@ -1,12 +1,12 @@
 import { useEffect, useState } from 'react'
 import { BellRing, CalendarCheck, CreditCard, History } from 'lucide-react'
 import type { Empresa, Plan } from '@/core/types'
-import { DIAS_PRUEBA_DEFAULT, estadoPlan, PLAN_DESCRIPCION, etiquetaPlan, tonoPlan, resumenPlan } from '@/core/auth/plan'
+import { AVISO_CADA_HORAS, AVISO_DIAS_ANTES, DIAS_PRUEBA_DEFAULT, estadoPlan, PLAN_DESCRIPCION, etiquetaPlan, tonoPlan, resumenPlan } from '@/core/auth/plan'
 import { adminUsers, listarPagosPlan, type PagoPlan } from '@/core/data/admin'
 import { Card, CardBody, CardHeader } from '@/components/ui/Card'
 import { Button } from '@/components/ui/Button'
 import { Badge } from '@/components/ui/Badge'
-import { Field, Input, Select } from '@/components/ui/Input'
+import { Field, Input } from '@/components/ui/Input'
 import { Modal } from '@/components/ui/Modal'
 import { useToast } from '@/components/ui/Toast'
 import { formatFecha } from '@/lib/format'
@@ -14,16 +14,6 @@ import { cn } from '@/lib/cn'
 
 const PLANES: Plan[] = ['prueba', 'mensual', 'anual', 'dueno']
 const DIA = 86400000
-
-/** Frecuencias del aviso emergente al admin de la empresa (en horas). */
-const FRECUENCIAS = [
-  { horas: 4, label: 'Cada 4 horas' },
-  { horas: 8, label: 'Cada 8 horas' },
-  { horas: 12, label: 'Dos veces al día' },
-  { horas: 24, label: 'Una vez al día' },
-  { horas: 48, label: 'Cada 2 días' },
-  { horas: 168, label: 'Una vez a la semana' }
-]
 
 function hoyIso(): string {
   const d = new Date()
@@ -59,19 +49,11 @@ export function PlanSuscripcion({ empresa, onCambio }: { empresa: Empresa; onCam
   const [nota, setNota] = useState('')
 
   // Avisos
-  const [avisos, setAvisos] = useState({
-    dias_gracia: empresa.dias_gracia ?? 5,
-    aviso_dias_antes: empresa.aviso_dias_antes ?? 7,
-    aviso_cada_horas: empresa.aviso_cada_horas ?? 24
-  })
+  const [avisos, setAvisos] = useState({ dias_gracia: empresa.dias_gracia ?? 5 })
 
   useEffect(() => {
     setNuevo(empresa.plan)
-    setAvisos({
-      dias_gracia: empresa.dias_gracia ?? 5,
-      aviso_dias_antes: empresa.aviso_dias_antes ?? 7,
-      aviso_cada_horas: empresa.aviso_cada_horas ?? 24
-    })
+    setAvisos({ dias_gracia: empresa.dias_gracia ?? 5 })
     void listarPagosPlan(empresa.id).then(setPagos)
   }, [empresa])
 
@@ -94,7 +76,7 @@ export function PlanSuscripcion({ empresa, onCambio }: { empresa: Empresa; onCam
     }
     await invocar(
       { accion: 'actualizar_plan', plan: nuevo, prueba_dias: diasPrueba, inicio: nuevo === 'mensual' || nuevo === 'anual' ? inicio : undefined },
-      `Plan cambiado a ${etiquetaPlan(nuevo)}`
+      `Membresía cambiada a ${etiquetaPlan(nuevo)}`
     )
   }
 
@@ -109,10 +91,11 @@ export function PlanSuscripcion({ empresa, onCambio }: { empresa: Empresa; onCam
   const periodico = empresa.plan === 'mensual' || empresa.plan === 'anual'
   const proximoVence = periodico && empresa.plan_vence ? sumarPeriodo(new Date(empresa.plan_vence), empresa.plan) : null
   const cambiaPlan = nuevo !== empresa.plan || nuevo === 'prueba'
+  // También se guarda si la empresa tenía otra regla de avisos de antes, para dejarla en la fija
   const avisosCambiados =
     avisos.dias_gracia !== (empresa.dias_gracia ?? 5) ||
-    avisos.aviso_dias_antes !== (empresa.aviso_dias_antes ?? 7) ||
-    avisos.aviso_cada_horas !== (empresa.aviso_cada_horas ?? 24)
+    empresa.aviso_dias_antes !== AVISO_DIAS_ANTES ||
+    empresa.aviso_cada_horas !== AVISO_CADA_HORAS
 
   const tonoEstado =
     estado.fase === 'bloqueado' ? 'blocked' : estado.fase === 'gracia' ? 'danger' : estado.fase === 'por_vencer' ? 'warning' : 'success'
@@ -126,7 +109,7 @@ export function PlanSuscripcion({ empresa, onCambio }: { empresa: Empresa; onCam
 
   return (
     <Card className="lg:col-span-2">
-      <CardHeader title="Plan y suscripción" subtitle="Qué paga la empresa, cuándo vence y cómo se le avisa" />
+      <CardHeader title="Membresía" subtitle="Cómo paga la empresa, cuándo vence y cómo se le avisa" />
       <CardBody className="space-y-5">
         {/* Estado actual */}
         <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-border bg-surface px-4 py-3">
@@ -152,9 +135,9 @@ export function PlanSuscripcion({ empresa, onCambio }: { empresa: Empresa; onCam
           {/* Cambiar plan */}
           <div className="space-y-3">
             <p className="flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wide text-fg-muted">
-              <CalendarCheck size={13} aria-hidden /> Cambiar plan
+              <CalendarCheck size={13} aria-hidden /> Cambiar membresía
             </p>
-            <div role="radiogroup" aria-label="Plan" className="grid grid-cols-2 gap-1.5">
+            <div role="radiogroup" aria-label="Membresía" className="grid grid-cols-2 gap-1.5">
               {PLANES.map((p) => (
                 <button
                   key={p}
@@ -203,53 +186,51 @@ export function PlanSuscripcion({ empresa, onCambio }: { empresa: Empresa; onCam
             <p className="flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wide text-fg-muted">
               <BellRing size={13} aria-hidden /> Gracia y alertas al admin
             </p>
-            <div className="grid grid-cols-2 gap-3">
-              <Field label="Avisar desde (días antes)">
-                <Input
-                  type="number"
-                  inputMode="numeric"
-                  min={0}
-                  max={90}
-                  value={avisos.aviso_dias_antes}
-                  onChange={(e) => setAvisos({ ...avisos, aviso_dias_antes: Math.round(Number(e.target.value) || 0) })}
-                />
-              </Field>
-              <Field label="Días de gracia" hint="Mensual y anual">
-                <Input
-                  type="number"
-                  inputMode="numeric"
-                  min={0}
-                  max={60}
-                  value={avisos.dias_gracia}
-                  onChange={(e) => setAvisos({ ...avisos, dias_gracia: Math.round(Number(e.target.value) || 0) })}
-                />
-              </Field>
-            </div>
-            <Field label="Aviso emergente">
-              <Select
-                value={avisos.aviso_cada_horas}
-                onChange={(e) => setAvisos({ ...avisos, aviso_cada_horas: Number(e.target.value) })}
-              >
-                {FRECUENCIAS.some((f) => f.horas === avisos.aviso_cada_horas) ? null : (
-                  <option value={avisos.aviso_cada_horas}>Cada {avisos.aviso_cada_horas} horas</option>
-                )}
-                {FRECUENCIAS.map((f) => (
-                  <option key={f.horas} value={f.horas}>{f.label}</option>
-                ))}
-              </Select>
+            <Field label="Días de gracia" hint="Mensual y anual. La prueba no tiene gracia.">
+              <Input
+                type="number"
+                inputMode="numeric"
+                min={0}
+                max={60}
+                value={avisos.dias_gracia}
+                onChange={(e) => setAvisos({ ...avisos, dias_gracia: Math.round(Number(e.target.value) || 0) })}
+              />
             </Field>
-            <p className="text-xs text-fg-muted">
-              El admin de la empresa ve una franja en todas las pantallas desde {avisos.aviso_dias_antes} día(s) antes
-              del vencimiento y un aviso emergente con esta frecuencia. Al terminar la gracia el sistema se bloquea
-              (la información queda guardada).
-            </p>
+            <ol className="space-y-1.5 rounded-lg bg-surface px-3 py-2.5 text-xs text-fg-body">
+              <li>
+                <span className="font-medium text-fg">1 día antes de vencer:</span> franja amarilla y un aviso emergente.
+              </li>
+              <li>
+                <span className="font-medium text-fg">
+                  {avisos.dias_gracia > 0
+                    ? `Durante los ${avisos.dias_gracia} día(s) de gracia:`
+                    : 'Sin días de gracia:'}
+                </span>{' '}
+                {avisos.dias_gracia > 0
+                  ? 'franja roja y un aviso emergente cada día.'
+                  : 'el día que vence se bloquea.'}
+              </li>
+              <li>
+                <span className="font-medium text-fg">Al terminar la gracia:</span> se bloquea el acceso (la información
+                queda guardada).
+              </li>
+              <li className="text-fg-muted">Solo lo ve el admin de la empresa, no el resto del equipo.</li>
+            </ol>
             <Button
               variant="secondary"
               block
               disabled={enviando || !avisosCambiados}
-              onClick={() => void invocar({ accion: 'configurar_avisos', ...avisos }, 'Alertas actualizadas')}
+              onClick={() => void invocar(
+                  {
+                    accion: 'configurar_avisos',
+                    dias_gracia: avisos.dias_gracia,
+                    aviso_dias_antes: AVISO_DIAS_ANTES,
+                    aviso_cada_horas: AVISO_CADA_HORAS
+                  },
+                  'Días de gracia guardados'
+                )}
             >
-              Guardar alertas
+              Guardar días de gracia
             </Button>
           </div>
         </div>

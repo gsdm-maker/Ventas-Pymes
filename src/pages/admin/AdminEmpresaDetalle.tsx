@@ -1,8 +1,7 @@
 import { useEffect, useState } from 'react'
 import { Link, useNavigate, useParams } from 'react-router-dom'
-import { ArrowLeft, UserPlus, Sparkles, KeyRound, MapPin } from 'lucide-react'
-import type { Empresa, PlanIa, PlanIaConfig, Profile, TipoNegocio, Ubicacion } from '@/core/types'
-import { MODULOS, MODULO_LABEL, RUBRO_LABEL, modulosPorRubro } from '@/core/auth/capabilities'
+import { ArrowLeft, UserPlus, Sparkles, KeyRound, MapPin, Eraser } from 'lucide-react'
+import type { Empresa, NivelPlanConfig, Profile, Ubicacion } from '@/core/types'
 import { AdminTabs } from '@/pages/admin/AdminTabs'
 import { Card, CardBody, CardHeader } from '@/components/ui/Card'
 import { Button } from '@/components/ui/Button'
@@ -11,13 +10,17 @@ import { Field, Input, Select } from '@/components/ui/Input'
 import { Modal } from '@/components/ui/Modal'
 import { LoadingState, PageHeader } from '@/components/ui/Feedback'
 import { useToast } from '@/components/ui/Toast'
-import { etiquetaPlan, resumenPlan } from '@/core/auth/plan'
+import { estadoPlan, etiquetaPlan, resumenPlan, tonoPlan } from '@/core/auth/plan'
+import { RUBRO_LABEL } from '@/core/auth/capabilities'
+import { Medidor } from '@/components/plan/MedidoresPlan'
 import { PlanSuscripcion } from '@/pages/admin/PlanSuscripcion'
-import { accesosPorUsuario, actualizarUbicacionesUsuario, listarPlanesIa } from '@/core/data/api'
+import { PlanEmpresa } from '@/pages/admin/PlanEmpresa'
+import { etiquetaNivel, topesDe } from '@/lib/niveles'
+import { accesosPorUsuario, actualizarUbicacionesUsuario, listarNiveles } from '@/core/data/api'
 import { SelectorUbicaciones } from '@/components/usuarios/SelectorUbicaciones'
 import { asignadasActivas, resumenUbicaciones, sinUbicacionActiva } from '@/lib/ubicaciones'
 import { cn } from '@/lib/cn'
-import { adminUsers, detalleEmpresaAdmin, sembrarDemo } from '@/core/data/admin'
+import { adminUsers, detalleEmpresaAdmin, sembrarDemo, vaciarEmpresa } from '@/core/data/admin'
 
 export function AdminEmpresaDetalle() {
   const { id } = useParams()
@@ -30,20 +33,24 @@ export function AdminEmpresaDetalle() {
   const [open, setOpen] = useState(false)
   const [form, setForm] = useState({ email: '', nombre: '', role: 'integrante', puesto: 'tienda', ubicaciones: null as string[] | null })
   const [accesos, setAccesos] = useState<Record<string, string[]>>({})
+  const [vaciar, setVaciar] = useState<{ abierto: boolean; texto: string; enviando: boolean }>({
+    abierto: false,
+    texto: '',
+    enviando: false
+  })
   const [editUbi, setEditUbi] = useState<{ usuario: Profile; valor: string[] | null } | null>(null)
   const [resultado, setResultado] = useState<{ email: string; clave: string } | null>(null)
-  const [rubro, setRubro] = useState<TipoNegocio>('retail')
-  const [modulos, setModulos] = useState<string[]>([])
-  const [guardandoModulos, setGuardandoModulos] = useState(false)
-  const [planesIa, setPlanesIa] = useState<PlanIaConfig[]>([])
+  const [catalogo, setCatalogo] = useState<NivelPlanConfig[]>([])
+
+  useEffect(() => {
+    void listarNiveles().then(setCatalogo)
+  }, [])
 
   async function cargar() {
     if (!id) return
     setCargando(true)
     const { empresa: e, usuarios: u, ubicaciones: ub } = await detalleEmpresaAdmin(id)
     setEmpresa(e)
-    setRubro(e?.tipo_negocio ?? 'retail')
-    setModulos(e?.modulos ?? [])
     setUsuarios(u)
     setUbicaciones(ub)
     setAccesos(await accesosPorUsuario(id))
@@ -54,10 +61,6 @@ export function AdminEmpresaDetalle() {
     void cargar()
   }, [id])
 
-  useEffect(() => {
-    void listarPlanesIa().then(setPlanesIa)
-  }, [])
-
   async function invocar(body: Record<string, unknown>) {
     const { data, error } = await adminUsers(body)
     if (error) {
@@ -65,29 +68,6 @@ export function AdminEmpresaDetalle() {
       return null
     }
     return data
-  }
-
-  async function cambiarPlanIa(planIa: PlanIa | null) {
-    const r = await invocar({ accion: 'actualizar_plan_ia', empresa_id: id, plan_ia: planIa })
-    if (r) {
-      toast(planIa ? 'Plan del asistente actualizado' : 'Asistente desactivado')
-      void cargar()
-    }
-  }
-
-  function elegirRubro(r: TipoNegocio) {
-    setRubro(r)
-    setModulos((prev) => modulosPorRubro(r, prev))
-  }
-
-  async function guardarModulos() {
-    setGuardandoModulos(true)
-    const r = await invocar({ accion: 'actualizar_modulos', empresa_id: id, tipo_negocio: rubro, modulos })
-    setGuardandoModulos(false)
-    if (r) {
-      toast('Rubro y módulos actualizados')
-      void cargar()
-    }
   }
 
   async function guardarUbicaciones() {
@@ -132,6 +112,17 @@ export function AdminEmpresaDetalle() {
     void cargar()
   }
 
+  async function confirmarVaciar() {
+    if (!id) return
+    setVaciar((v) => ({ ...v, enviando: true }))
+    const error = await vaciarEmpresa(id, vaciar.texto)
+    setVaciar((v) => ({ ...v, enviando: false }))
+    if (error) return toast(error, 'error')
+    setVaciar({ abierto: false, texto: '', enviando: false })
+    toast('Empresa vaciada: lista para cargar sus datos reales')
+    void cargar()
+  }
+
   async function resetClave(u: Profile) {
     const r = await invocar({ accion: 'reset_password', user_id: u.id })
     if (r) {
@@ -149,16 +140,22 @@ export function AdminEmpresaDetalle() {
   }
 
   const ubicacionesActivas = ubicaciones.filter((u) => u.activa)
+  // Mismo conteo que los triggers de tope: usuarios activos sin el admin general, locales activos
+  const usuariosActivos = usuarios.filter((u) => u.activo && !u.es_owner).length
 
   if (cargando) return <><AdminTabs /><LoadingState /></>
   if (!empresa) return <><AdminTabs /><p className="text-sm text-fg-muted">Empresa no encontrada.</p></>
+
+  const topes = topesDe(empresa, catalogo)
+  const estado = estadoPlan(empresa)
+  const usuariosLlenos = topes.usuarios !== null && usuariosActivos >= topes.usuarios
 
   return (
     <>
       <AdminTabs />
       <PageHeader
         title={empresa.nombre}
-        subtitle={`Plan ${etiquetaPlan(empresa.plan)} · ${resumenPlan(empresa)}`}
+        subtitle={RUBRO_LABEL[empresa.tipo_negocio ?? 'retail']}
         actions={
           <Button variant="ghost" size="sm" onClick={() => navigate('/admin/empresas')}>
             <ArrowLeft size={16} /> Volver
@@ -166,103 +163,88 @@ export function AdminEmpresaDetalle() {
         }
       />
 
-      {/* Fila 1: lo comercial (plan y asistente). Fila 2: lo operativo (módulos y usuarios). */}
+      {/* Estado de un vistazo: plan, membresía y uso contra los topes del plan */}
+      <Card className="mb-5">
+        <CardBody className="grid gap-x-6 gap-y-4 sm:grid-cols-2 lg:grid-cols-4">
+          <div className="min-w-0">
+            <p className="text-xs text-fg-muted">Plan</p>
+            <div className="mt-1">
+              <Badge tone={empresa.nivel ? 'accent' : 'warning'}>{etiquetaNivel(empresa.nivel)}</Badge>
+            </div>
+          </div>
+          <div className="min-w-0">
+            <p className="text-xs text-fg-muted">Membresía</p>
+            <div className="mt-1 flex min-w-0 items-center gap-2">
+              <Badge tone={tonoPlan(empresa.plan)}>{etiquetaPlan(empresa.plan)}</Badge>
+              <span
+                className={cn(
+                  'truncate text-xs',
+                  estado.fase === 'gracia' || estado.fase === 'bloqueado'
+                    ? 'text-danger'
+                    : estado.fase === 'por_vencer'
+                      ? 'text-warning'
+                      : 'text-fg-muted'
+                )}
+              >
+                {resumenPlan(empresa, estado)}
+              </span>
+            </div>
+          </div>
+          <ul className="contents">
+            <Medidor label="Usuarios" uso={{ usados: usuariosActivos, tope: topes.usuarios }} />
+            <Medidor label="Locales" uso={{ usados: ubicacionesActivas.length, tope: topes.ubicaciones }} />
+          </ul>
+        </CardBody>
+      </Card>
+
+      {/* Fila 1: qué incluye (plan y rubro) y cómo paga (membresía). Fila 2: usuarios. */}
       <div className="grid gap-5 lg:grid-cols-3">
+        <PlanEmpresa empresa={empresa} onCambio={() => void cargar()} />
         <PlanSuscripcion empresa={empresa} onCambio={() => void cargar()} />
 
         <Card>
-          <CardHeader title="Asistente con IA" subtitle="Socio IA: chat sobre stock, ventas y reposición" />
+          <CardHeader title="Herramientas" subtitle="Atajos de la consola para esta empresa" />
           <CardBody className="space-y-3">
-            <div role="radiogroup" aria-label="Plan del asistente" className="grid grid-cols-2 gap-1.5">
-              <button
-                type="button"
-                role="radio"
-                aria-checked={!empresa.plan_ia}
-                onClick={() => void cambiarPlanIa(null)}
-                className={cn(
-                  'rounded-xl border px-3 py-2 text-left text-sm font-medium transition-colors',
-                  !empresa.plan_ia ? 'border-accent bg-accent-soft text-accent' : 'border-border text-fg-body hover:bg-surface'
-                )}
-              >
-                Sin asistente
-              </button>
-              {planesIa.map((p) => (
-                <button
-                  key={p.plan}
-                  type="button"
-                  role="radio"
-                  aria-checked={empresa.plan_ia === p.plan}
-                  onClick={() => void cambiarPlanIa(p.plan)}
-                  className={cn(
-                    'rounded-xl border px-3 py-2 text-left text-sm font-medium transition-colors',
-                    empresa.plan_ia === p.plan ? 'border-accent bg-accent-soft text-accent' : 'border-border text-fg-body hover:bg-surface'
-                  )}
-                >
-                  {p.nombre}
-                  <span className="block text-[11px] font-normal text-fg-muted">
-                    {p.mensajes_dia_empresa}/día
-                    {p.mensajes_dia_usuario ? ` · máx. ${p.mensajes_dia_usuario} por persona` : ' compartidos'}
-                  </span>
-                </button>
-              ))}
-            </div>
-            <ol className="list-decimal space-y-1 pl-4 text-xs text-fg-muted">
-              <li>Aquí eliges el plan: define cuántas preguntas al día tiene la empresa.</li>
-              <li>Los administradores de la empresa lo ven al tiro en su Dashboard.</li>
-              <li>Ellos dan o quitan el permiso «Asistente» a cada usuario en Usuarios.</li>
-            </ol>
+            {ubicaciones.length === 0 ? (
+              <div className="space-y-1.5">
+                <Button variant="secondary" block onClick={() => void cargarDemo()}>
+                  <Sparkles size={16} /> Cargar datos de ejemplo
+                </Button>
+                <p className="text-xs text-fg-muted">
+                  Crea Boutique Aurora (locales, productos y stock) dentro de los topes de su plan. Solo se puede en una
+                  empresa sin locales: nunca toca datos reales.
+                </p>
+              </div>
+            ) : (
+              <div className="space-y-1.5">
+                <Button variant="secondary" block onClick={() => setVaciar({ abierto: true, texto: '', enviando: false })}>
+                  <Eraser size={16} /> Empezar de cero
+                </Button>
+                <p className="text-xs text-fg-muted">
+                  Borra productos, stock, locales, ventas y movimientos (los del ejemplo o las pruebas). Conserva la
+                  empresa, su plan y sus usuarios.
+                </p>
+              </div>
+            )}
             <Link to="/admin/asistente" className="inline-block text-xs font-medium text-accent hover:underline">
-              Editar topes de los planes y ver el uso →
+              Cupos de cada asistente y uso de hoy →
             </Link>
+            <p className="text-xs text-fg-muted">
+              Los administradores de la empresa dan o quitan el permiso «Asistente» a cada usuario en Usuarios.
+            </p>
           </CardBody>
         </Card>
 
-        <div className="space-y-5">
-          <Card>
-            <CardHeader title="Rubro y módulos" subtitle="Lo que la empresa puede usar" />
-            <CardBody className="space-y-3">
-              <div className="flex flex-wrap gap-2">
-                {(Object.keys(RUBRO_LABEL) as TipoNegocio[]).map((r) => (
-                  <Button key={r} size="sm" variant={rubro === r ? 'primary' : 'secondary'} onClick={() => elegirRubro(r)}>
-                    {RUBRO_LABEL[r]}
-                  </Button>
-                ))}
-              </div>
-              <p className="text-xs text-fg-muted">
-                El rubro enciende o apaga Mesas y Cocina. En restaurante, los productos nuevos parten sin
-                control de stock.
-              </p>
-              <div className="grid grid-cols-1 gap-2">
-                {MODULOS.map((m) => (
-                  <label key={m} className="flex items-center gap-2 rounded-lg border border-border px-3 py-2 text-sm">
-                    <input
-                      type="checkbox"
-                      checked={modulos.includes(m)}
-                      onChange={(e) =>
-                        setModulos((prev) => (e.target.checked ? [...prev, m] : prev.filter((x) => x !== m)))
-                      }
-                      className="size-4 accent-[rgb(var(--accent))]"
-                    />
-                    <span className="text-fg-body">{MODULO_LABEL[m]}</span>
-                  </label>
-                ))}
-              </div>
-              <Button block disabled={guardandoModulos} onClick={() => void guardarModulos()}>
-                {guardandoModulos ? 'Guardando…' : 'Guardar rubro y módulos'}
-              </Button>
-              <Button variant="ghost" block onClick={() => void cargarDemo()}>
-                <Sparkles size={16} /> Cargar datos de ejemplo
-              </Button>
-            </CardBody>
-          </Card>
-        </div>
-
-        <Card className="lg:col-span-2">
+        <Card className="lg:col-span-3">
           <CardHeader
             title="Usuarios"
-            subtitle={`${usuarios.length} cuenta(s)`}
+            subtitle={
+              usuariosLlenos
+                ? 'Llegó al tope de usuarios de su plan: desactiva uno o sube de plan para crear otro.'
+                : `${usuarios.length} ${usuarios.length === 1 ? 'cuenta' : 'cuentas'}`
+            }
             action={
-              <Button size="sm" onClick={() => setOpen(true)}>
+              <Button size="sm" disabled={usuariosLlenos} onClick={() => setOpen(true)}>
                 <UserPlus size={14} /> Crear cuenta
               </Button>
             }
@@ -309,6 +291,57 @@ export function AdminEmpresaDetalle() {
           </CardBody>
         </Card>
       </div>
+
+      <Modal
+        open={vaciar.abierto}
+        onClose={() => !vaciar.enviando && setVaciar({ abierto: false, texto: '', enviando: false })}
+        size="sm"
+        title="Empezar de cero"
+        footer={
+          <>
+            <Button
+              variant="secondary"
+              disabled={vaciar.enviando}
+              onClick={() => setVaciar({ abierto: false, texto: '', enviando: false })}
+            >
+              Cancelar
+            </Button>
+            <Button
+              variant="danger"
+              disabled={
+                vaciar.enviando || vaciar.texto.trim().toLowerCase() !== empresa.nombre.trim().toLowerCase()
+              }
+              onClick={() => void confirmarVaciar()}
+            >
+              {vaciar.enviando ? 'Borrando…' : 'Borrar todo y empezar'}
+            </Button>
+          </>
+        }
+      >
+        <div className="space-y-3 text-sm text-fg-body">
+          <p>
+            Se borran <span className="font-medium text-fg">para siempre</span> los datos de operación de{' '}
+            <span className="font-medium text-fg">{empresa.nombre}</span>:
+          </p>
+          <ul className="list-disc space-y-0.5 pl-5 text-xs">
+            <li>Productos, variantes, categorías, proveedores y stock</li>
+            <li>Locales y bodegas ({ubicaciones.length}), con sus mesas</li>
+            <li>Ventas, devoluciones, cuentas, comandas y vouchers</li>
+            <li>Recepciones, transferencias y movimientos</li>
+          </ul>
+          <p className="text-xs text-fg-muted">
+            Se conservan la empresa (plan, membresía, módulos y marca), los usuarios, los motivos de salida y las
+            unidades de medida. Úsalo solo con datos de ejemplo o de prueba.
+          </p>
+          <Field label={`Escribe «${empresa.nombre}» para confirmar`}>
+            <Input
+              value={vaciar.texto}
+              autoComplete="off"
+              onChange={(e) => setVaciar((v) => ({ ...v, texto: e.target.value }))}
+            />
+          </Field>
+        </div>
+      </Modal>
 
       <Modal
         open={open}

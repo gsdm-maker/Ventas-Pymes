@@ -18,6 +18,7 @@ import { Card, CardBody, CardHeader } from '@/components/ui/Card'
 import { Input, Select } from '@/components/ui/Input'
 import { EmptyState, LoadingState, PageHeader } from '@/components/ui/Feedback'
 import { cn } from '@/lib/cn'
+import { AvisoSubirPlan } from '@/components/plan/AvisoSubirPlan'
 import {
   DIAS_SEMANA,
   aDia,
@@ -78,9 +79,13 @@ function colorSerie(i: number): string {
 }
 
 export function Reportes() {
-  const { can } = useAuth()
+  const { can, empresa } = useAuth()
   const [params, setParams] = useSearchParams()
-  const periodo = (PERIODOS.some((p) => p.key === params.get('periodo')) ? params.get('periodo') : '28d') as Periodo
+  // Plan Socio: reportes del día y del mes; el resto de los períodos viene con Socio Pro
+  const reportesBasicos = empresa?.nivel === 's'
+  const periodos = reportesBasicos ? PERIODOS.filter((p) => p.key === 'hoy' || p.key === 'mes') : PERIODOS
+  const porDefecto: Periodo = reportesBasicos ? 'mes' : '28d'
+  const periodo = (periodos.some((p) => p.key === params.get('periodo')) ? params.get('periodo') : porDefecto) as Periodo
   const tienda = params.get('tienda')
   const [desde, hasta] = rangoDe(periodo, params.get('desde'), params.get('hasta'))
 
@@ -165,10 +170,10 @@ export function Reportes() {
       {/* Filtros: una sola fila sobre todo lo que acotan */}
       <div className="mb-5 flex flex-wrap items-center gap-2">
         <div className="flex flex-wrap gap-1 rounded-xl border border-border bg-panel p-1" role="group" aria-label="Período">
-          {PERIODOS.map((p) => (
+          {periodos.map((p) => (
             <button
               key={p.key}
-              onClick={() => setParam({ periodo: p.key === '28d' ? null : p.key, ...(p.key === 'rango' ? { desde, hasta } : { desde: null, hasta: null }) })}
+              onClick={() => setParam({ periodo: p.key === porDefecto ? null : p.key, ...(p.key === 'rango' ? { desde, hasta } : { desde: null, hasta: null }) })}
               aria-pressed={periodo === p.key}
               className={cn(
                 'rounded-lg px-3 py-1.5 text-xs font-medium transition-colors',
@@ -202,6 +207,14 @@ export function Reportes() {
           ))}
         </Select>
       </div>
+
+      {reportesBasicos && (
+        <AvisoSubirPlan
+          tono="info"
+          className="mb-4"
+          mensaje="Tu plan Socio incluye los reportes del día y del mes. Con Socio Pro ves 7 y 28 días, el mes anterior y cualquier rango, para comparar."
+        />
+      )}
 
       {simuladas > 0 && (
         <div className="mb-4 flex items-start gap-2 rounded-xl border border-warning/30 bg-warning-soft px-4 py-3 text-xs text-warning">

@@ -361,6 +361,7 @@ Deno.serve(async (req) => {
   const uso = {
     plan: estado.plan ?? null,
     plan_nombre: estado.plan_nombre ?? null,
+    nivel: estado.nivel ?? null,
     usados_usuario: estado.usados_usuario ?? 0,
     // null = el plan no tiene límite por persona (solo la bolsa de la empresa)
     tope_usuario: estado.tope_usuario ?? null,

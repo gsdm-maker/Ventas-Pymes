@@ -17,7 +17,9 @@ import type {
   ProductoConStock,
   ProductoVariante,
   VarianteConStock,
+  NivelPlanConfig,
   PlanIaConfig,
+  UsoPlan,
   Profile,
   Proveedor,
   Stock,
@@ -213,6 +215,9 @@ export async function listarMovimientos(filtros: {
   tipo?: string
   estado?: string
   referencia?: string
+  /** Rango de fechas (ISO): desde incluido, hasta excluido. Sin ellos, todo el historial. */
+  fechaDesde?: string
+  fechaHasta?: string
   desde?: number
   cantidad?: number
 }): Promise<{ filas: Movimiento[]; total: number }> {
@@ -224,6 +229,8 @@ export async function listarMovimientos(filtros: {
     .range(desde, desde + (filtros.cantidad ?? 100) - 1)
   if (filtros.tipo) q = q.eq('tipo', filtros.tipo)
   if (filtros.estado) q = q.eq('estado_sync', filtros.estado)
+  if (filtros.fechaDesde) q = q.gte('created_at', filtros.fechaDesde)
+  if (filtros.fechaHasta) q = q.lt('created_at', filtros.fechaHasta)
   if (filtros.referencia) q = q.ilike('referencia', `%${filtros.referencia.replace(/[%_]/g, '')}%`)
   const { data, count, error } = await q
   if (error) throw error
@@ -503,6 +510,18 @@ export async function preguntarAsistente(
   const r = data as { respuesta?: string; uso?: UsoIa; error?: string }
   if (r?.error) throw Object.assign(new Error(r.error), { uso: r.uso ?? null })
   return { respuesta: r?.respuesta ?? '', uso: r?.uso ?? null }
+}
+
+export async function listarNiveles(): Promise<NivelPlanConfig[]> {
+  const { data } = await supabase.from('niveles_plan').select('*').order('orden')
+  return (data as NivelPlanConfig[]) ?? []
+}
+
+/** Nivel, siguiente nivel y medidores de la empresa de quien consulta (null si no aplica). */
+export async function usoPlan(): Promise<UsoPlan | null> {
+  const { data, error } = await supabase.rpc('uso_plan')
+  if (error) return null
+  return (data as UsoPlan | null) ?? null
 }
 
 export async function listarPlanesIa(): Promise<PlanIaConfig[]> {

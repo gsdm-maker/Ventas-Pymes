@@ -31,8 +31,18 @@ export const PLAN_TONO: Record<Plan, 'warning' | 'success' | 'info' | 'accent'> 
 }
 
 /**
+ * Regla fija de alertas al admin de la empresa: la franja y el aviso emergente salen desde
+ * 1 día antes del vencimiento y siguen todos los días de gracia, con el emergente una vez al día.
+ * (Las columnas aviso_dias_antes / aviso_cada_horas de la base quedan sin uso.)
+ */
+export const AVISO_DIAS_ANTES = 1
+export const AVISO_CADA_HORAS = 24
+/** La consola general marca «por vencer» antes, para alcanzar a cobrar. */
+export const POR_VENCER_CONSOLA_DIAS = 7
+
+/**
  * - sin_vencimiento: dueño (o prueba sin fecha)
- * - vigente: falta más que `aviso_dias_antes` para vencer
+ * - vigente: falta más de POR_VENCER_CONSOLA_DIAS para vencer
  * - por_vencer: dentro del período de aviso
  * - gracia: venció, pero quedan días antes del bloqueo (solo mensual y anual)
  * - bloqueado: ya no se puede usar
@@ -49,7 +59,7 @@ export interface EstadoPlan {
   dias: number | null
 }
 
-type DatosPlan = Pick<Empresa, 'plan' | 'prueba_hasta' | 'plan_vence' | 'dias_gracia' | 'aviso_dias_antes'>
+type DatosPlan = Pick<Empresa, 'plan' | 'prueba_hasta' | 'plan_vence' | 'dias_gracia'>
 
 export function estadoPlan(empresa: DatosPlan | null, ahora = Date.now()): EstadoPlan {
   const sinVencer: EstadoPlan = { fase: 'sin_vencimiento', vence: null, bloqueo: null, dias: null }
@@ -71,8 +81,7 @@ export function estadoPlan(empresa: DatosPlan | null, ahora = Date.now()): Estad
     return { fase: 'gracia', vence, bloqueo, dias: Math.ceil((bloqueo.getTime() - ahora) / DIA) }
   }
   const dias = Math.ceil((vence.getTime() - ahora) / DIA)
-  const aviso = empresa.aviso_dias_antes ?? 7
-  return { fase: dias <= aviso ? 'por_vencer' : 'vigente', vence, bloqueo, dias }
+  return { fase: dias <= POR_VENCER_CONSOLA_DIAS ? 'por_vencer' : 'vigente', vence, bloqueo, dias }
 }
 
 export function planBloqueado(empresa: DatosPlan | null, esOwner: boolean): boolean {

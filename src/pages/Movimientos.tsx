@@ -10,11 +10,44 @@ import { Input, Select } from '@/components/ui/Input'
 import { SidePanel } from '@/components/ui/SidePanel'
 import { EmptyState, LoadingState, PageHeader } from '@/components/ui/Feedback'
 import { cn } from '@/lib/cn'
-import { formatFechaHora } from '@/lib/format'
+import { aDia, formatDiaLargo, formatFechaHora, parseDia } from '@/lib/format'
 import { productoPorId } from '@/core/data/inventario'
 
 // Movimientos por página: el historial completo puede tener miles
 const POR_PAGINA = 100
+
+type Periodo = 'hoy' | 'ayer' | '7d' | 'dia' | 'todo'
+const PERIODOS: { key: Periodo; label: string }[] = [
+  { key: 'hoy', label: 'Hoy' },
+  { key: 'ayer', label: 'Ayer' },
+  { key: '7d', label: '7 días' },
+  { key: 'dia', label: 'Elegir día' },
+  { key: 'todo', label: 'Todo' }
+]
+
+function sumarDias(dia: string, n: number): string {
+  const d = parseDia(dia)
+  d.setDate(d.getDate() + n)
+  return aDia(d)
+}
+
+/** Rango en ISO (desde incluido, hasta excluido) según el período, en días locales. */
+function rangoPeriodo(p: Periodo, dia: string): { fechaDesde?: string; fechaHasta?: string } {
+  const hoy = aDia(new Date())
+  const iso = (d: string) => parseDia(d).toISOString()
+  switch (p) {
+    case 'hoy':
+      return { fechaDesde: iso(hoy), fechaHasta: iso(sumarDias(hoy, 1)) }
+    case 'ayer':
+      return { fechaDesde: iso(sumarDias(hoy, -1)), fechaHasta: iso(hoy) }
+    case '7d':
+      return { fechaDesde: iso(sumarDias(hoy, -6)), fechaHasta: iso(sumarDias(hoy, 1)) }
+    case 'dia':
+      return { fechaDesde: iso(dia), fechaHasta: iso(sumarDias(dia, 1)) }
+    case 'todo':
+      return {}
+  }
+}
 
 const tipoTono = { entrada: 'success', salida: 'accent', transferencia: 'info', ajuste: 'warning' } as const
 
@@ -101,6 +134,8 @@ export function Movimientos() {
   const [tipo, setTipo] = useState('all')
   const [estado, setEstado] = useState('all')
   const [busqueda, setBusqueda] = useState('')
+  const [periodo, setPeriodo] = useState<Periodo>('hoy')
+  const [dia, setDia] = useState(() => aDia(new Date()))
   const [movimientoSeleccionado, setMovimientoSeleccionado] = useState<Movimiento | null>(null)
 
   // Los filtros se aplican en el servidor sobre todo el historial (no solo lo descargado)
@@ -108,6 +143,7 @@ export function Movimientos() {
     tipo: tipo === 'all' ? undefined : tipo,
     estado: estado === 'all' ? undefined : estado,
     referencia: busqueda.trim() || undefined,
+    ...rangoPeriodo(periodo, dia),
     cantidad: POR_PAGINA
   }
 
@@ -129,7 +165,7 @@ export function Movimientos() {
       window.clearTimeout(t)
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [tipo, estado, busqueda])
+  }, [tipo, estado, busqueda, periodo, dia])
 
   async function cargarMas() {
     setCargandoMas(true)
@@ -147,6 +183,35 @@ export function Movimientos() {
   return (
     <>
       <PageHeader title="Movimientos" subtitle="Trazabilidad de entradas, salidas, transferencias y ajustes" />
+
+      <div className="mb-3 flex flex-wrap items-center gap-2">
+        <div role="group" aria-label="Período" className="flex flex-wrap gap-1 rounded-xl border border-border p-1">
+          {PERIODOS.map((p) => (
+            <button
+              key={p.key}
+              type="button"
+              onClick={() => setPeriodo(p.key)}
+              aria-pressed={periodo === p.key}
+              className={cn(
+                'rounded-lg px-3 py-1.5 text-sm font-medium transition-colors',
+                periodo === p.key ? 'bg-accent text-on-accent' : 'text-fg-muted hover:bg-surface'
+              )}
+            >
+              {p.label}
+            </button>
+          ))}
+        </div>
+        {periodo === 'dia' && (
+          <Input
+            type="date"
+            aria-label="Día"
+            className="w-auto"
+            value={dia}
+            max={aDia(new Date())}
+            onChange={(e) => e.target.value && setDia(e.target.value)}
+          />
+        )}
+      </div>
 
       <div className="mb-4 flex flex-wrap gap-2">
         <div className="relative min-w-52 flex-1">
@@ -171,7 +236,30 @@ export function Movimientos() {
       {cargando ? (
         <LoadingState />
       ) : movs.length === 0 ? (
-        <EmptyState icon={<ArrowLeftRight size={32} />} title="Sin movimientos" description="No hay movimientos que coincidan con los filtros." />
+        <EmptyState
+          icon={<ArrowLeftRight size={32} />}
+          title={
+            periodo === 'hoy'
+              ? 'Sin movimientos hoy'
+              : periodo === 'ayer'
+                ? 'Sin movimientos ayer'
+                : periodo === 'dia'
+                  ? `Sin movimientos el ${formatDiaLargo(dia)}`
+                  : 'Sin movimientos'
+          }
+          description={
+            periodo === 'todo'
+              ? 'No hay movimientos que coincidan con los filtros.'
+              : 'Prueba con otro día o mira todo el historial.'
+          }
+          action={
+            periodo !== 'todo' ? (
+              <Button size="sm" variant="secondary" onClick={() => setPeriodo('todo')}>
+                Ver todo el historial
+              </Button>
+            ) : undefined
+          }
+        />
       ) : (
         <Card>
           <CardBody className="p-0">

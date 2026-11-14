@@ -1,10 +1,10 @@
 import { useEffect, useState } from 'react'
-import { Plus, Trash2, Store, Sparkles, Palette, Cloud, X, Check, Lock, Pencil } from 'lucide-react'
+import { Plus, Trash2, Store, Palette, Cloud, X, Check, Lock, Pencil } from 'lucide-react'
 import { useAuth } from '@/core/auth/AuthProvider'
 import { useSync } from '@/core/offline/SyncProvider'
 import { useTheme } from '@/core/theme/ThemeProvider'
 import { ACENTOS } from '@/core/theme/acentos'
-import { listarCategorias, listarMotivos, listarProveedores, listarUbicaciones } from '@/core/data/api'
+import { listarCategorias, listarMotivos, listarProveedores, listarUbicaciones, usoPlan } from '@/core/data/api'
 import { MODULOS, MODULO_LABEL, RUBRO_LABEL } from '@/core/auth/capabilities'
 import { etiquetaPlan, resumenPlan } from '@/core/auth/plan'
 import { Card, CardBody, CardHeader } from '@/components/ui/Card'
@@ -17,6 +17,8 @@ import { useConfirm } from '@/components/ui/confirm'
 import { ConfigReposicion } from '@/components/reposicion/ConfigReposicion'
 import { ConfigImpresionEquipo } from '@/components/impresion/ConfigImpresionEquipo'
 import { cn } from '@/lib/cn'
+import { etiquetaNivel } from '@/lib/niveles'
+import { MedidoresPlan } from '@/components/plan/MedidoresPlan'
 import { hace } from '@/lib/format'
 import {
   actualizarEmpresa,
@@ -26,8 +28,7 @@ import {
   eliminarDeCatalogo,
   renombrarUbicacion as renombrarUbicacionEnBase
 } from '@/core/data/configuracion'
-import { sembrarDemo } from '@/core/data/admin'
-import type { TipoUbicacion } from '@/core/types'
+import type { TipoUbicacion, UsoPlan } from '@/core/types'
 
 type Tabla = 'categorias' | 'motivos_salida' | 'proveedores'
 
@@ -48,10 +49,13 @@ export function Configuracion() {
   const [nuevo, setNuevo] = useState<Record<Tabla, string>>({ motivos_salida: '', categorias: '', proveedores: '' })
   const [nuevaUbi, setNuevaUbi] = useState({ nombre: '', tipo: 'tienda' })
   const [renombrando, setRenombrando] = useState<{ id: string; nombre: string } | null>(null)
+  const [uso, setUso] = useState<UsoPlan | null>(null)
 
   async function recargar() {
-    const [c, m, p, u] = await Promise.all([listarCategorias(), listarMotivos(), listarProveedores(), listarUbicaciones()])
-    setCategorias(c); setMotivos(m); setProveedores(p)
+    const [c, m, p, u, up] = await Promise.all([
+      listarCategorias(), listarMotivos(), listarProveedores(), listarUbicaciones(), usoPlan()
+    ])
+    setCategorias(c); setMotivos(m); setProveedores(p); setUso(up)
     setUbicaciones(u.map((x: { id: string; nombre: string; tipo: string; activa: boolean }) => x))
   }
 
@@ -140,15 +144,6 @@ export function Configuracion() {
     void recargar()
   }
 
-  async function cargarDemo() {
-    if (!empresa) return
-    const error = await sembrarDemo(empresa.id)
-    if (error) return toast(error, 'error')
-    toast('Datos de demostración cargados')
-    await refrescar()
-    void recargar()
-  }
-
   const admin = can('config.gestionar')
   const modulosActivos = MODULOS.filter((m) => empresa?.modulos.includes(m))
   const modulosNoIncluidos = MODULOS.filter((m) => !empresa?.modulos.includes(m))
@@ -196,7 +191,25 @@ export function Configuracion() {
               </span>
             </label>
             <Button onClick={() => void guardarEmpresa()} disabled={!admin}>Guardar</Button>
-            <p className="text-xs text-fg-muted">Plan actual: <b>{empresa ? etiquetaPlan(empresa.plan) : '—'}</b>{empresa ? ` · ${resumenPlan(empresa)}` : ''}. El plan, el vencimiento y los pagos los gestiona el administrador general.</p>
+          </CardBody>
+        </Card>
+
+        <Card>
+          <CardHeader
+            title="Tu plan"
+            subtitle={
+              empresa
+                ? [uso?.nivel ? etiquetaNivel(uso.nivel) : null, `Membresía ${etiquetaPlan(empresa.plan)}`, resumenPlan(empresa)]
+                    .filter(Boolean)
+                    .join(' · ')
+                : undefined
+            }
+          />
+          <CardBody className="space-y-3">
+            {uso ? <MedidoresPlan uso={uso} /> : <p className="text-sm text-fg-muted">Sin datos del plan por ahora.</p>}
+            <p className="text-xs text-fg-muted">
+              El plan, la membresía, el vencimiento y los pagos los gestiona el administrador general.
+            </p>
           </CardBody>
         </Card>
 
@@ -375,17 +388,6 @@ export function Configuracion() {
           </CardBody>
         </Card>
 
-        {admin && (
-          <Card className="lg:col-span-2">
-            <CardHeader title="Datos de demostración" subtitle="Carga Boutique Aurora con productos y stock de ejemplo" />
-            <CardBody>
-              <Button variant="secondary" onClick={() => void cargarDemo()}>
-                <Sparkles size={16} /> Cargar datos de ejemplo
-              </Button>
-              <p className="mt-2 text-xs text-fg-muted">Solo funciona si la empresa aún no tiene ubicaciones creadas.</p>
-            </CardBody>
-          </Card>
-        )}
       </div>
     </>
   )
