@@ -8,6 +8,7 @@ import { Button } from '@/components/ui/Button'
 import { Loader2, ShieldAlert, Clock } from 'lucide-react'
 import { NAV } from '@/components/layout/nav'
 import { EmptyState } from '@/components/ui/Feedback'
+import { SuscripcionFlow } from '@/components/plan/SuscripcionFlow'
 
 function Pantalla({ children }: { children: ReactNode }) {
   return (
@@ -34,7 +35,7 @@ function SinEmpresa() {
 }
 
 function PlanBloqueado() {
-  const { cerrarSesion, empresa } = useAuth()
+  const { cerrarSesion, empresa, profile } = useAuth()
   const esPrueba = empresa?.plan === 'prueba'
   const { vence } = estadoPlan(empresa)
   return (
@@ -50,6 +51,11 @@ function PlanBloqueado() {
               vence ? ` el ${vence.toLocaleDateString('es-CL')}` : ''
             } y terminaron los días de gracia. Tu información sigue guardada: al registrar el pago se reactiva al tiro.`}
       </p>
+      {profile?.role === 'admin' && (
+        <div className="mt-5 text-left">
+          <SuscripcionFlow />
+        </div>
+      )}
       <Button className="mt-5" variant="secondary" onClick={() => void cerrarSesion()}>
         Cerrar sesión
       </Button>

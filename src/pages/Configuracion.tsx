@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react'
-import { Plus, Trash2, Store, Palette, Cloud, X, Check, Lock, Pencil } from 'lucide-react'
+import { useSearchParams } from 'react-router-dom'
+import { Plus, Trash2, Store, Palette, Cloud, X, Check, Lock, Pencil, Building2, CreditCard, Boxes, Monitor } from 'lucide-react'
 import { useAuth } from '@/core/auth/AuthProvider'
 import { useSync } from '@/core/offline/SyncProvider'
 import { useTheme } from '@/core/theme/ThemeProvider'
@@ -20,6 +21,7 @@ import { ConfigImpresionEquipo } from '@/components/impresion/ConfigImpresionEqu
 import { cn } from '@/lib/cn'
 import { etiquetaNivel } from '@/lib/niveles'
 import { MedidoresPlan } from '@/components/plan/MedidoresPlan'
+import { SuscripcionFlow } from '@/components/plan/SuscripcionFlow'
 import { hace } from '@/lib/format'
 import {
   actualizarEmpresa,
@@ -33,7 +35,26 @@ import type { TipoUbicacion, UsoPlan } from '@/core/types'
 
 type Tabla = 'categorias' | 'motivos_salida' | 'proveedores'
 
+const SECCIONES = [
+  { id: 'empresa', etiqueta: 'Empresa', detalle: 'Datos generales', icono: Building2 },
+  { id: 'plan', etiqueta: 'Plan y suscripción', detalle: 'Membresía, cobro y módulos', icono: CreditCard },
+  { id: 'ubicaciones', etiqueta: 'Tiendas y bodegas', detalle: 'Ubicaciones de la empresa', icono: Store },
+  { id: 'inventario', etiqueta: 'Inventario', detalle: 'Motivos, categorías, unidades y proveedores', icono: Boxes },
+  { id: 'equipo', etiqueta: 'Este equipo', detalle: 'Impresión, apariencia y sincronización', icono: Monitor }
+] as const
+type SeccionId = (typeof SECCIONES)[number]['id']
+
 export function Configuracion() {
+  const [params, setParams] = useSearchParams()
+  // Flow devuelve al cliente con ?suscripcion=…: se abre directo en «Plan y suscripción»
+  const pedida = params.get('seccion') ?? (params.has('suscripcion') ? 'plan' : 'empresa')
+  const seccion: SeccionId = SECCIONES.some((s) => s.id === pedida) ? (pedida as SeccionId) : 'empresa'
+  function irA(id: SeccionId) {
+    const next = new URLSearchParams(params)
+    next.set('seccion', id)
+    next.delete('suscripcion')
+    setParams(next, { replace: true })
+  }
   const { empresa, can, refrescar } = useAuth()
   const { ultimaSync, pendientes, online } = useSync()
   const { tema, acento, setTema, setAcento } = useTheme()
@@ -153,10 +174,43 @@ export function Configuracion() {
     <>
       <PageHeader title="Configuración" subtitle={empresa?.nombre} />
 
-      <div className="grid gap-5 lg:grid-cols-2">
-        {/* Primero: es lo que se ajusta en cada caja (este equipo) */}
-        <ConfigImpresionEquipo />
+      <div className="flex flex-col gap-5 lg:flex-row lg:items-start lg:gap-8">
+        {/* Móvil: selector arriba. Escritorio: menú lateral fijo */}
+        <div className="lg:hidden">
+          <Select aria-label="Sección de configuración" value={seccion} onChange={(e) => irA(e.target.value as SeccionId)}>
+            {SECCIONES.map((s) => <option key={s.id} value={s.id}>{s.etiqueta}</option>)}
+          </Select>
+        </div>
+        <nav aria-label="Secciones de configuración" className="hidden w-60 shrink-0 lg:sticky lg:top-4 lg:block">
+          <ul className="space-y-1">
+            {SECCIONES.map((s) => {
+              const Icono = s.icono
+              const activa = s.id === seccion
+              return (
+                <li key={s.id}>
+                  <button
+                    type="button"
+                    onClick={() => irA(s.id)}
+                    aria-current={activa ? 'page' : undefined}
+                    className={cn(
+                      'flex w-full items-start gap-3 rounded-xl px-3 py-2.5 text-left transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[rgb(var(--accent))]',
+                      activa ? 'bg-accent text-on-accent' : 'text-fg-body hover:bg-surface'
+                    )}
+                  >
+                    <Icono size={17} className="mt-0.5 shrink-0" />
+                    <span className="min-w-0">
+                      <span className="block text-sm font-medium">{s.etiqueta}</span>
+                      <span className={cn('block text-xs', activa ? 'opacity-80' : 'text-fg-muted')}>{s.detalle}</span>
+                    </span>
+                  </button>
+                </li>
+              )
+            })}
+          </ul>
+        </nav>
 
+        <div className="min-w-0 flex-1 space-y-5 lg:max-w-3xl">
+        {seccion === 'empresa' && (<>
         <Card>
           <CardHeader title="Empresa" subtitle="Datos generales" />
           <CardBody className="space-y-4">
@@ -194,7 +248,9 @@ export function Configuracion() {
             <Button onClick={() => void guardarEmpresa()} disabled={!admin}>Guardar</Button>
           </CardBody>
         </Card>
+        </>)}
 
+        {seccion === 'plan' && (<>
         <Card>
           <CardHeader
             title="Tu plan"
@@ -208,8 +264,10 @@ export function Configuracion() {
           />
           <CardBody className="space-y-3">
             {uso ? <MedidoresPlan uso={uso} /> : <p className="text-sm text-fg-muted">Sin datos del plan por ahora.</p>}
+            {admin && empresa?.plan !== 'dueno' && <SuscripcionFlow />}
             <p className="text-xs text-fg-muted">
-              El plan, la membresía, el vencimiento y los pagos los gestiona el administrador general.
+              El plan y los módulos los define el administrador general; la membresía se paga con cobro automático
+              o con registro manual del pago.
             </p>
           </CardBody>
         </Card>
@@ -237,7 +295,9 @@ export function Configuracion() {
             </p>
           </CardBody>
         </Card>
+        </>)}
 
+        {seccion === 'ubicaciones' && (
         <Card>
           <CardHeader title="Tiendas y bodegas" subtitle="Agrega o desactiva ubicaciones (no se borran, para conservar su historial)" />
           <CardBody className="space-y-3">
@@ -299,7 +359,9 @@ export function Configuracion() {
             </div>
           </CardBody>
         </Card>
+        )}
 
+        {seccion === 'inventario' && (<>
         <Card>
           <CardHeader title="Motivos de salida" />
           <CardBody className="space-y-3">
@@ -357,6 +419,11 @@ export function Configuracion() {
         </Card>
 
         <ConfigReposicion />
+        </>)}
+
+        {seccion === 'equipo' && (<>
+        {/* Lo que se ajusta en cada caja (este equipo) */}
+        <ConfigImpresionEquipo />
 
         <Card>
           <CardHeader title="Apariencia" subtitle="Tema y color de acento" />
@@ -390,7 +457,8 @@ export function Configuracion() {
             <p className="text-fg-muted">Operaciones pendientes: {pendientes}</p>
           </CardBody>
         </Card>
-
+        </>)}
+        </div>
       </div>
     </>
   )

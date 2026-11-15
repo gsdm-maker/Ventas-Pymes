@@ -37,3 +37,7 @@ verify_jwt = true
 
 [functions.asistente]
 verify_jwt = true
+
+# Flow llama sin sesión (retorno de tarjeta y avisos de cobro): la función valida cada acción
+[functions.suscripcion]
+verify_jwt = false

@@ -46,6 +46,32 @@ export interface UsoPlan {
   usuarios: UsoRecurso
 }
 
+/** Suscripción con cobro automático por Flow (migración 0030). */
+export type EstadoSuscripcion = 'pendiente_tarjeta' | 'activa' | 'morosa' | 'cancelada'
+
+export interface SuscripcionFlow {
+  empresa_id: string
+  nivel: Exclude<Nivel, 'medida'>
+  periodo: 'mensual' | 'anual'
+  estado: EstadoSuscripcion
+  tarjeta_marca: string | null
+  tarjeta_ultimos4: string | null
+  proximo_cobro: string | null
+  cancela_al_vencer: boolean
+}
+
+export interface CobroFlow {
+  id: string
+  nivel: Exclude<Nivel, 'medida'>
+  periodo: 'mensual' | 'anual'
+  monto: number
+  periodo_desde: string
+  periodo_hasta: string
+  estado: 'pendiente' | 'pagado' | 'fallido' | 'anulado'
+  intentos: number
+  pagado_en: string | null
+}
+
 /** Plan del asistente con IA (lo define el administrador general; null = sin asistente). */
 export type PlanIa = 'basico' | 'pro' | 'max'
 

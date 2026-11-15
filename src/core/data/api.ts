@@ -19,6 +19,8 @@ import type {
   ProductoPresentacion,
   VarianteConStock,
   NivelPlanConfig,
+  SuscripcionFlow,
+  CobroFlow,
   PlanIaConfig,
   UsoPlan,
   Profile,
@@ -540,6 +542,52 @@ export async function usoPlan(): Promise<UsoPlan | null> {
   const { data, error } = await supabase.rpc('uso_plan')
   if (error) return null
   return (data as UsoPlan | null) ?? null
+}
+
+/** Suscripción de la empresa (RLS: solo su administrador o el administrador general). */
+export async function miSuscripcion(empresaId: string): Promise<SuscripcionFlow | null> {
+  const { data } = await supabase
+    .from('suscripciones_flow')
+    .select('empresa_id, nivel, periodo, estado, tarjeta_marca, tarjeta_ultimos4, proximo_cobro, cancela_al_vencer')
+    .eq('empresa_id', empresaId)
+    .maybeSingle()
+  return (data as SuscripcionFlow | null) ?? null
+}
+
+export async function listarCobros(empresaId: string): Promise<CobroFlow[]> {
+  const { data } = await supabase
+    .from('cobros_flow')
+    .select('id, nivel, periodo, monto, periodo_desde, periodo_hasta, estado, intentos, pagado_en')
+    .eq('empresa_id', empresaId)
+    .order('periodo_desde', { ascending: false })
+    .limit(12)
+  return (data as CobroFlow[]) ?? []
+}
+
+async function llamarSuscripcion<T>(body: Record<string, unknown>): Promise<T> {
+  const { data, error } = await supabase.functions.invoke('suscripcion', { body })
+  if (error) {
+    let cuerpo: { error?: string } | null = null
+    try {
+      cuerpo = await (error as { context?: Response }).context?.json()
+    } catch {
+      cuerpo = null
+    }
+    throw new Error(cuerpo?.error ?? 'No se pudo conectar. Revisa tu conexión e intenta de nuevo.')
+  }
+  const r = data as T & { error?: string }
+  if (r?.error) throw new Error(r.error)
+  return r
+}
+
+/** Devuelve la dirección de Flow donde se registra la tarjeta. */
+export async function contratarSuscripcion(nivel: string, periodo: string, empresaId?: string): Promise<string> {
+  const r = await llamarSuscripcion<{ url: string }>({ accion: 'contratar', nivel, periodo, empresa_id: empresaId })
+  return r.url
+}
+
+export async function cancelarSuscripcion(empresaId?: string): Promise<void> {
+  await llamarSuscripcion<{ ok: boolean }>({ accion: 'cancelar', empresa_id: empresaId })
 }
 
 export async function listarPlanesIa(): Promise<PlanIaConfig[]> {
