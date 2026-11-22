@@ -2,7 +2,7 @@ import { useState, type FormEvent } from 'react'
 import { Navigate } from 'react-router-dom'
 import { LogIn, Mail } from 'lucide-react'
 import { useAuth } from '@/core/auth/AuthProvider'
-import { dbConfigurado } from '@/core/supabase/client'
+import { dbConfigurado } from '@/core/db/client'
 import { Button } from '@/components/ui/Button'
 import { Field, Input } from '@/components/ui/Input'
 import { useToast } from '@/components/ui/Toast'
@@ -88,8 +88,8 @@ export function Login() {
 
           {!dbConfigurado && (
             <div className="mt-4 rounded-xl border border-warning/40 bg-warning-soft px-4 py-3 text-xs text-warning">
-              Falta configurar Supabase. Copia <code>.env.example</code> a <code>.env.local</code> con
-              tu URL y anon key.
+              Falta configurar la conexión. Copia <code>.env.example</code> a <code>.env.local</code> con
+              tu URL y clave.
             </div>
           )}
 
