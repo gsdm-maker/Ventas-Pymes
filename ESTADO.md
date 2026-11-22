@@ -22,6 +22,7 @@ Actualizado: 2026-11-22
 - Sin clientes todavía: el paso a productivo sigue `docs/PASO_A_PRODUCTIVO.md` (sin congelar ni ventana). Decidir si se parte vacío o con datos de Supabase.
 
 ## Ojo
+- Latencia: ~230 ms de ida y vuelta Chile→VPS; el servidor responde en 2 ms. Tras `certbot` agregar `http2 on;` bajo `listen 443 ssl` (ya puesto en el sitio `misociopyme`, 22/11; respaldo en `/srv/respaldos_vps`). Con HTTP/2 cada pedido cuesta ~1 viaje (230 ms): lo que más pesa son los pedidos en serie de cada pantalla.
 - Al cambiar el host de la API todos los usuarios quedan deslogueados (aceptado: datos de prueba).
 - Verificado 22/11 en el VPS (base ya retirada, ahora `misociopyme`): correo de recuperación en español (`infra/vps/correos/`, plantillas por HTTP loopback; `file://` no funciona) y congelamiento con PostgREST real (GET 200, escritura 500/55006, descongelar vuelve a 204).
 - Sin verificar en ejecución: reintento de 60 s (solo leído en `SyncProvider.tsx`) y tokens del backend anterior (irrelevante: todos quedan deslogueados).

@@ -51,8 +51,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [ubicacionActiva, setUbicacionActivaState] = useState<string | null>(null)
 
   const saliendo = useRef(false)
+  // Carga en vuelo por usuario: getSession() y el aviso INITIAL_SESSION piden lo mismo a la vez
+  const enVuelo = useRef<{ id: string; p: Promise<void> } | null>(null)
 
-  const cargarDatos = useCallback(async (userId: string) => {
+  const cargarDatosReal = useCallback(async (userId: string) => {
     const clave = `${userId}:auth`
     let datos: DatosAuth | null
     try {
@@ -91,6 +93,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setEmpresa(datos.empresa)
     setUbicaciones(datos.ubicaciones)
   }, [])
+
+  const cargarDatos = useCallback((userId: string): Promise<void> => {
+    if (enVuelo.current?.id === userId) return enVuelo.current.p
+    const p = cargarDatosReal(userId).finally(() => {
+      if (enVuelo.current?.p === p) enVuelo.current = null
+    })
+    enVuelo.current = { id: userId, p }
+    return p
+  }, [cargarDatosReal])
 
   useEffect(() => {
     if (!supabaseConfigurado) {
