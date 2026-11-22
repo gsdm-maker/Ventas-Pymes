@@ -50,14 +50,14 @@ begin
   select string_agg(rolname, ', ') into v from pg_roles
    where rolcanlogin and rolname <> 'postgres'
      and rolname !~ '^[a-z][a-z0-9_]{2,30}_(authenticator|auth|storage)$'
-     and rolname <> 'gsdm_admin';  -- excepción conocida: acceso del DBA (CloudBeaver) solo a la base postgres, sin atributos peligrosos (ver ESTADO.md)
+     and rolname <> 'gsdm_admin';  -- excepción conocida: el DBA (CloudBeaver) administra misociopyme como miembro de misociopyme_owner; sin superusuario ni BYPASSRLS (ver ESTADO.md)
   if v is not null then raise exception 'Roles con login fuera de la plantilla: %', v; end if;
 
   select string_agg(r.rolname || '→' || d.datname, ', ') into v
     from pg_roles r cross join pg_database d
    where r.rolcanlogin and r.rolname <> 'postgres' and not d.datistemplate
      and has_database_privilege(r.oid, d.oid, 'CONNECT')
-     and not (r.rolname = 'gsdm_admin' and d.datname = 'postgres')
+     and not (r.rolname = 'gsdm_admin' and d.datname in ('postgres', 'misociopyme'))
      and d.datname <> regexp_replace(r.rolname, '_(authenticator|auth|storage)$', '');
   if v is not null then raise exception 'Roles que pueden conectarse a otra base: %', v; end if;
 
