@@ -14,7 +14,7 @@ Actualizado: 2026-11-22
 - Corregido: nginx de QA no permitía el encabezado CORS `x-supabase-api-version` (el login del navegador fallaba). Ya está en `infra/vps/servicios/nginx_proyecto.plantilla.conf` y en el VPS (sin commit).
 - Corregido el test `test_impresion_se_configura_por_equipo` (Configuración ahora tiene menú lateral).
 - E2E contra el VPS (22/11): 33 OK, 2 saltadas. Cuentas temporales borradas; queda `e2e-admin@prueba.invalid` desactivada (la venta de prueba y sus movimientos la referencian). Arreglado el test de la ficha de empresa.
-- Migración 0031 (`admin_auditoria` legible por el administrador general; arregla el 403 de `/admin/actividad`) con `supabase/pruebas/auditoria.sql` y `npm run test:auditoria`. **Probada en copia, NO aplicada** en `misociopyme`: falta el OK para aplicarla (`SET ROLE misociopyme_owner`).
+- Migración 0031 (`admin_auditoria` legible por el administrador general; arregla el 403 de `/admin/actividad`) con `supabase/pruebas/auditoria.sql` y `npm run test:auditoria`. Probada en copia y **aplicada en `misociopyme`** el 22/11 (con `SET ROLE misociopyme_owner`).
 - Pendiente: `netlify.toml` (CSP aún con `*.supabase.co`; agregar el dominio de la API) y las variables `VITE_*` de Netlify, junto con el despliegue. Hostname de la API sigue siendo el de QA (`api-prueba…`): decidir si se cambia el DNS. Avisar al DBA (su API Deno, `misociopyme_app` y sus permisos ya no existen). Contenedores `supabase-*` ajenos siguen en el VPS: no tocar.
 
 ## Siguiente paso
