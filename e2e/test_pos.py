@@ -108,6 +108,7 @@ def test_pos_no_muestra_botones_de_impresion(pagina_admin):
 
 def test_impresion_se_configura_por_equipo(pagina_admin):
     pagina_admin.goto(f'{URL}/configuracion')
+    pagina_admin.get_by_role('button', name=re.compile(r'^Este equipo')).click()
     expect(pagina_admin.get_by_text('Impresión en este equipo')).to_be_visible()
     # Encendida por defecto
     expect(pagina_admin.get_by_label('Imprimir al cobrar')).to_be_checked()

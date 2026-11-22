@@ -5,7 +5,7 @@ Multiempresa (multi-tenant), multi-bodega/tienda, con **PWA offline**, roles y p
 y control de stock con trazabilidad total.
 
 - **Front:** React + Vite + TypeScript + Tailwind v4 + React Router.
-- **Back:** Supabase (Auth + Postgres + RLS + Edge Functions).
+- **Back:** Postgres con RLS en un VPS propio (GoTrue, PostgREST, storage-api y funciones Deno; ver `infra/vps/`). El front usa `supabase-js` como cliente.
 - **Offline:** PWA real (service worker + IndexedDB con cola de sincronización).
 - **Identidad:** paleta terracota/beige (Material 3), tema claro/oscuro.
 - **Idioma:** español · fechas DD/MM/AAAA · moneda CLP · IVA chileno 19%.
@@ -18,8 +18,7 @@ y control de stock con trazabilidad total.
 ## 1. Requisitos
 
 - Node.js 20+ y npm
-- Docker (opcional, para Supabase local)
-- Supabase CLI (`npm i -g supabase`)
+- Acceso SSH al VPS (para las pruebas SQL y la infraestructura)
 
 ## 2. Instalación
 
@@ -27,42 +26,20 @@ y control de stock con trazabilidad total.
 npm install
 ```
 
-## 3. Configurar Supabase (proyecto cloud)
+## 3. Configurar la API
 
-1. Inicia sesión y crea un proyecto en https://supabase.com/dashboard
-2. Enlaza el proyecto local con el remoto:
+La base, los servicios y nginx se levantan con la plantilla de `infra/vps/` (guía: `docs/PASO_A_PRODUCTIVO.md`; diseño: `docs/DISENO_PLANTILLA_VPS.md`). Las migraciones están en `supabase/migrations/` y se aplican con `SET ROLE <proyecto>_owner`.
 
-```bash
-supabase login
-supabase link --project-ref TU_PROJECT_REF
-```
-
-3. Aplica el esquema (tablas + RLS + triggers + funciones + demo):
-
-```bash
-supabase db push
-```
-
-4. Despliega la Edge Function del administrador general:
-
-```bash
-supabase functions deploy admin-users
-```
-
-> La función usa `SUPABASE_SERVICE_ROLE_KEY` (la inyecta Supabase automáticamente).
-> No la expongas nunca en el front.
-
-5. Crea el archivo `.env.local` a partir de `.env.example`:
+Crea `.env.local` a partir de `.env.example` con la URL de la API y la clave anon pública:
 
 ```env
-VITE_SUPABASE_URL=https://TU-PROYECTO.supabase.co
+VITE_SUPABASE_URL=https://api.tu-dominio
 VITE_SUPABASE_ANON_KEY=tu-anon-key
 ```
 
 ## 4. Crear el Administrador general (una vez)
 
-1. Supabase Dashboard → **Authentication → Add user** (email + contraseña, *Auto Confirm*).
-2. En el **SQL Editor**, ejecuta `supabase/owner_bootstrap.sql` cambiando el correo.
+Crear el usuario en GoTrue con la clave de servicio, desde el VPS (puerto interno de GoTrue, nunca desde internet), y luego ejecutar `supabase/owner_bootstrap.sql` cambiando el correo.
 
 ## 5. Ejecutar
 
@@ -151,9 +128,7 @@ Dos niveles:
 npm run test:seguridad
 ```
 
-Ejecuta `supabase/pruebas/seguridad.sql` en el proyecto (vía Management API, con
-`SUPABASE_ACCESS_TOKEN` o el token de `Datakeys.md`): intenta ataques y operaciones
-legítimas como usuarios reales y **revierte todo** al final.
+Corre `supabase/pruebas/seguridad.sql` por SSH en el VPS, sobre una copia temporal de la base (`--ensayo`; la base real no se toca). Intenta ataques y operaciones legítimas como usuarios de prueba y **revierte todo** al final. Conexión: `VPS_SSH`, `VPS_SSH_KEY` y `VPS_SUDO_PASS` (o `Datakeys.md`, no versionado).
 
 ## 10. Estado del prototipo
 

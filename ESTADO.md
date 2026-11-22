@@ -1,28 +1,37 @@
-Actualizado: 2026-11-15
+Actualizado: 2026-11-22
 
 ## Último realizado
-- Suscripción con cobro automático por Flow, ya en producción (base y función) y probada en el sandbox: migración `0030_suscripcion_flow.sql` aplicada (61 casos de prueba OK), Edge Function `suscripcion` desplegada, secretos de Flow sandbox cargados (`FLOW_API_URL` = sandbox, `APP_URL` = `https://app.misociopyme.cl`).
-- Configuración rediseñada con menú lateral (Empresa, Plan y suscripción, Tiendas y bodegas, Inventario, Este equipo); la sección va en `?seccion=` y el retorno de Flow abre «Plan y suscripción». Solo interfaz.
-- `/security-review` de la suscripción: sin hallazgos de confianza alta. `npm run typecheck` y `npm run lint` sin errores.
+- Migración a VPS sin Supabase: fases 0 a 6 ensayadas. Sin commit.
+- Congelamiento probado en Postgres 17.12 (Docker local): `congelar.sql` bloquea insert/update/delete/truncate y RPC con `55006`, `descongelar.sql` revierte y ambos son repetibles.
+- Venta offline probada en navegador (Playwright, API simulada): queda en cola, sobrevive al cambio de URL, con 500 sigue pendiente y con API sana sincroniza.
+- Ensayo con copia de producción: 39 tablas y 8.298 filas idénticas, 352 casos SQL sin fallos.
 
 ## En curso / a medias
-- Sin commit ni `git push`: `CLAUDE.md`, `ESTADO.md`, `BITACORA.md`, `docs/`, 0030 y sus pruebas, la función, `SuscripcionFlow.tsx`, el rediseño de `Configuracion.tsx`, `config.toml`, `package.json`. Hasta el push, producción no tiene la pantalla nueva.
+- 22/11: **adoptada en sitio la base `misociopyme` del DBA** con la plantilla (`infra/vps/adopcion/`): roles propios, GoTrue 2.198.0, storage 1.96.4, PostgREST, funciones, migración 0030, 3 usuarios con mismo id y hash, políticas de fotos, dueño `misociopyme_owner`, `misociopyme_app` sin permisos ni login. `91_verificar_base` OK; 15 suites sobre copia temporal: 352 casos, 0 fallos; humo (login, refresh, RLS, signup cerrado) OK. Respaldo previo en `/srv/respaldos_vps` del VPS. Sin commit.
+- Retirado `msp_prueba` (base, roles, contenedores, nginx renombrado a `misociopyme`, `/srv/msp_prueba`; respaldos en `/srv/respaldos_vps`) y los contenedores del DBA. El clúster solo tiene `misociopyme` y `postgres`. `90_verificar_cluster` y `91_verificar_base` en OK. API en el host de siempre (nginx, mismos puertos); CORS y GoTrue aceptan `https://app.misociopyme.cl` y `http://localhost:5173`. `.env.local` apunta ahí. Sin cuentas de prueba en la base: el E2E se salta hasta crearlas.
+- Rol `misociopyme_app` del DBA eliminado. `gsdm_admin` (DBA, CloudBeaver) conserva login solo a la base `postgres`: sin BYPASSRLS, sin CREATEDB, sin acceso a `misociopyme` (excepción anotada en `90_verificar_cluster.sql`).
+- `scripts/sql-remoto.mjs` reescrito para SSH al VPS; `npm run test:*` corren en una copia temporal (`--ensayo`). README y `.env.example` actualizados.
+- Corregido: nginx de QA no permitía el encabezado CORS `x-supabase-api-version` (el login del navegador fallaba). Ya está en `infra/vps/servicios/nginx_proyecto.plantilla.conf` y en el VPS (sin commit).
+- Corregido el test `test_impresion_se_configura_por_equipo` (Configuración ahora tiene menú lateral).
+- Pendiente: `netlify.toml` (CSP aún con `*.supabase.co`; agregar el dominio de la API) y las variables `VITE_*` de Netlify, junto con el despliegue. Hostname de la API sigue siendo el de QA (`api-prueba…`): decidir si se cambia el DNS. Avisar al DBA (su API Deno, `misociopyme_app` y sus permisos ya no existen). Contenedores `supabase-*` ajenos siguen en el VPS: no tocar.
 
 ## Siguiente paso
-- Orden con OK del dueño: `git push` (revisar antes con `git grep` que no suba correos ni el ID del proyecto).
-- Pasar a Flow producción (el dueño aún debe crear y validar su cuenta en flow.cl; confirmar con Flow que habilita suscripciones): cuenta aprobada, cambiar `FLOW_API_KEY`, `FLOW_SECRET_KEY` y `FLOW_API_URL` a `https://www.flow.cl/api`, y probar con un cobro real pequeño.
-- Agendar `sincronizar` a diario (pg_cron/pg_net o scheduler externo con `x-sync-secret`): decisión pendiente.
-- Por verificar en Flow: qué envía el `urlCallback`, si `changePlan` cobra el precio nuevo de inmediato o desde el siguiente ciclo, y el vencimiento (`period_end` + 1 día).
-
-## Pendientes heredados (sin verificar si siguen vigentes)
-- `supabase/pruebas/reportes.sql`: el caso «reporte coincide con ventas, ítems y movimientos» fallaba desde antes de 0020.
-- Ajuste de inventario por conteo físico (existe el permiso; faltan pantalla y RPC).
-- Cierre de caja diario por cajero y tienda.
+- Dueño: snapshot del VPS y copia externa, clave de Resend de solo envío, revocar token de Netlify.
+- Sin clientes todavía: el paso a productivo sigue `docs/PASO_A_PRODUCTIVO.md` (sin congelar ni ventana). Decidir si se parte vacío o con datos de Supabase.
 
 ## Ojo
-- La prueba del sandbox dejó una suscripción de prueba en una empresa de la base real.
-- `/security-review` no encontró nada, pero el aviso de cobro (`?accion=cobro`) es público y dispara consultas a Flow: conviene vigilar el uso.
-- `supabase/functions/admin-users` responde con CORS `*`; conviene restringirlo al origen del sitio.
-- Push a `main` despliega a producción y el repo es público: no subir nada sin OK.
+- Al cambiar el host de la API todos los usuarios quedan deslogueados (aceptado: datos de prueba).
+- Verificado 22/11 en el VPS (base ya retirada, ahora `misociopyme`): correo de recuperación en español (`infra/vps/correos/`, plantillas por HTTP loopback; `file://` no funciona) y congelamiento con PostgREST real (GET 200, escritura 500/55006, descongelar vuelve a 204).
+- Sin verificar en ejecución: reintento de 60 s (solo leído en `SyncProvider.tsx`) y tokens del backend anterior (irrelevante: todos quedan deslogueados).
+- Correos en español aplicados en `misociopyme` (nginx 127.0.0.1:8099 + variables en `gotrue.env`). Correo real de recuperación probado 22/11: llegó en español. Al crear el GoTrue de producción repetir lo de `infra/vps/correos/LEEME.md`.
+- No usar `default_transaction_read_only` para congelar: PostgREST lo ignora y la venta entra.
+- El bloqueo debe responder 5xx: con `P0001` la cola offline marca la venta como rechazada para siempre.
+- El dump final trae los triggers `zz_corte_bloqueo`: filtrarlos del TOC al restaurar.
+- GoTrue mínimo `v2.198.0` y storage `v1.96.4`.
+- Sin tiempo real en el VPS: mesas y cocina se actualizan cada 20 s.
+- Los planes de Flow conservan su `urlCallback` de Supabase: actualizarlos en el corte.
+- `odin`, `gonzalo` y `agente_oc` tienen sudo en el VPS y podrán leer los datos reales tras el corte.
+- CloudBeaver, 8001 (VehicleScope) y 8002 (`despacho-fresco`): no tocar. No escribir IP, dominios ni claves en el repo.
+- La rama local iba 1 adelante y 8 atrás de `origin/main`: `git fetch` y revisar antes de cualquier push.
 
-Detalle en bitácora: #planes #permisos #seguridad #suscripcion #flow
+Detalle en bitácora: #vps #migracion #corte #offline

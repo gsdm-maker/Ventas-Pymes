@@ -1,68 +1,115 @@
-// Ejecuta SQL en el proyecto Supabase vía Management API.
+// Ejecuta SQL en la base del VPS por SSH (psql como postgres). Sin Supabase.
 // Uso:
-//   node scripts/sql-remoto.mjs supabase/pruebas/seguridad.sql
-//   node scripts/sql-remoto.mjs --antes supabase/migrations/0010_x.sql supabase/pruebas/seguridad.sql
-// Token: variable SUPABASE_ACCESS_TOKEN o el token sbp_ de Datakeys.md (no versionado).
-// Proyecto: variable SUPABASE_PROJECT_REF o supabase/.temp/project-ref.
-// Usuarios de prueba ({{USUARIO_TIENDA}} y {{USUARIO_ADMIN}} en supabase/pruebas): variables
-// PRUEBAS_USUARIO_TIENDA / PRUEBAS_USUARIO_ADMIN o líneas «Prueba tienda: …» / «Prueba admin: …»
-// de Datakeys.md, para que los correos reales no queden en el repositorio.
+//   node scripts/sql-remoto.mjs --ensayo supabase/pruebas/seguridad.sql
+//   node scripts/sql-remoto.mjs --ensayo supabase/migrations/0031_x.sql supabase/pruebas/seguridad.sql
+//   node scripts/sql-remoto.mjs supabase/migrations/0031_x.sql          (sobre la base real, con cuidado)
+//
+// --ensayo: copia la base real a `<base>_ensayo`, carga los datos de prueba (infra/vps/pruebas/fixture.sql),
+//           corre los archivos y borra la copia. La base real no se toca: sirve para probar una migración
+//           antes de aplicarla y para correr las suites (terminan en excepción y se revierten solas).
+// Sin --ensayo: corre sobre la base real, sin datos de prueba ni reversa. Aplicar una migración se hace así,
+//           con `set role <base>_owner;` al inicio del archivo y solo con el OK del dueño.
+//
+// Conexión (nada de esto se versiona):
+//   VPS_SSH         usuario@host (si falta, se lee «ssh usuario@host» de Datakeys.md)
+//   VPS_SSH_KEY     clave privada (por defecto ~/.ssh/id_ed25519_gsdm_qa)
+//   VPS_SUDO_PASS   clave sudo (si falta, la línea «pass» que sigue a «VPS:» en Datakeys.md)
+//   VPS_DB          base (por defecto misociopyme)
+// Usuarios de las suites ({{USUARIO_TIENDA}} y {{USUARIO_ADMIN}}): los del fixture, o PRUEBAS_USUARIO_*.
+import { spawnSync } from 'node:child_process'
 import { existsSync, readFileSync } from 'node:fs'
+import { homedir } from 'node:os'
+import { join } from 'node:path'
 
 const args = process.argv.slice(2)
-const archivos = []
-for (let i = 0; i < args.length; i++) {
-  if (args[i] === '--antes') archivos.push(args[++i])
-  else archivos.push(args[i])
-}
+const ensayo = args.includes('--ensayo')
+const archivos = args.filter((a) => !a.startsWith('--'))
 if (!archivos.length) {
   console.error('Indica al menos un archivo .sql')
   process.exit(1)
 }
 
-const token =
-  process.env.SUPABASE_ACCESS_TOKEN ??
-  (existsSync('Datakeys.md') ? readFileSync('Datakeys.md', 'utf8').match(/sbp_[A-Za-z0-9]+/)?.[0] : undefined)
-const ref =
-  process.env.SUPABASE_PROJECT_REF ??
-  (existsSync('supabase/.temp/project-ref') ? readFileSync('supabase/.temp/project-ref', 'utf8').trim() : undefined)
-if (!token || !ref) {
-  console.error('Falta SUPABASE_ACCESS_TOKEN o SUPABASE_PROJECT_REF')
+const datakeys = existsSync('Datakeys.md') ? readFileSync('Datakeys.md', 'utf8') : ''
+const ssh = process.env.VPS_SSH ?? datakeys.match(/ssh\s+([\w.-]+@[\d.]+)/)?.[1]
+const lineas = datakeys.split(/\r?\n/)
+const iVps = lineas.findIndex((l) => /^VPS:/.test(l))
+const passDatakeys = iVps >= 0 ? lineas.slice(iVps).map((l) => l.match(/^pass[: ]*(\S.*)$/i)?.[1]).find(Boolean) : undefined
+const sudoPass = process.env.VPS_SUDO_PASS ?? passDatakeys
+if (!ssh || !sudoPass) {
+  console.error('Falta VPS_SSH o VPS_SUDO_PASS (o la sección «VPS:» de Datakeys.md)')
+  process.exit(1)
+}
+const clave = process.env.VPS_SSH_KEY ?? join(homedir(), '.ssh', 'id_ed25519_gsdm_qa')
+const base = process.env.VPS_DB ?? 'misociopyme'
+if (!/^[a-z][a-z0-9_]*$/.test(base)) {
+  console.error('VPS_DB inválida')
   process.exit(1)
 }
 
-const datakeys = existsSync('Datakeys.md') ? readFileSync('Datakeys.md', 'utf8') : ''
-const deDatakeys = (etiqueta) => datakeys.match(new RegExp(`^\\s*${etiqueta}:\\s*(\\S+@\\S+)`, 'im'))?.[1]
 const usuarios = {
-  USUARIO_TIENDA: process.env.PRUEBAS_USUARIO_TIENDA ?? deDatakeys('Prueba tienda'),
-  USUARIO_ADMIN: process.env.PRUEBAS_USUARIO_ADMIN ?? deDatakeys('Prueba admin')
+  USUARIO_TIENDA: process.env.PRUEBAS_USUARIO_TIENDA ?? 'tienda@prueba.invalid',
+  USUARIO_ADMIN: process.env.PRUEBAS_USUARIO_ADMIN ?? 'admin@prueba.invalid'
 }
-const query = archivos
-  .map((f) => readFileSync(f, 'utf8'))
+const sql = archivos
+  .map((f) => readFileSync(f, 'utf8').replace(/\r$/gm, ''))
   .join('\n;\n')
-  .replace(/\{\{(USUARIO_TIENDA|USUARIO_ADMIN)\}\}/g, (_, k) => {
-    if (!usuarios[k]) {
-      console.error(`Falta el correo de ${k}: define PRUEBAS_${k} o agrega «Prueba ${k === 'USUARIO_TIENDA' ? 'tienda' : 'admin'}: correo» en Datakeys.md`)
-      process.exit(1)
-    }
-    return usuarios[k]
-  })
-const r = await fetch(`https://api.supabase.com/v1/projects/${ref}/database/query`, {
-  method: 'POST',
-  headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
-  body: JSON.stringify({ query })
-})
-const body = await r.json()
+  .replace(/\{\{(USUARIO_TIENDA|USUARIO_ADMIN)\}\}/g, (_, k) => usuarios[k])
+const b64 = (t) => Buffer.from(t, 'utf8').toString('base64').match(/.{1,76}/g).join('\n')
 
-// Las pruebas terminan con una excepción "RESULTADOS [...]": se muestran como tabla
-const m = typeof body?.message === 'string' && body.message.match(/RESULTADOS (\[.*\])/s)
-if (m) {
-  const filas = JSON.parse(m[1])
-  for (const f of filas) {
-    console.log(`\n• ${f.caso}\n    esperado: ${f.esperado}\n    obtenido: ${f.obtenido}`)
+const destino = ensayo ? `${base}_ensayo` : base
+const psql = (db, extra = '') => `runuser -u postgres -- psql -X -p 5433 -d ${db} ${extra}`
+let guion = `set -u
+W=$(mktemp -d); chmod 755 "$W"; trap 'rm -rf "$W"' EXIT
+base64 -d > "$W/q.sql" <<'FIN_Q'
+${b64(sql)}
+FIN_Q
+chmod 644 "$W/q.sql"
+`
+if (ensayo) {
+  const fixture = readFileSync('infra/vps/pruebas/fixture.sql', 'utf8').replace(/\r$/gm, '')
+  guion += `base64 -d > "$W/fixture.sql" <<'FIN_F'
+${b64(fixture)}
+FIN_F
+chmod 644 "$W/fixture.sql"
+${psql('postgres', `-qc "drop database if exists ${destino}"`)} >/dev/null 2>&1
+${psql('postgres', `-qc "create database ${destino} owner ${base}_owner"`)} >&2
+runuser -u postgres -- pg_dump -p 5433 -Fc ${base} > "$W/copia.dump" || echo "volcado falló" >&2
+chmod 644 "$W/copia.dump"
+runuser -u postgres -- pg_restore -p 5433 -d ${destino} --no-owner --role=${base}_owner "$W/copia.dump" >/dev/null 2>&1 || true
+${psql(destino, '-q -v ON_ERROR_STOP=1 -f "$W/fixture.sql"')} >&2 || echo "fixture falló" >&2
+`
+}
+guion += `${psql(destino, '-X -f "$W/q.sql"')} 2>&1
+`
+if (ensayo) guion += `${psql('postgres', `-qc "drop database if exists ${destino}"`)} >/dev/null 2>&1\n`
+
+const r = spawnSync('ssh', ['-i', clave, '-o', 'BatchMode=yes', ssh, "sudo -S -p '' bash"], {
+  input: `${sudoPass}\n${guion}`,
+  encoding: 'utf8',
+  maxBuffer: 64 * 1024 * 1024
+})
+if (r.error) {
+  console.error('No se pudo ejecutar ssh:', r.error.message)
+  process.exit(1)
+}
+const salida = (r.stdout ?? '') + (r.stderr ?? '')
+
+// Las pruebas terminan con una excepción "RESULTADOS [...]": se muestran como lista
+const i = salida.indexOf('RESULTADOS [')
+let filas
+if (i >= 0) {
+  const resto = salida.slice(i + 'RESULTADOS '.length)
+  const corte = resto.search(/\n(CONTEXT|STATEMENT|LINE \d+):/)
+  try {
+    filas = JSON.parse((corte >= 0 ? resto.slice(0, corte) : resto).trim())
+  } catch {
+    filas = undefined
   }
-  console.log('\n(Transacción revertida: no se guardó ningún cambio)')
+}
+if (filas) {
+  for (const f of filas) console.log(`\n• ${f.caso}\n    esperado: ${f.esperado}\n    obtenido: ${f.obtenido}`)
+  console.log(ensayo ? '\n(Ensayo en una copia: la base real no se tocó)' : '\n(Transacción revertida: no se guardó ningún cambio)')
 } else {
-  console.log(r.status, JSON.stringify(body, null, 1))
-  if (!r.ok) process.exit(1)
+  console.log(salida.replace(sudoPass, '<oculto>'))
+  if (r.status !== 0 || /ERROR:/.test(salida)) process.exit(1)
 }

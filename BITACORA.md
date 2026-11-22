@@ -94,3 +94,57 @@ Trampa: Flow avisa solo con un `token` sin firma (hay que consultar el estado co
 Decisión: la Edge Function nunca registra un pago por lo que llega en un aviso o retorno; consulta a Flow con la clave del comercio y recién ahí llama a las funciones `flow_*` (solo `service_role`). Contratar no da acceso: el plan se activa o extiende solo con un importe pagado.
 Motivo: `verify_jwt = false` es obligatorio porque Flow no manda sesión, y el aviso de cobro es público y sin documentar; confiar en su contenido permitiría activar planes sin pagar.
 Trampa: Flow no deja editar el monto de un plan con suscriptores; el id del plan lleva el precio (`msp-m-mensual-20000`) y un precio nuevo crea otro plan y mueve las suscripciones con `changePlan`. `APP_URL` debe ser el origen de la app (CORS y retorno): para probar en local hay que ponerlo en `http://localhost:5173` y devolverlo después.
+
+## 2026-11-22 | #vps #migracion #arquitectura | Salir de Supabase hacia un VPS con una base por proyecto
+Decisión: llevar los proyectos a un VPS con un Postgres y una base separada por proyecto (PostgREST + login propio + almacenamiento), no a un Supabase autoalojado por proyecto.
+Motivo: el plan gratis de Supabase permite 2 proyectos activos y hay 4 (luego 6); pesa más el costo y la escalabilidad que el tiempo. Un stack Supabase completo por proyecto no cabe en ~6 GB de RAM libres; PostgREST + login liviano sí.
+Trampa: el VPS ya tenía un ambiente de Mi Socio Pyme y un stack Supabase detenido; auditar antes de rehacer. Cambiar de modelo a mitad de conversación obliga a releer todo el historial: cerrar la tarea y `/clear` antes de `/model`.
+
+## 2026-11-22 | #vps #migracion #arquitectura #seguridad | Plantilla VPS: GoTrue + storage-api y roles compartidos con login por proyecto
+Decisión: retirar el API Deno del VPS y usar GoTrue y storage-api de Supabase por proyecto; funciones en Deno (no Node); Realtime después. Roles sin login con nombres de Supabase compartidos en el cluster y roles con login `<p>_authenticator/_auth/_storage` con CONNECT solo a su base, más pg_hba por base y secreto JWT propio.
+Motivo: GoTrue lee el `auth.users` de un dump de Supabase tal cual (nadie cambia su clave) y cubre refresh, recuperación y admin; los nombres compartidos evitan reescribir 30 migraciones. Las migraciones corren con `SET ROLE <p>_owner` para que las SECURITY DEFINER no sean del superusuario.
+Trampa: los roles de Postgres son de todo el cluster: nunca `ALTER ROLE` global ni CONNECT a los compartidos. El ambiente del VPS tenía `auth.role()` con 'authenticated' por defecto y `auth.uid()` con respaldo en `app.user_id`: cambia la semántica de `proteger_*` respecto a Supabase.
+
+## 2026-11-22 | #vps #migracion #seguridad | Suites del VPS con datos ficticios, no con copia de producción
+Decisión: correr las 15 suites en `msp_prueba` con dos empresas y usuarios ficticios (`@prueba.invalid`), más una prueba propia de aislamiento entre empresas.
+Motivo: copiar producción antes de la fase 6 traería datos personales al VPS sin necesidad.
+Trampa: las suites suponen la demo con tallas con stock (`ROP-*`), `usa_variantes` encendido y al menos una venta; sin eso fallan o pasan sin probar nada. Sus valores «esperado» a veces son descriptivos: no compararlos como texto exacto.
+
+## 2026-11-22 | #vps #migracion #seguridad | Servicios por proyecto: CORS y límites en nginx, admin de GoTrue cerrado
+Decisión: nginx es el único que responde CORS, sobrescribe la IP real y bloquea `/auth/v1/admin` desde fuera; el servicio de funciones usará la API admin por loopback.
+Motivo: los servicios reflejan orígenes por su cuenta y un encabezado enviado por el cliente permitiría esquivar el límite de intentos.
+Trampa: GoTrue da 500 si un usuario insertado por SQL tiene columnas de token en NULL (deben ser ''). En nginx, `add_header` no se admite dentro de un `if` a nivel `server`: usar `map`.
+
+## 2026-11-22 | #vps #migracion | El enlace de recuperación es de un solo uso
+Decisión: validar el enlace mirando el log de `/verify` y con `generate_link` sobre un usuario ficticio, sin enviar más correos.
+Motivo: `otp_expired` apareció en una apertura posterior, cuando el token ya se había canjeado; no era falla de configuración.
+Trampa: un segundo clic, o un escáner de correo que abra el enlace antes, produce `otp_expired`. Si los clientes lo reportan en producción, considerar una página intermedia con botón.
+
+## 2026-11-22 | #vps #migracion #seguridad #flow | Funciones en Deno sin tocar su código
+Decisión: un contenedor Deno por proyecto carga las 3 funciones tal como están en producción. `SUPABASE_URL` es la URL pública y un `fetch` envuelto desvía `/rest/v1` y `/auth/v1` a loopback; cualquier otra ruta pública falla cerrada.
+Motivo: portarlas a Node (lo que decía el plan) habría dejado dos versiones de código que cobra y administra cuentas. La URL pública además es la que Flow necesita como callback.
+Trampa: nginx bloquea `/auth/v1/admin` desde afuera, así que las funciones no pueden llamar a GoTrue por la URL pública. Los planes ya creados en Flow mantienen su `urlCallback` antiguo.
+
+## 2026-11-22 | #vps #migracion #corte #offline | Congelar Supabase con triggers, no con solo lectura
+Decisión: durante el corte, las escrituras de `public` se bloquean con triggers que responden `55006` (HTTP 500).
+Motivo: `default_transaction_read_only` se descartó porque PostgREST abre sus RPC en modo escritura y la venta entró con 200 en el ensayo.
+Trampa: con `P0001`, `42501`, `22*` o `23*` la cola offline marca la venta como rechazada para siempre. El error debe ser 5xx para que se reintente.
+Trampa: el dump hecho con Supabase congelado trae los triggers de bloqueo; filtrarlos del TOC al restaurar. No cubren `auth` ni `storage`: comparar ambos después del dump.
+
+## 2026-11-22 | #vps #migracion #corte #offline | Cierre de sesión en el corte: se acepta
+Decisión: no fijar `auth.storageKey`; todos los usuarios volverán a iniciar sesión tras el cambio de URL. Los datos actuales son de prueba.
+Motivo: la clave de sesión de Supabase en localStorage deriva del host de la API; fijarla no conservaría sesiones porque los tokens los emite otro servidor.
+Trampa: la cola offline sobrevive al cambio de URL (mismo `user_id`) y se sube al volver a entrar. Con clientes reales, avisar antes del corte. Sin verificar: si el VPS acepta tokens del backend anterior (secret JWT).
+
+## 2026-11-22 | #vps #migracion #correo | Probar el correo real en msp_prueba exige crear un usuario
+Decisión: la prueba se hizo creando un usuario temporal con la API admin de GoTrue, pidiendo `/recover` y borrándolo después; el correo llegó en español.
+Motivo: `msp_prueba` es copia de producción con SMTP real, y pedir recuperación a un usuario existente habría escrito a un cliente real.
+Trampa: `/recover` con un correo inexistente responde 200 en ~7 ms sin enviar nada (no revela si existe); con usuario real tarda ~1,5 s. Los logs no distinguen el caso, solo el tiempo.
+
+## 2026-11-22 | #vps #cors #e2e | Login del navegador contra el VPS fallaba por CORS
+Causa: `supabase-js` manda `x-supabase-api-version` en `/auth/v1/token` y la lista `Access-Control-Allow-Headers` de nginx no lo traía; `curl` con la lista corta no lo mostraba. Se agregó a la plantilla y al nginx de `msp_prueba`. Lección: probar el login desde un navegador real, no solo con `curl`.
+Motivo extra: el E2E saltaba todo en silencio («sin credenciales válidas») porque el login fallaba; mirar consola y red antes de culpar a las claves.
+
+2026-11-22 | #vps #adopcion #migracion | Se adoptó en sitio la base `misociopyme` del DBA en vez de crear una aparte. Motivo: respetar el trabajo del DBA y que QA y prod compartan nombre. Trampas: los `auth` y `storage` de juguete se guardan en un esquema temporal y se retiran para que GoTrue y storage-api creen los reales; `auth.uid/role` deben ser de `supabase_auth_admin`; el fixture de las suites no corre en la base real (se usa una copia `misociopyme_ensayo`); nginx bloquea `/auth/v1/admin` público, usar 127.0.0.1:9999. Quedó `gsdm_admin` (BYPASSRLS) del DBA sin tocar.
+
+2026-11-22 | #vps #cierre | Retirado `msp_prueba` y rol `misociopyme_app`; `gsdm_admin` sin BYPASSRLS/CREATEDB/acceso a la base. Motivo: una sola base y verificación de clúster en verde. Las suites ya no corren en la base real: `sql-remoto.mjs --ensayo` usa una copia temporal. Trampa: `pg_dump` como `postgres` no escribe en directorios de root; redirigir desde el shell root.
