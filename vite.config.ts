@@ -39,15 +39,6 @@ export default defineConfig({
         // compartido): el POS usa una copia local por usuario en IndexedDB.
         runtimeCaching: [
           {
-            // Fotos de productos subidas a Storage (públicas): disponibles sin conexión en el POS
-            urlPattern: /^https:\/\/[^/]+\.supabase\.co\/storage\/v1\/object\/public\/productos\/.*/i,
-            handler: 'CacheFirst',
-            options: {
-              cacheName: 'fotos-productos',
-              expiration: { maxEntries: 500, maxAgeSeconds: 60 * 60 * 24 * 60 }
-            }
-          },
-          {
             urlPattern: /^https:\/\/images\.unsplash\.com\/.*/i,
             handler: 'CacheFirst',
             options: {

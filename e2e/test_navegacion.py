@@ -8,7 +8,7 @@ import urllib.request
 import pytest
 from playwright.sync_api import Page, expect
 
-from conftest import URL, entorno_supabase, token_de
+from conftest import URL, entorno_db, token_de
 
 PANTALLAS_ADMIN = {
     '/': 'Dashboard',
@@ -74,7 +74,7 @@ def test_voucher_de_venta_muestra_su_detalle(pagina_admin):
 def test_ficha_de_producto_muestra_stock_y_movimientos(pagina_admin):
     errores = vigilar_errores(pagina_admin)
     abrir(pagina_admin, '/', 'Dashboard')
-    url, anon = entorno_supabase()
+    url, anon = entorno_db()
     req = urllib.request.Request(
         f'{url}/rest/v1/productos?select=id,nombre&activo=eq.true&controla_stock=eq.true&limit=1',
         headers={'apikey': anon, 'Authorization': f'Bearer {token_de(pagina_admin)}'},

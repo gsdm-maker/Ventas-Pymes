@@ -18,4 +18,4 @@
     Referrer-Policy = "strict-origin-when-cross-origin"
     Cross-Origin-Opener-Policy = "same-origin"
     Permissions-Policy = "geolocation=(), microphone=(), camera=(self)"
-    Content-Security-Policy = "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; img-src 'self' data: blob: https://images.unsplash.com https://*.supabase.co https://supabase-qa.gsdm.cl; connect-src 'self' https://*.supabase.co https://supabase-qa.gsdm.cl wss://*.supabase.co wss://supabase-qa.gsdm.cl https://images.unsplash.com; frame-ancestors 'none'; base-uri 'self'; form-action 'self'"
+    Content-Security-Policy = "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; img-src 'self' data: blob: https://images.unsplash.com https://pg-qa.gsdm.cl https://supabase-qa.gsdm.cl; connect-src 'self' https://pg-qa.gsdm.cl https://supabase-qa.gsdm.cl wss://pg-qa.gsdm.cl wss://supabase-qa.gsdm.cl https://images.unsplash.com; frame-ancestors 'none'; base-uri 'self'; form-action 'self'"

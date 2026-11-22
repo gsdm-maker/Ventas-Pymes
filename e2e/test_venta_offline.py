@@ -10,7 +10,7 @@ import urllib.request
 import pytest
 from playwright.sync_api import expect
 
-from conftest import entorno_supabase, token_de
+from conftest import entorno_db, token_de
 from test_pos import abrir_pos, agregar_primer_producto, boton_cobrar
 
 pytestmark = pytest.mark.skipif(
@@ -19,7 +19,7 @@ pytestmark = pytest.mark.skipif(
 
 
 def _api(metodo: str, ruta: str, token: str, cuerpo=None):
-    url, anon = entorno_supabase()
+    url, anon = entorno_db()
     req = urllib.request.Request(
         f'{url}{ruta}',
         method=metodo,

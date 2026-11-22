@@ -1,5 +1,5 @@
 import { useEffect, useRef } from 'react'
-import { supabase } from '@/core/supabase/client'
+import { db } from '@/core/db/client'
 
 /**
  * Recarga cuando cambian las tablas indicadas de una tienda (Supabase Realtime,
@@ -18,7 +18,7 @@ export function useTiempoReal(ubicacionId: string | null, tablas: string[], onCa
       window.clearTimeout(t)
       t = window.setTimeout(() => ref.current(), 250)
     }
-    const canal = supabase.channel(`rt:${lista}:${ubicacionId}`)
+    const canal = db.channel(`rt:${lista}:${ubicacionId}`)
     for (const tabla of lista.split(',')) {
       // cuenta_items no tiene ubicación: RLS deja pasar solo lo visible
       const filter = tabla === 'cuenta_items' ? undefined : `ubicacion_id=eq.${ubicacionId}`
@@ -29,7 +29,7 @@ export function useTiempoReal(ubicacionId: string | null, tablas: string[], onCa
     return () => {
       window.clearTimeout(t)
       window.clearInterval(respaldo)
-      void supabase.removeChannel(canal)
+      void db.removeChannel(canal)
     }
   }, [ubicacionId, lista])
 }

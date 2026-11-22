@@ -1,4 +1,4 @@
-import { supabase } from '@/core/supabase/client'
+import { db } from '@/core/db/client'
 import { conRespaldo } from '@/core/offline/respaldo'
 import { compararVariantes } from '@/lib/variantes'
 import type {
@@ -39,12 +39,12 @@ function estadoStock(disponible: number, minimo: number, controla = true): Estad
 }
 
 export async function listarEmpresas(): Promise<Empresa[]> {
-  const { data } = await supabase.from('empresas').select('*').order('nombre')
+  const { data } = await db.from('empresas').select('*').order('nombre')
   return (data as Empresa[]) ?? []
 }
 
 export async function listarUbicaciones() {
-  const { data } = await supabase
+  const { data } = await db
     .from('ubicaciones')
     .select('*')
     .order('tipo')
@@ -54,7 +54,7 @@ export async function listarUbicaciones() {
 
 export async function listarCategorias(): Promise<Categoria[]> {
   return conRespaldo('categorias', async () => {
-    const { data, error } = await supabase.from('categorias').select('*').order('nombre')
+    const { data, error } = await db.from('categorias').select('*').order('nombre')
     if (error) throw error
     return (data as Categoria[]) ?? []
   })
@@ -62,20 +62,20 @@ export async function listarCategorias(): Promise<Categoria[]> {
 
 export async function listarUnidades(): Promise<UnidadMedida[]> {
   return conRespaldo('unidades_medida', async () => {
-    const { data, error } = await supabase.from('unidades_medida').select('*').order('codigo')
+    const { data, error } = await db.from('unidades_medida').select('*').order('codigo')
     if (error) throw error
     return (data as UnidadMedida[]) ?? []
   })
 }
 
 export async function listarProveedores(): Promise<Proveedor[]> {
-  const { data } = await supabase.from('proveedores').select('*').order('nombre')
+  const { data } = await db.from('proveedores').select('*').order('nombre')
   return (data as Proveedor[]) ?? []
 }
 
 export async function listarMotivos(): Promise<MotivoSalida[]> {
   return conRespaldo('motivos', async () => {
-    const { data, error } = await supabase
+    const { data, error } = await db
       .from('motivos_salida')
       .select('*')
       .eq('activo', true)
@@ -96,7 +96,7 @@ export async function listarProductosConStock(
 }
 
 async function cargarProductosConStock(ubicacionId: string | null): Promise<ProductoConStock[]> {
-  let stockQuery = supabase.from('stock').select('*')
+  let stockQuery = db.from('stock').select('*')
   if (ubicacionId) stockQuery = stockQuery.eq('ubicacion_id', ubicacionId)
   // Las cuatro consultas son independientes: en paralelo, un solo viaje de espera
   const [
@@ -106,12 +106,12 @@ async function cargarProductosConStock(ubicacionId: string | null): Promise<Prod
     { data: variantes, error: e4 },
     { data: presentaciones }
   ] = await Promise.all([
-    supabase.from('productos').select('*').order('nombre'),
-    supabase.from('categorias').select('id, nombre'),
+    db.from('productos').select('*').order('nombre'),
+    db.from('categorias').select('id, nombre'),
     stockQuery,
-    supabase.from('producto_variantes').select('*').eq('activa', true).order('sku'),
+    db.from('producto_variantes').select('*').eq('activa', true).order('sku'),
     // Si falla (p. ej. tabla aún no disponible), el catálogo sigue funcionando sin cajas
-    supabase.from('producto_presentaciones').select('*').eq('activa', true).order('factor')
+    db.from('producto_presentaciones').select('*').eq('activa', true).order('factor')
   ])
   const error = e1 ?? e2 ?? e3 ?? e4
   if (error) throw error
@@ -194,15 +194,15 @@ export async function resumenDashboard(ubicacionId: string | null): Promise<Resu
     { data: stockAll }
   ] = await Promise.all([
     listarProductosConStock(ubicacionId),
-    supabase.from('transferencias').select('estado').in('estado', ['pendiente_despacho', 'en_transito']),
-    supabase.from('movimientos').select('id').eq('estado_sync', 'local'),
-    supabase
+    db.from('transferencias').select('estado').in('estado', ['pendiente_despacho', 'en_transito']),
+    db.from('movimientos').select('id').eq('estado_sync', 'local'),
+    db
       .from('ventas')
       .select('id', { count: 'exact', head: true })
       .eq('con_diferencia', true)
       .gte('created_at', new Date(Date.now() - 7 * 86400000).toISOString()),
-    supabase.from('ubicaciones').select('id, nombre'),
-    supabase.from('stock').select('ubicacion_id, disponible')
+    db.from('ubicaciones').select('id, nombre'),
+    db.from('stock').select('ubicacion_id, disponible')
   ])
   const activos = productos.filter((p) => p.activo)
   const ubiMap = new globalThis.Map((ubicaciones ?? []).map((u) => [u.id, u.nombre]))
@@ -240,7 +240,7 @@ export async function listarMovimientos(filtros: {
   cantidad?: number
 }): Promise<{ filas: Movimiento[]; total: number }> {
   const desde = filtros.desde ?? 0
-  let q = supabase
+  let q = db
     .from('movimientos')
     .select('*', { count: 'exact' })
     .order('created_at', { ascending: false })
@@ -256,7 +256,7 @@ export async function listarMovimientos(filtros: {
 }
 
 export async function listarVentas(): Promise<Venta[]> {
-  const { data } = await supabase
+  const { data } = await db
     .from('ventas')
     .select('*')
     .order('created_at', { ascending: false })
@@ -265,7 +265,7 @@ export async function listarVentas(): Promise<Venta[]> {
 }
 
 export async function listarVouchers(): Promise<Voucher[]> {
-  const { data } = await supabase
+  const { data } = await db
     .from('vouchers')
     .select('*')
     .order('created_at', { ascending: false })
@@ -274,7 +274,7 @@ export async function listarVouchers(): Promise<Voucher[]> {
 }
 
 export async function listarTransferencias(): Promise<Transferencia[]> {
-  const { data } = await supabase
+  const { data } = await db
     .from('transferencias')
     .select('*')
     .order('created_at', { ascending: false })
@@ -282,18 +282,18 @@ export async function listarTransferencias(): Promise<Transferencia[]> {
 }
 
 export async function listarUsuarios(): Promise<Profile[]> {
-  const { data } = await supabase.from('profiles').select('*').order('nombre')
+  const { data } = await db.from('profiles').select('*').order('nombre')
   return (data as Profile[]) ?? []
 }
 
 export async function listarAccesos() {
-  const { data } = await supabase.from('ubicacion_acceso').select('*')
+  const { data } = await db.from('ubicacion_acceso').select('*')
   return data ?? []
 }
 
 /** Ubicaciones autorizadas por usuario (sin entrada = todas). */
 export async function accesosPorUsuario(empresaId?: string): Promise<Record<string, string[]>> {
-  let q = supabase.from('ubicacion_acceso').select('user_id, ubicacion_id')
+  let q = db.from('ubicacion_acceso').select('user_id, ubicacion_id')
   if (empresaId) q = q.eq('empresa_id', empresaId)
   const { data } = await q
   const m: Record<string, string[]> = {}
@@ -305,14 +305,14 @@ export async function accesosPorUsuario(empresaId?: string): Promise<Record<stri
 
 /** null = todas las ubicaciones. Devuelve el mensaje de error, si lo hay. */
 export async function actualizarUbicacionesUsuario(userId: string, ubicaciones: string[] | null): Promise<string | null> {
-  const { data, error } = await supabase.functions.invoke('admin-users', {
+  const { data, error } = await db.functions.invoke('admin-users', {
     body: { accion: 'actualizar_ubicaciones', user_id: userId, ubicaciones: ubicaciones ?? [] }
   })
   return (data as { error?: string } | null)?.error ?? error?.message ?? null
 }
 
 export async function evolucionMovimientos(ubicacionId: string | null) {
-  let q = supabase
+  let q = db
     .from('movimientos')
     .select('tipo, created_at')
     .gte('created_at', new Date(Date.now() - 13 * 86400000).toISOString())
@@ -338,19 +338,19 @@ export async function evolucionMovimientos(ubicacionId: string | null) {
 
 /** Proyección de reposición hasta `hasta` ('AAAA-MM-DD'); sin fecha, hasta el próximo domingo. */
 export async function proyeccionReposicion(hasta?: string | null): Promise<FilaReposicion[]> {
-  const { data, error } = await supabase.rpc('proyeccion_reposicion', hasta ? { p_hasta: hasta } : {})
+  const { data, error } = await db.rpc('proyeccion_reposicion', hasta ? { p_hasta: hasta } : {})
   if (error) throw error
   return (data as FilaReposicion[]) ?? []
 }
 
 export async function simularHistoria(semanas = 12): Promise<number> {
-  const { data, error } = await supabase.rpc('simular_historia', { p_semanas: semanas })
+  const { data, error } = await db.rpc('simular_historia', { p_semanas: semanas })
   if (error) throw error
   return data as number
 }
 
 export async function borrarHistoriaSimulada(): Promise<number> {
-  const { data, error } = await supabase.rpc('borrar_historia_simulada')
+  const { data, error } = await db.rpc('borrar_historia_simulada')
   if (error) throw error
   return data as number
 }
@@ -369,7 +369,7 @@ export async function crearTransferenciasSugeridas(
   let creadas = 0
   for (const [k, items] of grupos) {
     const [origen, destino] = k.split('|')
-    const { error } = await supabase.rpc('crear_transferencia', {
+    const { error } = await db.rpc('crear_transferencia', {
       p_origen: origen,
       p_destino: destino,
       p_items: items.map((i) => ({
@@ -386,7 +386,7 @@ export async function crearTransferenciasSugeridas(
 }
 
 export async function reporteVentas(desde: string, hasta: string, tienda?: string | null): Promise<ReporteVentas> {
-  const { data, error } = await supabase.rpc('reporte_ventas', {
+  const { data, error } = await db.rpc('reporte_ventas', {
     p_desde: desde,
     p_hasta: hasta,
     ...(tienda ? { p_tienda: tienda } : {})
@@ -400,7 +400,7 @@ export async function contarVentasSimuladas(desde: string, hasta: string, tienda
   // Días locales «AAAA-MM-DD»: desde el inicio de `desde` hasta el fin de `hasta`
   const fin = new Date(`${hasta}T00:00:00`)
   fin.setDate(fin.getDate() + 1)
-  let q = supabase
+  let q = db
     .from('ventas')
     .select('id', { count: 'exact', head: true })
     .eq('simulado', true)
@@ -414,7 +414,7 @@ export async function contarVentasSimuladas(desde: string, hasta: string, tienda
 /** Unidades vendidas por producto en una ubicación (últimos `dias`), para ordenar el POS. */
 export async function rankingVentas(ubicacionId: string, dias = 30): Promise<Map<string, number>> {
   const filas = await conRespaldo(`ranking:${ubicacionId}`, async () => {
-    const { data, error } = await supabase.rpc('ranking_ventas', { p_ubicacion: ubicacionId, p_dias: dias })
+    const { data, error } = await db.rpc('ranking_ventas', { p_ubicacion: ubicacionId, p_dias: dias })
     if (error) throw error
     return (data as { producto_id: string; unidades: number }[]) ?? []
   })
@@ -432,8 +432,8 @@ export interface Salon {
 /** Mesas de la tienda con sus cuentas abiertas, comandas e ítems. */
 export async function cargarSalon(ubicacionId: string): Promise<Salon> {
   const [m, c] = await Promise.all([
-    supabase.from('mesas').select('*').eq('ubicacion_id', ubicacionId).eq('activa', true).order('orden').order('nombre'),
-    supabase.from('cuentas').select('*').eq('ubicacion_id', ubicacionId).eq('estado', 'abierta')
+    db.from('mesas').select('*').eq('ubicacion_id', ubicacionId).eq('activa', true).order('orden').order('nombre'),
+    db.from('cuentas').select('*').eq('ubicacion_id', ubicacionId).eq('estado', 'abierta')
   ])
   if (m.error) throw m.error
   if (c.error) throw c.error
@@ -441,8 +441,8 @@ export async function cargarSalon(ubicacionId: string): Promise<Salon> {
   const ids = cuentas.map((x) => x.id)
   if (!ids.length) return { mesas: (m.data as Mesa[]) ?? [], cuentas, comandas: [], items: [] }
   const [co, it] = await Promise.all([
-    supabase.from('comandas').select('*').in('cuenta_id', ids).order('numero'),
-    supabase.from('cuenta_items').select('*').in('cuenta_id', ids).order('created_at')
+    db.from('comandas').select('*').in('cuenta_id', ids).order('numero'),
+    db.from('cuenta_items').select('*').in('cuenta_id', ids).order('created_at')
   ])
   if (co.error) throw co.error
   if (it.error) throw it.error
@@ -456,7 +456,7 @@ export interface ComandaCocina extends Comanda {
 
 /** Comandas abiertas de la tienda (pendientes, en preparación y listas). */
 export async function comandasCocina(ubicacionId: string): Promise<ComandaCocina[]> {
-  const { data, error } = await supabase
+  const { data, error } = await db
     .from('comandas')
     .select('*, cuentas(mesas(nombre)), cuenta_items(*)')
     .eq('ubicacion_id', ubicacionId)
@@ -480,7 +480,7 @@ export interface FilaPropina {
 }
 
 export async function reportePropinas(desde: string, hasta: string, tienda?: string | null): Promise<FilaPropina[]> {
-  const { data, error } = await supabase.rpc('reporte_propinas', {
+  const { data, error } = await db.rpc('reporte_propinas', {
     p_desde: desde,
     p_hasta: hasta,
     ...(tienda ? { p_tienda: tienda } : {})
@@ -498,7 +498,7 @@ export interface TurnoAsistente {
 
 /** Plan, topes y uso de hoy de quien consulta. */
 export async function miUsoIa(): Promise<UsoIa | null> {
-  const { data, error } = await supabase.rpc('mi_uso_ia')
+  const { data, error } = await db.rpc('mi_uso_ia')
   if (error) return null
   return data as UsoIa
 }
@@ -509,7 +509,7 @@ export async function preguntarAsistente(
   historial: TurnoAsistente[],
   ubicacionId: string | null
 ): Promise<{ respuesta: string; uso: UsoIa | null }> {
-  const { data, error } = await supabase.functions.invoke('asistente', {
+  const { data, error } = await db.functions.invoke('asistente', {
     body: { mensaje, historial, ubicacion_id: ubicacionId }
   })
   if (error) {
@@ -531,19 +531,19 @@ export async function preguntarAsistente(
 }
 
 export async function listarNiveles(): Promise<NivelPlanConfig[]> {
-  const { data } = await supabase.from('niveles_plan').select('*').order('orden')
+  const { data } = await db.from('niveles_plan').select('*').order('orden')
   return (data as NivelPlanConfig[]) ?? []
 }
 
 /** Nivel, siguiente nivel y medidores de la empresa de quien consulta (null si no aplica). */
 export async function usoPlan(): Promise<UsoPlan | null> {
-  const { data, error } = await supabase.rpc('uso_plan')
+  const { data, error } = await db.rpc('uso_plan')
   if (error) return null
   return (data as UsoPlan | null) ?? null
 }
 
 export async function listarPlanesIa(): Promise<PlanIaConfig[]> {
-  const { data } = await supabase.from('planes_ia').select('*').order('orden')
+  const { data } = await db.from('planes_ia').select('*').order('orden')
   return (data as PlanIaConfig[]) ?? []
 }
 
@@ -557,6 +557,6 @@ export interface UsoIaEmpresa {
 
 /** Solo administrador general: mensajes por empresa hoy y en el mes. */
 export async function usoIaEmpresas(): Promise<UsoIaEmpresa[]> {
-  const { data } = await supabase.rpc('uso_ia_empresas')
+  const { data } = await db.rpc('uso_ia_empresas')
   return (data as UsoIaEmpresa[]) ?? []
 }

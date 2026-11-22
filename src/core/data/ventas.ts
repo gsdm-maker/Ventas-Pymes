@@ -1,4 +1,4 @@
-import { supabase } from '@/core/supabase/client'
+import { db } from '@/core/db/client'
 import type { Devolucion, Venta, VentaItem, Voucher } from '@/core/types'
 import { resultado, type Resultado } from '@/core/data/resultado'
 
@@ -25,7 +25,7 @@ export interface DatosVenta {
 /** Registra una venta en línea. Si `deRed`, la pantalla la guarda en la cola offline (mismo uuid). */
 export async function registrarVenta(v: DatosVenta, uuidLocal: string): Promise<Resultado<{ folio: string; total: number }>> {
   return resultado(
-    await supabase.rpc('registrar_venta', {
+    await db.rpc('registrar_venta', {
       p_ubicacion: v.ubicacion_id,
       p_items: v.items,
       p_descuento_tipo: v.descuento_tipo,
@@ -48,7 +48,7 @@ export interface DatosSalida {
 
 export async function registrarSalida(s: DatosSalida, uuidLocal: string): Promise<Resultado<{ numero: string; id: string }>> {
   return resultado(
-    await supabase.rpc('registrar_salida', {
+    await db.rpc('registrar_salida', {
       p_producto: s.producto_id,
       p_variante: s.variante_id,
       p_ubicacion: s.ubicacion_id,
@@ -66,11 +66,11 @@ export async function devolverVenta(
   items: { venta_item_id: string; cantidad: number }[] | null,
   motivo: string
 ): Promise<Resultado<Devolucion>> {
-  return resultado(await supabase.rpc('devolver_venta', { p_venta: ventaId, p_items: items, p_motivo: motivo }))
+  return resultado(await db.rpc('devolver_venta', { p_venta: ventaId, p_items: items, p_motivo: motivo }))
 }
 
 export async function voucherDeVenta(ventaId: string): Promise<string | null> {
-  const { data } = await supabase.from('vouchers').select('id').eq('referencia_id', ventaId).eq('tipo', 'venta').maybeSingle()
+  const { data } = await db.from('vouchers').select('id').eq('referencia_id', ventaId).eq('tipo', 'venta').maybeSingle()
   return data?.id ?? null
 }
 
@@ -87,26 +87,26 @@ export interface DetalleVoucher {
 /** Todo lo que muestra la pantalla de un comprobante (venta, devolución o salida). */
 export async function detalleVoucher(id: string): Promise<DetalleVoucher> {
   const r: DetalleVoucher = { voucher: null, venta: null, items: [], devoluciones: [], devolucion: null, devItems: [], ventaDeDevolucion: null }
-  const { data: v } = await supabase.from('vouchers').select('*').eq('id', id).single()
+  const { data: v } = await db.from('vouchers').select('*').eq('id', id).single()
   r.voucher = (v as Voucher) ?? null
   if (v?.tipo === 'venta') {
     const [{ data: venta }, { data: its }, { data: devs }] = await Promise.all([
-      supabase.from('ventas').select('*').eq('id', v.referencia_id).single(),
-      supabase.from('venta_items').select('*').eq('venta_id', v.referencia_id),
-      supabase.from('devoluciones').select('*').eq('venta_id', v.referencia_id).order('created_at')
+      db.from('ventas').select('*').eq('id', v.referencia_id).single(),
+      db.from('venta_items').select('*').eq('venta_id', v.referencia_id),
+      db.from('devoluciones').select('*').eq('venta_id', v.referencia_id).order('created_at')
     ])
     r.venta = (venta as Venta) ?? null
     r.items = (its as VentaItem[]) ?? []
     const lista = (devs as Devolucion[]) ?? []
     const { data: vs } = lista.length
-      ? await supabase.from('vouchers').select('id, referencia_id').in('referencia_id', lista.map((d) => d.id))
+      ? await db.from('vouchers').select('id, referencia_id').in('referencia_id', lista.map((d) => d.id))
       : { data: [] as { id: string; referencia_id: string }[] }
     r.devoluciones = lista.map((d) => ({ ...d, voucher_id: (vs ?? []).find((x) => x.referencia_id === d.id)?.id }))
   }
   if (v?.tipo === 'devolucion') {
     const [{ data: d }, { data: di }] = await Promise.all([
-      supabase.from('devoluciones').select('*').eq('id', v.referencia_id).single(),
-      supabase.from('devolucion_items').select('cantidad, monto, venta_items(descripcion)').eq('devolucion_id', v.referencia_id)
+      db.from('devoluciones').select('*').eq('id', v.referencia_id).single(),
+      db.from('devolucion_items').select('cantidad, monto, venta_items(descripcion)').eq('devolucion_id', v.referencia_id)
     ])
     r.devolucion = (d as Devolucion) ?? null
     r.devItems = ((di ?? []) as unknown as { cantidad: number; monto: number; venta_items: { descripcion: string } | null }[]).map((x) => ({
@@ -116,7 +116,7 @@ export async function detalleVoucher(id: string): Promise<DetalleVoucher> {
     }))
     if (d) {
       const [{ data: ve }, vv] = await Promise.all([
-        supabase.from('ventas').select('folio').eq('id', d.venta_id).single(),
+        db.from('ventas').select('folio').eq('id', d.venta_id).single(),
         voucherDeVenta(d.venta_id)
       ])
       r.ventaDeDevolucion = ve ? { folio: ve.folio, voucher_id: vv ?? undefined } : null
@@ -128,8 +128,8 @@ export async function detalleVoucher(id: string): Promise<DetalleVoucher> {
 /** Nombres para reimprimir el ticket de una venta (tienda y cajero). */
 export async function nombresParaTicket(ubicacionId: string, usuarioId: string) {
   const [{ data: ubi }, { data: cajero }] = await Promise.all([
-    supabase.from('ubicaciones').select('nombre').eq('id', ubicacionId).maybeSingle(),
-    supabase.from('profiles').select('nombre').eq('id', usuarioId).maybeSingle()
+    db.from('ubicaciones').select('nombre').eq('id', ubicacionId).maybeSingle(),
+    db.from('profiles').select('nombre').eq('id', usuarioId).maybeSingle()
   ])
   return { ubicacion: ubi?.nombre ?? '', cajero: cajero?.nombre ?? '' }
 }

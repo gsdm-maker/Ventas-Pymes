@@ -1,5 +1,5 @@
 import type { Session } from '@supabase/supabase-js'
-import { CLAVE_SESION } from '@/core/supabase/client'
+import { CLAVE_SESION } from '@/core/db/client'
 import { guardarCache, leerCache, listarCola } from '@/core/offline/db'
 import { clave } from '@/lib/variantes'
 

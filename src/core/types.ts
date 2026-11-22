@@ -1,5 +1,5 @@
 /**
- * Tipos de dominio de Mi Socio Pyme (espejo del esquema en supabase/migrations).
+ * Tipos de dominio de Mi Socio Pyme (espejo del esquema en db/migrations).
  * El cliente de Supabase se usa sin genéricos para simplificar; estas
  * interfaces tipan los resultados en la capa de datos.
  */

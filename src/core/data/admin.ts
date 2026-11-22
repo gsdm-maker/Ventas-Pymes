@@ -1,4 +1,4 @@
-import { supabase } from '@/core/supabase/client'
+import { db } from '@/core/db/client'
 import type { Empresa, Profile, Ubicacion } from '@/core/types'
 import { soloError } from '@/core/data/resultado'
 
@@ -9,7 +9,7 @@ import { soloError } from '@/core/data/resultado'
 export async function adminUsers<T = Record<string, unknown>>(
   body: Record<string, unknown>
 ): Promise<{ data: T | null; error: string | null }> {
-  const { data, error } = await supabase.functions.invoke('admin-users', { body })
+  const { data, error } = await db.functions.invoke('admin-users', { body })
   if (error) {
     let mensaje: string | null = null
     try {
@@ -28,9 +28,9 @@ export async function adminUsers<T = Record<string, unknown>>(
 /** Ficha de una empresa para la consola general. */
 export async function detalleEmpresaAdmin(id: string) {
   const [{ data: empresa }, { data: usuarios }, { data: ubicaciones }] = await Promise.all([
-    supabase.from('empresas').select('*').eq('id', id).single(),
-    supabase.from('profiles').select('*').eq('empresa_id', id).order('nombre'),
-    supabase.from('ubicaciones').select('*').eq('empresa_id', id).order('nombre')
+    db.from('empresas').select('*').eq('id', id).single(),
+    db.from('profiles').select('*').eq('empresa_id', id).order('nombre'),
+    db.from('ubicaciones').select('*').eq('empresa_id', id).order('nombre')
   ])
   return {
     empresa: (empresa as Empresa) ?? null,
@@ -40,12 +40,12 @@ export async function detalleEmpresaAdmin(id: string) {
 }
 
 export async function sembrarDemo(empresaId: string): Promise<string | null> {
-  return soloError(await supabase.rpc('sembrar_demo', { p_empresa: empresaId }))
+  return soloError(await db.rpc('sembrar_demo', { p_empresa: empresaId }))
 }
 
 /** Empezar de cero: borra los datos de operación (0028). `confirmacion` = nombre de la empresa. */
 export async function vaciarEmpresa(empresaId: string, confirmacion: string): Promise<string | null> {
-  return soloError(await supabase.rpc('vaciar_empresa', { p_empresa: empresaId, p_confirmacion: confirmacion }))
+  return soloError(await db.rpc('vaciar_empresa', { p_empresa: empresaId, p_confirmacion: confirmacion }))
 }
 
 
@@ -59,7 +59,7 @@ export interface FilaAuditoria {
 
 /** Últimas acciones administrativas (solo el administrador general puede leerlas). */
 export async function listarAuditoria(limite = 200): Promise<FilaAuditoria[]> {
-  const { data } = await supabase
+  const { data } = await db
     .from('admin_auditoria')
     .select('id, accion, detalle, empresa_id, created_at')
     .order('created_at', { ascending: false })
@@ -68,7 +68,7 @@ export async function listarAuditoria(limite = 200): Promise<FilaAuditoria[]> {
 }
 
 export async function listarAdministradoresGenerales(): Promise<Profile[]> {
-  const { data } = await supabase.from('profiles').select('*').eq('es_owner', true).order('nombre')
+  const { data } = await db.from('profiles').select('*').eq('es_owner', true).order('nombre')
   return (data as Profile[]) ?? []
 }
 
@@ -77,7 +77,7 @@ export async function actualizarPerfilUsuario(
   userId: string,
   cambios: { puesto: string; permissions: Record<string, boolean> }
 ): Promise<string | null> {
-  return soloError(await supabase.from('profiles').update(cambios).eq('id', userId))
+  return soloError(await db.from('profiles').update(cambios).eq('id', userId))
 }
 
 export interface PagoPlan {
@@ -91,7 +91,7 @@ export interface PagoPlan {
 
 /** Historial de pagos del plan de una empresa (solo lo lee el administrador general). */
 export async function listarPagosPlan(empresaId: string, limite = 24): Promise<PagoPlan[]> {
-  const { data } = await supabase
+  const { data } = await db
     .from('pagos_plan')
     .select('id, plan, periodo_desde, periodo_hasta, nota, created_at')
     .eq('empresa_id', empresaId)

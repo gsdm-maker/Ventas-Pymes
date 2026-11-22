@@ -1,4 +1,4 @@
-import { supabase } from '@/core/supabase/client'
+import { db } from '@/core/db/client'
 import type { Movimiento, Producto, ProductoPresentacion, ProductoVariante, Stock, TransferenciaItem } from '@/core/types'
 import { resultado, soloError, type Resultado } from '@/core/data/resultado'
 
@@ -13,32 +13,32 @@ export function mensajeErrorProducto(r: Resultado<unknown>): string | null {
 /** Crea (con el id ya reservado para la foto) o actualiza un producto. */
 export async function guardarProducto(datos: Record<string, unknown>, id: string, existe: boolean): Promise<string | null> {
   const r = existe
-    ? resultado(await supabase.from('productos').update(datos).eq('id', id))
-    : resultado(await supabase.from('productos').insert({ ...datos, id }))
+    ? resultado(await db.from('productos').update(datos).eq('id', id))
+    : resultado(await db.from('productos').insert({ ...datos, id }))
   return mensajeErrorProducto(r)
 }
 
 export async function crearProducto(fila: Record<string, unknown>): Promise<Resultado<Producto>> {
-  const r = resultado<Producto>(await supabase.from('productos').insert(fila).select().single())
+  const r = resultado<Producto>(await db.from('productos').insert(fila).select().single())
   return { ...r, error: mensajeErrorProducto(r) }
 }
 
 export async function productoPorId(id: string): Promise<Producto | null> {
-  const { data } = await supabase.from('productos').select('*').eq('id', id).single()
+  const { data } = await db.from('productos').select('*').eq('id', id).single()
   return (data as Producto) ?? null
 }
 
 export async function guardarStockMinimo(id: string, minimo: number): Promise<string | null> {
-  return soloError(await supabase.from('productos').update({ stock_minimo: minimo }).eq('id', id))
+  return soloError(await db.from('productos').update({ stock_minimo: minimo }).eq('id', id))
 }
 
 /** Ficha de inventario: producto, stock por ubicación (con su nombre) y últimos movimientos. */
 export async function detalleProducto(id: string) {
   const [producto, { data: s }, { data: ubis }, { data: m }] = await Promise.all([
     productoPorId(id),
-    supabase.from('stock').select('*').eq('producto_id', id),
-    supabase.from('ubicaciones').select('id, nombre'),
-    supabase.from('movimientos').select('*').eq('producto_id', id).order('created_at', { ascending: false }).limit(15)
+    db.from('stock').select('*').eq('producto_id', id),
+    db.from('ubicaciones').select('id, nombre'),
+    db.from('movimientos').select('*').eq('producto_id', id).order('created_at', { ascending: false }).limit(15)
   ])
   const nombres = new Map(((ubis ?? []) as { id: string; nombre: string }[]).map((u) => [u.id, u.nombre]))
   return {
@@ -53,37 +53,37 @@ const BUCKET = 'productos'
 
 /** Sube la foto y devuelve su URL pública (con versión, para no ver la anterior en caché). */
 export async function subirFotoProducto(ruta: string, blob: Blob): Promise<string> {
-  const { error } = await supabase.storage
+  const { error } = await db.storage
     .from(BUCKET)
     .upload(ruta, blob, { upsert: true, contentType: blob.type, cacheControl: '31536000' })
   if (error) throw error
-  const { data } = supabase.storage.from(BUCKET).getPublicUrl(ruta)
+  const { data } = db.storage.from(BUCKET).getPublicUrl(ruta)
   return `${data.publicUrl}?v=${Date.now()}`
 }
 
 /** Borra la foto subida de un producto que no llegó a crearse (a partir de su URL). */
 export function borrarFotoHuerfana(url: string): void {
   const ruta = url.match(/\/public\/productos\/([^?]+)/)?.[1]
-  if (ruta) void supabase.storage.from(BUCKET).remove([ruta])
+  if (ruta) void db.storage.from(BUCKET).remove([ruta])
 }
 
 // ---------------- Variantes ----------------
 export async function listarVariantes(productoId: string): Promise<ProductoVariante[]> {
-  const { data } = await supabase.from('producto_variantes').select('*').eq('producto_id', productoId).order('sku')
+  const { data } = await db.from('producto_variantes').select('*').eq('producto_id', productoId).order('sku')
   return (data as ProductoVariante[]) ?? []
 }
 
 export async function crearVariantes(filas: Partial<ProductoVariante>[]): Promise<string | null> {
-  return soloError(await supabase.from('producto_variantes').insert(filas))
+  return soloError(await db.from('producto_variantes').insert(filas))
 }
 
 export async function cambiarActivaVariante(id: string, activa: boolean): Promise<string | null> {
-  return soloError(await supabase.from('producto_variantes').update({ activa }).eq('id', id))
+  return soloError(await db.from('producto_variantes').update({ activa }).eq('id', id))
 }
 
 // ---------------- Presentaciones (caja, pack) ----------------
 export async function listarPresentaciones(productoId: string): Promise<ProductoPresentacion[]> {
-  const { data } = await supabase.from('producto_presentaciones').select('*').eq('producto_id', productoId).order('factor')
+  const { data } = await db.from('producto_presentaciones').select('*').eq('producto_id', productoId).order('factor')
   return (data as ProductoPresentacion[]) ?? []
 }
 
@@ -103,14 +103,14 @@ type DatosPresentacion = Pick<ProductoPresentacion, 'nombre' | 'factor' | 'preci
 export async function crearPresentacion(
   datos: DatosPresentacion & Pick<ProductoPresentacion, 'producto_id' | 'empresa_id'>
 ): Promise<string | null> {
-  return mensajePresentacion(resultado(await supabase.from('producto_presentaciones').insert(datos)))
+  return mensajePresentacion(resultado(await db.from('producto_presentaciones').insert(datos)))
 }
 
 /** Igual que `crearPresentacion`, pero devuelve la fila creada (para usarla sin recargar). */
 export async function crearPresentacionDevuelta(
   datos: DatosPresentacion & Pick<ProductoPresentacion, 'producto_id' | 'empresa_id'>
 ): Promise<{ data: ProductoPresentacion | null; error: string | null }> {
-  const r = resultado<ProductoPresentacion>(await supabase.from('producto_presentaciones').insert(datos).select().single())
+  const r = resultado<ProductoPresentacion>(await db.from('producto_presentaciones').insert(datos).select().single())
   return { data: r.data, error: mensajePresentacion(r) }
 }
 
@@ -118,13 +118,13 @@ export async function actualizarPresentacion(
   id: string,
   cambios: Partial<DatosPresentacion & Pick<ProductoPresentacion, 'activa'>>
 ): Promise<string | null> {
-  return mensajePresentacion(resultado(await supabase.from('producto_presentaciones').update(cambios).eq('id', id)))
+  return mensajePresentacion(resultado(await db.from('producto_presentaciones').update(cambios).eq('id', id)))
 }
 
 // ---------------- Bodega: transferencias y recepciones ----------------
 export async function itemsDeTransferencias(ids: string[]): Promise<TransferenciaItem[]> {
   if (!ids.length) return []
-  const { data } = await supabase.from('transferencia_items').select('*').in('transferencia_id', ids)
+  const { data } = await db.from('transferencia_items').select('*').in('transferencia_id', ids)
   return (data as TransferenciaItem[]) ?? []
 }
 
@@ -135,16 +135,16 @@ export async function crearTransferencia(
   observaciones: string | null
 ): Promise<string | null> {
   return soloError(
-    await supabase.rpc('crear_transferencia', { p_origen: origen, p_destino: destino, p_items: items, p_observaciones: observaciones })
+    await db.rpc('crear_transferencia', { p_origen: origen, p_destino: destino, p_items: items, p_observaciones: observaciones })
   )
 }
 
 export async function despacharTransferencia(id: string): Promise<string | null> {
-  return soloError(await supabase.rpc('despachar_transferencia', { p_id: id }))
+  return soloError(await db.rpc('despachar_transferencia', { p_id: id }))
 }
 
 export async function recibirTransferencia(id: string, items: { id: string; cantidad_recibida: number }[]): Promise<string | null> {
-  return soloError(await supabase.rpc('recibir_transferencia', { p_id: id, p_items: items }))
+  return soloError(await db.rpc('recibir_transferencia', { p_id: id, p_items: items }))
 }
 
 export interface DatosEntrada {
@@ -159,7 +159,7 @@ export interface DatosEntrada {
 /** Ingreso de mercadería (con o sin documento del proveedor). */
 export async function registrarEntrada(e: DatosEntrada): Promise<string | null> {
   return soloError(
-    await supabase.rpc('registrar_entrada', {
+    await db.rpc('registrar_entrada', {
       p_ubicacion: e.ubicacion_id,
       p_items: e.items,
       p_proveedor: e.proveedor_id,

@@ -7,7 +7,7 @@ import {
   useState,
   type ReactNode
 } from 'react'
-import { supabase } from '@/core/supabase/client'
+import { db } from '@/core/db/client'
 import { useAuth } from '@/core/auth/AuthProvider'
 import {
   actualizarIntento,
@@ -110,12 +110,12 @@ export function SyncProvider({ children }: { children: ReactNode }) {
       for (const op of ops) {
         // Si la sesión cambió (otro usuario entró o se cerró), lo pendiente espera a su dueño:
         // enviarlo con otro token lo registraría a nombre de otra persona
-        const { data } = await supabase.auth.getSession()
+        const { data } = await db.auth.getSession()
         if (data.session?.user.id !== (op.user_id ?? userId)) break
         try {
           const { rpc, args } = argumentos(op)
           // Las RPC son idempotentes por uuid_local: reenviar no duplica
-          const { error, status } = await supabase.rpc(rpc, args)
+          const { error, status } = await db.rpc(rpc, args)
           if (!error) await quitarDeCola(op.key)
           else if (esRechazoDefinitivo(error, status)) await marcarRechazada(op, error.message)
           else await actualizarIntento(op)
