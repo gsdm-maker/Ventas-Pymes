@@ -10,12 +10,12 @@ export const CLAVE_SESION = `pg-${dbConfigurado ? new URL(url).hostname.split('.
 
 /**
  * Cliente HTTP hacia PostgreSQL (PostgREST + auth propio).
- * Las consultas se tipan con las interfaces de dominio
- * en `src/core/types.ts`. El aislamiento real vive en RLS (PostgreSQL).
+ * Las consultas se tipan con las interfaces de dominio en `src/core/types.ts`.
+ * El aislamiento real vive en RLS (PostgreSQL).
  */
 export const db = createClient(
   dbConfigurado ? url : 'http://localhost:54321',
-  dbConfigurado ? key : 'anon-key-missing',
+  dbConfigurado ? key : 'pg-key-missing',
   {
     auth: {
       persistSession: true,
