@@ -24,7 +24,8 @@
     "test:planes": "node scripts/sql-remoto.mjs --ensayo supabase/pruebas/planes.sql",
     "test:niveles": "node scripts/sql-remoto.mjs --ensayo supabase/pruebas/niveles.sql",
     "test:presentaciones": "node scripts/sql-remoto.mjs --ensayo supabase/pruebas/presentaciones.sql",
-    "test:suscripcion": "node scripts/sql-remoto.mjs --ensayo supabase/pruebas/suscripcion_flow.sql"
+    "test:suscripcion": "node scripts/sql-remoto.mjs --ensayo supabase/pruebas/suscripcion_flow.sql",
+    "test:auditoria": "node scripts/sql-remoto.mjs --ensayo supabase/pruebas/auditoria.sql"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.45.4",
