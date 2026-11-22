@@ -9,7 +9,7 @@ import {
   type ReactNode
 } from 'react'
 import type { Session } from '@supabase/supabase-js'
-import { CLAVE_SESION, db, supabaseConfigurado } from '@/core/db/client'
+import { CLAVE_SESION, supabase, dbConfigurado } from '@/core/supabase/client'
 import type { Empresa, Profile, Ubicacion } from '@/core/types'
 import { guardarCache, leerCache } from '@/core/offline/db'
 import { sesionGuardada } from '@/core/offline/respaldo'
@@ -60,14 +60,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       if (!navigator.onLine) throw new Error('sin conexión')
       // Un solo viaje: el perfil trae su empresa y las ubicaciones se piden a la vez
       const [{ data: fila, error }, { data: ubis, error: e2 }] = await Promise.all([
-        db.from('profiles').select('*, empresa:empresas(*)').eq('id', userId).single(),
-        db.from('ubicaciones').select('*').eq('activa', true).order('tipo').order('nombre')
+        supabase.from('profiles').select('*, empresa:empresas(*)').eq('id', userId).single(),
+        supabase.from('ubicaciones').select('*').eq('activa', true).order('tipo').order('nombre')
       ])
       if (error) throw error
 
       // Cuenta desactivada: se corta la sesión de inmediato.
       if (fila && !fila.activo) {
-        await db.auth.signOut()
+        await supabase.auth.signOut()
         setProfile(null)
         setEmpresa(null)
         setUbicaciones([])
@@ -93,7 +93,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, [])
 
   useEffect(() => {
-    if (!supabaseConfigurado) {
+    if (!dbConfigurado) {
       setListo(true)
       return
     }
@@ -103,7 +103,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       // tarda en fallar): se usa la sesión guardada para poder vender; al volver la
       // red, Supabase la renueva sola y avisa por onAuthStateChange.
       const { data } = navigator.onLine
-        ? await db.auth.getSession()
+        ? await supabase.auth.getSession()
         : { data: { session: sesionGuardada() } }
       if (!activo) return
       setSession(data.session)
@@ -111,7 +111,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       setListo(true)
     }
     void iniciar()
-    const { data: sub } = db.auth.onAuthStateChange(async (_e, s) => {
+    const { data: sub } = supabase.auth.onAuthStateChange(async (_e, s) => {
       // Un fallo de renovación sin conexión no debe sacar al cajero del POS
       if (!s && !navigator.onLine && !saliendo.current && sesionGuardada()) return
       saliendo.current = false
@@ -130,17 +130,17 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, [cargarDatos])
 
   const iniciarSesion = useCallback(async (email: string, password: string) => {
-    const { data, error } = await db.auth.signInWithPassword({ email, password })
+    const { data, error } = await supabase.auth.signInWithPassword({ email, password })
     if (error) throw new Error('Correo o contraseña incorrectos')
     // Verifica el estado real de la cuenta recién autenticada.
     if (data.user) {
-      const { data: perfil } = await db
+      const { data: perfil } = await supabase
         .from('profiles')
         .select('activo')
         .eq('id', data.user.id)
         .single()
       if (perfil && !perfil.activo) {
-        await db.auth.signOut()
+        await supabase.auth.signOut()
         throw new Error('Tu cuenta está desactivada')
       }
     }
@@ -150,7 +150,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     saliendo.current = true
     // Sin red, signOut intenta renovar el token, falla y deja la sesión guardada: al recargar
     // volvería a entrar el mismo usuario. Se borra a mano en ese caso.
-    const { error } = navigator.onLine ? await db.auth.signOut() : { error: true }
+    const { error } = navigator.onLine ? await supabase.auth.signOut() : { error: true }
     if (error) localStorage.removeItem(CLAVE_SESION)
     setSession(null)
     setProfile(null)
@@ -159,18 +159,18 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, [])
 
   const refrescar = useCallback(async () => {
-    const { data } = await db.auth.getUser()
+    const { data } = await supabase.auth.getUser()
     if (data.user) await cargarDatos(data.user.id)
   }, [cargarDatos])
 
   const cambiarClave = useCallback(async (nueva: string) => {
     // También se limpia la marca de los metadatos de la cuenta (la que viaja en el token):
     // la obligación real la controla profiles.must_change_password
-    const { error } = await db.auth.updateUser({ password: nueva, data: { must_change_password: false } })
+    const { error } = await supabase.auth.updateUser({ password: nueva, data: { must_change_password: false } })
     if (error) throw new Error(error.message)
-    const { data } = await db.auth.getUser()
+    const { data } = await supabase.auth.getUser()
     if (data.user) {
-      await db
+      await supabase
         .from('profiles')
         .update({ must_change_password: false })
         .eq('id', data.user.id)
