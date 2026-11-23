@@ -41,7 +41,7 @@ control de stock con trazabilidad.
 - **Edge Function** `admin-users` desplegada (acciones: `crear_empresa`, `crear_usuario`,
   `actualizar_plan`, `toggle_usuario`, `reset_password`, `nombrar_owner`, `revocar_owner`,
   `actualizar_ubicaciones`).
-- **Owner bootstrap:** `supabase/owner_bootstrap.sql`.
+- **Owner bootstrap:** `db/owner_bootstrap.sql`.
 - **Auth:** `site_url` y `uri_allow_list` configurados (`http://localhost:5173`).
 
 ### Migraciones aplicadas
@@ -564,11 +564,11 @@ control de stock con trazabilidad.
 - `REVISION_UI_WEB_GUIDELINES.md` — informe de la revisión de UI.
 - `README.md` — puesta en marcha.
 - `Datakeys.md` — credenciales (no versionar).
-- `supabase/pruebas/seguridad.sql` — pruebas de RLS/RPC como usuarios reales (se revierten).
-- `supabase/pruebas/reposicion.sql` — pruebas del cálculo de reposición (se revierten).
-- `supabase/pruebas/reportes.sql` — pruebas del reporte de ventas (se revierten).
-- `supabase/pruebas/control_stock.sql` — productos sin control de stock y ventas offline (se revierten).
-- `supabase/pruebas/variantes_devoluciones.sql` — tallas/colores y devoluciones (se revierten).
-- `supabase/pruebas/variantes_opcionales.sql` — opción por empresa de tallas/colores (se revierten).
-- `supabase/pruebas/fotos_codigos.sql` — fotos en Storage y código de barras único (se revierten).
+- `db/pruebas/seguridad.sql` — pruebas de RLS/RPC como usuarios reales (se revierten).
+- `db/pruebas/reposicion.sql` — pruebas del cálculo de reposición (se revierten).
+- `db/pruebas/reportes.sql` — pruebas del reporte de ventas (se revierten).
+- `db/pruebas/control_stock.sql` — productos sin control de stock y ventas offline (se revierten).
+- `db/pruebas/variantes_devoluciones.sql` — tallas/colores y devoluciones (se revierten).
+- `db/pruebas/variantes_opcionales.sql` — opción por empresa de tallas/colores (se revierten).
+- `db/pruebas/fotos_codigos.sql` — fotos en Storage y código de barras único (se revierten).
 - `scripts/sql-remoto.mjs` — ejecuta SQL en el proyecto vía Management API (`npm run test:seguridad`).

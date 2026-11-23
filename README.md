@@ -5,7 +5,7 @@ Multiempresa (multi-tenant), multi-bodega/tienda, con **PWA offline**, roles y p
 y control de stock con trazabilidad total.
 
 - **Front:** React + Vite + TypeScript + Tailwind v4 + React Router.
-- **Back:** Supabase (Auth + Postgres + RLS + Edge Functions).
+- **Back:** PostgreSQL + API propia (PostgREST + auth JWT) + RLS.
 - **Offline:** PWA real (service worker + IndexedDB con cola de sincronización).
 - **Identidad:** paleta terracota/beige (Material 3), tema claro/oscuro.
 - **Idioma:** español · fechas DD/MM/AAAA · moneda CLP · IVA chileno 19%.
@@ -62,7 +62,7 @@ VITE_SUPABASE_ANON_KEY=tu-anon-key
 ## 4. Crear el Administrador general (una vez)
 
 1. Supabase Dashboard → **Authentication → Add user** (email + contraseña, *Auto Confirm*).
-2. En el **SQL Editor**, ejecuta `supabase/owner_bootstrap.sql` cambiando el correo.
+2. En el **SQL Editor**, ejecuta un `INSERT` en `auth.users` (ver `db/migrations/`) cambiando el correo.
 
 ## 5. Ejecutar
 
@@ -151,8 +151,7 @@ Dos niveles:
 npm run test:seguridad
 ```
 
-Ejecuta `supabase/pruebas/seguridad.sql` en el proyecto (vía Management API, con
-`SUPABASE_ACCESS_TOKEN` o el token de `Datakeys.md`): intenta ataques y operaciones
+Ejecuta `db/pruebas/seguridad.sql` en el proyecto (con `psql` contra PostgreSQL): intenta ataques y operaciones
 legítimas como usuarios reales y **revierte todo** al final.
 
 ## 10. Estado del prototipo
