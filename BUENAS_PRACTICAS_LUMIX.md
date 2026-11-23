@@ -5,7 +5,7 @@ PYMES). Recoge las decisiones de arquitectura, datos, permisos, diseño y seguri
 **están implementadas en este repositorio**, adaptadas del criterio de Lumix
 (`OPERA AI/Lumixapp/`) al dominio de inventario/retail.
 
-Fuente viva del código: `supabase/migrations/`, `supabase/functions/admin-users/`,
+Fuente viva del código: `db/migrations/`, `backend/auth (Deno)/`,
 `src/core/` y `src/components/`. Ante diferencias, manda el código.
 
 Índice:
@@ -369,7 +369,7 @@ constraint venta_referencia_pago check (
 | TypeScript 5 (estricto) | Lenguaje |
 | Tailwind CSS v4 (`@tailwindcss/vite`) | Estilos (config en CSS) |
 | React Router 6 | Rutas SPA |
-| `@supabase/supabase-js` | Datos / Auth |
+| `@supabase/supabase-js` | Cliente HTTP (PostgREST) |
 | `recharts` | Gráficos del Dashboard/Reportes |
 | `lucide-react` | Íconos |
 | `date-fns` | Fechas |
@@ -552,7 +552,7 @@ Convenciones: variantes como **mapas `Record<Variant, string>`**; clases unidas 
 
 ## 15. Estado actual del proyecto
 
-**Migraciones aplicadas** (`supabase/migrations/`):
+**Migraciones aplicadas** (`db/migrations/`):
 
 | Archivo | Contenido |
 |---|---|
@@ -564,7 +564,7 @@ Convenciones: variantes como **mapas `Record<Variant, string>`**; clases unidas 
 | `0007_fix_service_role.sql` | `auth.role()` en triggers/guardas de `service_role` |
 | `0008_rls_activo_ubicacion.sql` | RLS exige `es_activo()`; tablas con ubicación aplican `puede_ver_ubicacion()` |
 
-**Edge Function:** `supabase/functions/admin-users/index.ts`
+**Edge Function:** `backend/auth (Deno)/index.ts`
 (acciones: `crear_empresa`, `crear_usuario`, `actualizar_plan`, `toggle_usuario`,
 `reset_password`, `nombrar_owner`, `revocar_owner`).
 
@@ -580,7 +580,7 @@ Convenciones: variantes como **mapas `Record<Variant, string>`**; clases unidas 
   promueve una cuenta existente o crea una nueva) y *Revocar* (`revocar_owner`); siempre debe
   quedar al menos uno.
 
-**Bootstrap del Owner:** `supabase/owner_bootstrap.sql` (crear el usuario en Auth y marcar
+**Bootstrap del Owner:** `db/owner_bootstrap.sql (obsoleto)` (crear el usuario en Auth y marcar
 `es_owner`).
 
 **Verificación end-to-end realizada:** login, creación de empresa+admin+prueba, seed, venta POS
@@ -606,7 +606,7 @@ inventar otro. (Revisado el 25-10-2026.)
 | **Facade** | `src/core/data/`: `api.ts` (listados) y módulos por tema (`ventas`, `inventario`, `restaurante`, `configuracion`, `admin`, `cuenta`) con el resultado común `{ data, error, codigo, deRed }` de `resultado.ts`. | Ninguna pantalla ni componente usa `supabase` directo (verificado el 25-10-2026). Una consulta nueva va al módulo de su tema. |
 | **Proxy (de protección)** | Edge Functions `admin-users` y `asistente`: se ponen delante de Auth y de OpenAI y verifican sesión, permisos, plan y cupo. | Ningún servicio con clave secreta se llama desde el navegador. La función repite el aislamiento porque `service_role` salta RLS. |
 | **Observer** | Realtime (`useTiempoReal`) y contextos de React (`AuthProvider`, `SyncProvider`). | Suscribirse en un solo lugar y limpiar al desmontar. |
-| **Singleton** | Cliente de Supabase (`core/supabase/client.ts`). | Un solo cliente por app; no crear otros con la anon key. |
+| **Singleton** | Cliente de Supabase (`core/db/client.ts`). | Un solo cliente por app; no crear otros con la anon key. |
 
 **Señales de alerta** (refactorizar antes de agregar más): pantallas de más de ~600 líneas
 (`Reportes.tsx`, `Mesas.tsx`; el POS ya se partió en `src/components/pos/` con los hooks
@@ -614,6 +614,6 @@ inventar otro. (Revisado el 25-10-2026.)
 `if/else` por tipo que crece con cada caso nuevo (pasarlo a una tabla como `EJECUTORES` o `MEDIOS_PAGO`).
 
 _Documento derivado de las buenas prácticas de `OPERA AI/Lumixapp/` y ajustado a la
-implementación real de Mi Socio Pyme (`supabase/migrations/0001`–`0007`,
-`supabase/functions/admin-users`, `src/core`, `src/components`). Ante dudas, la fuente de verdad
+implementación real de Mi Socio Pyme (`db/migrations/0001`–`0007`,
+`backend/auth (Deno)`, `src/core`, `src/components`). Ante dudas, la fuente de verdad
 es el código._
