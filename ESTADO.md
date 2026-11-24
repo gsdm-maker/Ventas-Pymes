@@ -7,7 +7,7 @@ Actualizado: 2026-11-24
 - `gsdm_admin` (DBA) administra `misociopyme` con control total (22/11, decisión del dueño): miembro de `misociopyme_owner`, sin superusuario ni BYPASSRLS ni otras bases. Excepción en `90_verificar_cluster.sql` (OK).
 - Cuentas de prueba borradas; solo queda `e2e-admin@prueba.invalid` desactivada (la referencian 1 venta, 1 devolución y 2 movimientos).
 
-- QA repuesto el 24/11 (GoTrue, PostgREST, storage, funciones; el DBA los había quitado el 23/11). E2E contra QA: 34 OK, 3 saltadas; subida de foto verificada (bucket `productos`, política por empresa). Cuentas temporales borradas.
+- QA repuesto el 24/11 (GoTrue, PostgREST, storage, funciones; el DBA los había quitado el 23/11). E2E contra QA: 34 OK, 3 saltadas; subida de foto verificada (bucket `productos`, política por empresa). Venta offline con escritura verificada (VTA-261124-00005, sincronizada y anulada; stock sin comprobar). Cuentas temporales borradas; quedan desactivadas `e2e-admin` y `e2e4-admin` (las referencian ventas).
 - Restos de Supabase en el frontend corregidos: caché PWA de fotos, `useTiempoReal` (solo sondeo cada 20 s) y texto del login. Informe para el DBA: `docs/REQUISITOS_DESPLIEGUE.md`.
 
 ## En curso / a medias
