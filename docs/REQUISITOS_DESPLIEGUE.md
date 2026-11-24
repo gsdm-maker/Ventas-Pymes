@@ -54,7 +54,7 @@ GoTrue, PostgREST y storage-api son programas independientes de código abierto.
 
 | Dónde | Variables (nombres) |
 |---|---|
-| Netlify (frontend) | `VITE_SUPABASE_URL` (URL pública de la API), `VITE_SUPABASE_ANON_KEY` (clave pública `anon`) |
+| Netlify (frontend) | `VITE_PG_URL` (URL pública de la API), `VITE_PG_KEY` (clave pública `anon`) |
 | GoTrue | URL de la base (`<p>_auth`), secreto JWT, URL del sitio y orígenes permitidos, SMTP (Resend), `enable_signup = false` |
 | PostgREST | URL de la base (`<p>_authenticator`), secreto JWT, esquema `public` |
 | storage-api | URL de la base (`<p>_storage`), secreto JWT, directorio de archivos |

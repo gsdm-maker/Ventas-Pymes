@@ -66,7 +66,7 @@ def entorno_supabase() -> tuple[str, str]:
         if '=' in l and not l.strip().startswith('#'):
             k, v = l.split('=', 1)
             valores[k.strip()] = v.strip()
-    return valores['VITE_SUPABASE_URL'], valores['VITE_SUPABASE_ANON_KEY']
+    return valores['VITE_PG_URL'], valores['VITE_PG_KEY']
 
 
 # ---------------- Navegador ----------------

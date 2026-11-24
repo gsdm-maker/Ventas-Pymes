@@ -33,8 +33,8 @@ La base, los servicios y nginx se levantan con la plantilla de `infra/vps/` (gu√
 Crea `.env.local` a partir de `.env.example` con la URL de la API y la clave anon p√∫blica:
 
 ```env
-VITE_SUPABASE_URL=https://api.tu-dominio
-VITE_SUPABASE_ANON_KEY=tu-anon-key
+VITE_PG_URL=https://api.tu-dominio
+VITE_PG_KEY=tu-anon-key
 ```
 
 ## 4. Crear el Administrador general (una vez)
