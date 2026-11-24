@@ -88,8 +88,8 @@ export function Login() {
 
           {!supabaseConfigurado && (
             <div className="mt-4 rounded-xl border border-warning/40 bg-warning-soft px-4 py-3 text-xs text-warning">
-              Falta configurar Supabase. Copia <code>.env.example</code> a <code>.env.local</code> con
-              tu URL y anon key.
+              Falta configurar la API. Copia <code>.env.example</code> a <code>.env.local</code> con
+              la URL de la API y la clave pública.
             </div>
           )}
 

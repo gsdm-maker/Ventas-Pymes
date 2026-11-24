@@ -40,7 +40,7 @@ export default defineConfig({
         runtimeCaching: [
           {
             // Fotos de productos subidas a Storage (públicas): disponibles sin conexión en el POS
-            urlPattern: /^https:\/\/[^/]+\.supabase\.co\/storage\/v1\/object\/public\/productos\/.*/i,
+            urlPattern: /^https:\/\/[^/]+\/storage\/v1\/object\/public\/productos\/.*/i,
             handler: 'CacheFirst',
             options: {
               cacheName: 'fotos-productos',

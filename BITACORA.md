@@ -150,3 +150,17 @@ Motivo extra: el E2E saltaba todo en silencio («sin credenciales válidas») po
 2026-11-22 | #vps #cierre | Retirado `msp_prueba` y rol `misociopyme_app`; `gsdm_admin` sin BYPASSRLS/CREATEDB/acceso a la base. Motivo: una sola base y verificación de clúster en verde. Las suites ya no corren en la base real: `sql-remoto.mjs --ensayo` usa una copia temporal. Trampa: `pg_dump` como `postgres` no escribe en directorios de root; redirigir desde el shell root.
 
 2026-11-22 | #rls #auditoria | `admin_auditoria` solo la leía service_role pero la pantalla Actividad la consulta con la sesión: 403 para el dueño (no se veía porque el E2E de dueño nunca había corrido). 0031 agrega política `es_owner()` solo para SELECT; escribir sigue siendo de service_role.
+
+## 2026-11-22 | #vps #dba #seguridad | El DBA administra misociopyme como miembro del dueño
+Decisión: `gsdm_admin` entra a `misociopyme` con control total vía membresía en `misociopyme_owner` (no superusuario, sin BYPASSRLS, sin otras bases).
+Motivo: el DBA administra el sistema; se descartó devolverle `misociopyme_app` (segunda puerta sin RLS) y un rol solo de lectura (no alcanza para administrar).
+Trampa: ve datos de todas las empresas y sus cambios a mano separan la base de `supabase/migrations/`; que pasen por migraciones.
+
+## 2026-11-22 | #vps #latencia | La lentitud es distancia, no código
+Decisión: se dedupe solo la carga de auth; el resto se resuelve cambiando de servidor o con un proxy bajo el dominio de la app.
+Motivo: ~230 ms de RTT y preflight CORS por URL distinta (Chrome cachea por URL completa). Los "pedidos duplicados" por pantalla eran un artefacto del script de medición (el log de nginx muestra un solo GET).
+Trampa: no volver a perseguir duplicados por pantalla; contar en el log de nginx, no con eventos de Playwright.
+
+## 2026-11-22 | #vps #corte | A producción pasan migraciones, no la base
+Decisión: flujo local → QA (sistema local + BD en VPS) → productivo; la BD productiva recibe las migraciones en orden con sus pruebas.
+Motivo: copiar la base de QA pisaría datos de clientes. Solo la primera vez, sin clientes, se puede restaurar una copia.
