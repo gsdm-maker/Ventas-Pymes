@@ -24,7 +24,8 @@ GOTRUE_MAILER_SUBJECTS_REAUTHENTICATION=Código de verificación
 Verificado 22/11/2026 en el VPS con GoTrue v2.197.0 (contenedor temporal, SMTP simulado): `file://` NO funciona (GoTrue manda el correo en inglés sin avisar); por HTTP sí sale en español con el asunto configurado. El contenedor usa red host, así que llega a `127.0.0.1`. Recuperar clave tiene límite de 1 envío por minuto por usuario (responde 429).
 
 ## Aplicado en el VPS (22/11/2026, `msp_prueba`)
-- Plantillas en `/srv/correos_msp` (755) servidas por nginx en `127.0.0.1:8099` (`nginx_correos.conf`).
+- Plantillas en `/srv/__P___correos` (755) servidas por nginx en `127.0.0.1:8099` (`nginx_correos.conf`, sitio `__P___correos`). En misociopyme: `/srv/misociopyme_correos`.
+- 25/11/2026: renombrado `/srv/correos_msp` → `/srv/misociopyme_correos` y el sitio `msp_correos` → `misociopyme_correos` (nombre por desarrollo). GoTrue no cambia: sigue apuntando a `127.0.0.1:8099/<archivo>.html`.
 - Variables añadidas a `/srv/msp_prueba/gotrue.env` (copia previa: `gotrue.env.antes-correos`); contenedor `msp_prueba-auth` recreado con los mismos flags (host, read-only, cap-drop ALL, 128 MB, restart unless-stopped).
 - Un nginx leyendo desde `/srv/msp_prueba/...` falla con 404 por permisos: de ahí la carpeta aparte.
 - No se mandó un correo real de prueba (la base es copia de producción y el SMTP es el real).

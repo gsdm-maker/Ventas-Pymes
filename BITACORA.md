@@ -184,3 +184,8 @@ Trampa: el script rechaza si el nombre ya existe; para recargar secretos hay que
 Decisión: nombres por proyecto en vez de nombres de Supabase, para no confundirlos con el Supabase del cliente en PRD y para que cada desarrollo tenga sus propios dueños de esquema.
 Motivo: `ALTER ROLE ... RENAME` conserva el OID, así que dueños, ACLs y memberships no cambian. Además hubo que actualizar `pg_db_role_setting` (`role=` de `<p>_auth` y `<p>_storage`), el GUC `storage.super_user`, `storage.env` (`DB_SUPER_USER`) y la plantilla VPS.
 Trampa: storage-api trae `supabase_storage_admin` como valor por defecto en `migrations/tenant/0002-storage-schema.sql`; sin el GUC `storage.super_user` volvería a crear ese rol.
+
+2026-11-25 | #vps #nombres #qa | Plantillas de correo con nombre del desarrollo: `/srv/correos_msp` → `/srv/misociopyme_correos` y sitio nginx `msp_correos` → `misociopyme_correos`.
+Decisión: todo lo propio de un desarrollo lleva su nombre; lo universal (imágenes Docker del proveedor, roles compartidos `anon`/`authenticated`/`service_role`, CloudBeaver, `default`) se queda.
+Motivo: evitar abreviaturas (`msp`) que no identifican el proyecto y que se confunden entre ambientes.
+Trampa: la carpeta va fuera de `/srv/<p>` porque nginx no puede leer ahí (solo root); GoTrue no se toca porque apunta al puerto y al archivo, no a la ruta.
