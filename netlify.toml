@@ -4,6 +4,8 @@
 
 [build.environment]
   NODE_VERSION = "22"
+  # Fuente de verdad del API (overridea la UI de Netlify).
+  VITE_PG_URL = "https://api.misociopyme.cl"
 
 [[redirects]]
   from = "/*"
