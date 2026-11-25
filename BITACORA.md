@@ -164,3 +164,18 @@ Trampa: no volver a perseguir duplicados por pantalla; contar en el log de nginx
 ## 2026-11-22 | #vps #corte | A producción pasan migraciones, no la base
 Decisión: flujo local → QA (sistema local + BD en VPS) → productivo; la BD productiva recibe las migraciones en orden con sus pruebas.
 Motivo: copiar la base de QA pisaría datos de clientes. Solo la primera vez, sin clientes, se puede restaurar una copia.
+
+## 2026-11-24 | #git #produccion | La rama local es la versión oficial; se fusiona origin/main con -s ours
+Decisión: el contenido es el de esta rama; `origin/main` (renombres del DBA a `db/` y `VITE_PG_*`, sin 0030/0031 ni `infra/vps`) se incorpora solo como historial.
+Motivo: el DBA partió del 14/11 y no tiene el cobro con Flow ni la plantilla de VPS; copiar lo suyo habría perdido eso. Con `-s ours` el push avanza sin `--force`.
+Trampa: `-s ours` no trae nada de su árbol; si el DBA corrige algo allá, hay que portarlo a mano.
+
+## 2026-11-24 | #netlify #produccion | Variables VITE_PG_* y producción sobre la API de QA (opción A)
+Decisión: se renombran las variables del código a `VITE_PG_*` (Netlify ya las tiene) y producción sigue sobre la API de QA mientras no haya VPS propio.
+Motivo: sin clientes, es lo de menor esfuerzo y está todo probado ahí. `api-prd` solo tiene PostgREST y el DBA no quiere GoTrue ni storage en ese servidor.
+Trampa: producción y QA comparten base hasta cambiar `VITE_PG_URL`; migrar a otro servidor es cambiar esa variable y pasar los datos.
+
+## 2026-11-24 | #funciones #vps | Contenedor de funciones recreado con el script del repo
+Decisión: `misociopyme-funciones` (root, sin límites, todos los permisos de Deno) se reemplazó por `misociopyme-fn` (usuario 1993, 128 MB, solo lectura, permisos mínimos).
+Motivo: la `service_role` del entorno quedaba al alcance de cualquier fallo de una función. El código servido era idéntico al repo.
+Trampa: el script rechaza si el nombre ya existe; para recargar secretos hay que quitar el contenedor y volver a correrlo (el entorno se fija al crearlo).
