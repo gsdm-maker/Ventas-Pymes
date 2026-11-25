@@ -3,16 +3,15 @@
 -- Diseño: docs/DISENO_PLANTILLA_VPS.md (sección 4).
 \set ON_ERROR_STOP on
 
--- Roles compartidos con nombres de Supabase. Sin login, sin CONNECT, nunca ALTER ROLE global.
+-- Roles compartidos de la API. Sin login, sin CONNECT, nunca ALTER ROLE global.
+-- Los dueños de auth/storage son por proyecto (<p>_auth_admin, <p>_storage_admin): ver 01_proyecto.sql.
 do $$
 declare r record;
 begin
   for r in select * from (values
       ('anon', false),
       ('authenticated', false),
-      ('service_role', true),
-      ('supabase_auth_admin', false),
-      ('supabase_storage_admin', false)
+      ('service_role', true)
     ) v(nombre, bypass)
   loop
     if not exists (select 1 from pg_roles where rolname = r.nombre) then

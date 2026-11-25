@@ -6,7 +6,7 @@
 do $$
 declare
   v text;
-  compartidos constant text[] := array['anon','authenticated','service_role','supabase_auth_admin','supabase_storage_admin'];
+  compartidos constant text[] := array['anon','authenticated','service_role'];
 begin
   -- 1. Ninguna base que admita conexiones (incluida template1) acepta CONNECT de PUBLIC.
   --    datacl nulo = abierta a PUBLIC.
@@ -70,16 +70,22 @@ begin
      and (am.inherit_option or m.rolname !~ '_(authenticator|storage)$');
   if v is not null then raise exception 'Membresías indebidas de roles de API: %', v; end if;
 
-  -- 7. Solo <p>_auth y <p>_owner son miembros de supabase_auth_admin; solo <p>_storage y <p>_owner
-  --    de supabase_storage_admin. Nadie tiene ADMIN OPTION sobre roles compartidos.
+  -- 7. Solo <p>_auth y <p>_owner son miembros de <p>_auth_admin; solo <p>_storage y <p>_owner
+  --    de <p>_storage_admin. Nadie tiene ADMIN OPTION sobre roles compartidos ni de servicio.
   select string_agg(m.rolname || '∈' || g.rolname, ', ') into v
     from pg_auth_members am
     join pg_roles m on m.oid = am.member
     join pg_roles g on g.oid = am.roleid
-   where g.rolname = any(compartidos)
-     and (am.admin_option
-          or (g.rolname = 'supabase_auth_admin' and m.rolname !~ '_(auth|owner)$')
-          or (g.rolname = 'supabase_storage_admin' and m.rolname !~ '_(storage|owner)$'));
+   where g.rolname = any(compartidos) and am.admin_option;
+  if v is not null then raise exception 'ADMIN OPTION sobre roles compartidos: %', v; end if;
+
+  select string_agg(m.rolname || '∈' || g.rolname, ', ') into v
+    from pg_auth_members am
+    join pg_roles m on m.oid = am.member
+    join pg_roles g on g.oid = am.roleid
+   where (g.rolname ~ '_auth_admin$' and m.rolname !~ '_(auth|owner)$')
+      or (g.rolname ~ '_storage_admin$' and m.rolname !~ '_(storage|owner)$')
+      or (g.rolname ~ '_(auth|storage)_admin$' and am.admin_option);
   if v is not null then raise exception 'Membresías indebidas de roles de servicio: %', v; end if;
 
   raise notice 'Cluster OK: aislamiento entre proyectos verificado';

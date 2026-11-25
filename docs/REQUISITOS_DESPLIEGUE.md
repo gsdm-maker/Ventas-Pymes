@@ -42,7 +42,7 @@ GoTrue, PostgREST y storage-api son programas independientes de código abierto.
 
 ## 4. Base de datos
 
-- Un cluster con **una base por proyecto** (`<p>`). Roles compartidos sin login: `anon`, `authenticated`, `service_role`, `supabase_auth_admin`, `supabase_storage_admin`. Por proyecto: `<p>_owner` (dueño de `public`, sin login), `<p>_authenticator` (PostgREST), `<p>_auth` (GoTrue), `<p>_storage` (storage-api).
+- Un cluster con **una base por proyecto** (`<p>`). Roles compartidos sin login: `anon`, `authenticated`, `service_role`. Por proyecto: `<p>_owner` (dueño de `public`, sin login), `<p>_authenticator` (PostgREST), `<p>_auth` (GoTrue), `<p>_storage` (storage-api), `<p>_auth_admin` (dueño de `auth`, sin login), `<p>_storage_admin` (dueño de `storage`, sin login).
 - Esquemas: `public` (la app), `auth` (GoTrue), `storage` (storage-api), `extensions`.
 - **Migraciones:** `supabase/migrations/0001…0031`, en orden, cada una con `SET ROLE <p>_owner`. A producción pasan las **migraciones**, no una copia de la base (una copia pisaría datos de clientes). Solo la primera vez, sin clientes, se puede restaurar un respaldo.
 - **Pruebas SQL:** `supabase/pruebas/*.sql` (15 suites, 352 casos). Se corren en una copia temporal y no dejan cambios: `infra/vps/pruebas/correr_suites.sh`.

@@ -179,3 +179,8 @@ Trampa: producción y QA comparten base hasta cambiar `VITE_PG_URL`; migrar a ot
 Decisión: `misociopyme-funciones` (root, sin límites, todos los permisos de Deno) se reemplazó por `misociopyme-fn` (usuario 1993, 128 MB, solo lectura, permisos mínimos).
 Motivo: la `service_role` del entorno quedaba al alcance de cualquier fallo de una función. El código servido era idéntico al repo.
 Trampa: el script rechaza si el nombre ya existe; para recargar secretos hay que quitar el contenedor y volver a correrlo (el entorno se fija al crearlo).
+
+2026-11-25 | #vps #roles #qa | Renombrados `supabase_auth_admin` → `<p>_auth_admin` y `supabase_storage_admin` → `<p>_storage_admin` (en QA: `misociopyme_auth_admin`, `misociopyme_storage_admin`).
+Decisión: nombres por proyecto en vez de nombres de Supabase, para no confundirlos con el Supabase del cliente en PRD y para que cada desarrollo tenga sus propios dueños de esquema.
+Motivo: `ALTER ROLE ... RENAME` conserva el OID, así que dueños, ACLs y memberships no cambian. Además hubo que actualizar `pg_db_role_setting` (`role=` de `<p>_auth` y `<p>_storage`), el GUC `storage.super_user`, `storage.env` (`DB_SUPER_USER`) y la plantilla VPS.
+Trampa: storage-api trae `supabase_storage_admin` como valor por defecto en `migrations/tenant/0002-storage-schema.sql`; sin el GUC `storage.super_user` volvería a crear ese rol.
