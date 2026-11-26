@@ -1,0 +1,88 @@
+# Stack de Mi Socio Pyme.
+# Un solo archivo para QA y PRD: cambia .env, no el compose.
+#
+# Datos en bind mounts (no volúmenes nombrados) para que mover de servidor
+# sea copiar /srv/misociopyme y listo.
+name: ${STACK:-misociopyme}
+
+services:
+  db:
+    image: postgres:18.7-alpine
+    container_name: ${APP:-misociopyme}-db
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: ${CLAVE_SUPER}
+      POSTGRES_DB: postgres
+      TZ: America/Santiago
+    volumes:
+      - /srv/misociopyme/docker/pgdata:/var/lib/postgresql
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d postgres"]
+      interval: 5s
+      timeout: 3s
+      retries: 12
+      start_period: 20s
+
+  gotrue:
+    image: supabase/gotrue:v2.198.0
+    container_name: ${APP:-misociopyme}-gotrue
+    restart: unless-stopped
+    command: ["auth"]
+    env_file: [./gotrue.env]
+    depends_on:
+      db:
+        condition: service_healthy
+    ports:
+      - "127.0.0.1:${PUERTO_GOTRUE:-9998}:9999"
+
+  postgrest:
+    image: postgrest/postgrest:v12.2.3
+    container_name: ${APP:-misociopyme}-postgrest
+    restart: unless-stopped
+    env_file: [./postgrest.env]
+    depends_on:
+      db:
+        condition: service_healthy
+    ports:
+      - "127.0.0.1:${PUERTO_POSTGREST:-3018}:3000"
+      - "127.0.0.1:${PUERTO_POSTGREST_ADMIN:-3019}:3001"
+
+  storage:
+    image: supabase/storage-api:v1.96.4
+    container_name: ${APP:-misociopyme}-storage
+    restart: unless-stopped
+    env_file: [./storage.env]
+    depends_on:
+      db:
+        condition: service_healthy
+    volumes:
+      - /srv/misociopyme/archivos:/var/lib/storage
+    ports:
+      - "127.0.0.1:${PUERTO_STORAGE:-5001}:5000"
+
+  funciones:
+    image: denoland/deno:2.3.3
+    container_name: ${APP:-misociopyme}-fn
+    restart: unless-stopped
+    user: "1993:1993"
+    read_only: true
+    cap_drop: [ALL]
+    mem_limit: 128m
+    env_file: [./funciones.env]
+    volumes:
+      - /srv/misociopyme/funciones:/app:ro
+      - /srv/misociopyme/funciones_cache:/deno-dir:ro
+    ports:
+      - "127.0.0.1:${PUERTO_FN:-3013}:3012"
+    command:
+      - run
+      - --cached-only
+      - --frozen
+      - --config
+      - /app/deno.json
+      - --lock=/app/deno.lock
+      - --allow-env=SUPABASE_URL,SUPABASE_ANON_KEY,SUPABASE_SERVICE_ROLE_KEY,REST_INTERNO,AUTH_INTERNO,PUERTO,APP_URL,APP_URLS_EXTRA,ALLOWED_ORIGIN,FLOW_API_KEY,FLOW_SECRET_KEY,FLOW_API_URL,OPENAI_API_KEY,AI_MODEL,SYNC_SECRET,HOST
+      - --allow-net=0.0.0.0:3012,postgrest:3000,gotrue:9999,api.openai.com:443,sandbox.flow.cl:443
+      - --allow-read=/app,/deno-dir
+      - /app/main.ts
