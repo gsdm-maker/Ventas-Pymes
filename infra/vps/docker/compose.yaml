@@ -61,6 +61,14 @@ services:
     ports:
       - "127.0.0.1:${PUERTO_STORAGE:-5001}:5000"
 
+  correos:
+    image: nginx:1.28-alpine
+    container_name: ${APP:-misociopyme}-correos
+    restart: unless-stopped
+    volumes:
+      - /srv/misociopyme_correos:/usr/share/nginx/html:ro
+    security_opt: [no-new-privileges:true]
+
   funciones:
     image: denoland/deno:2.3.3
     container_name: ${APP:-misociopyme}-fn
