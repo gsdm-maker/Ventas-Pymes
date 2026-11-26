@@ -19,6 +19,10 @@ const DESTINOS: Array<[string, string]> = [
   ['/auth/v1/', requerida('AUTH_INTERNO').replace(/\/$/, '') + '/']
 ]
 const PUERTO = Number(requerida('PUERTO'))
+// HOST permite escuchar en 0.0.0.0 dentro de Docker. Sin permiso o sin la
+// variable, se mantiene en loopback (comportamiento anterior).
+let HOST = '127.0.0.1'
+try { HOST = Deno.env.get('HOST') ?? HOST } catch { /* sin allow-env */ }
 
 // ---------------- Desvío a los servicios internos ----------------
 const fetchExterno = globalThis.fetch.bind(globalThis)
@@ -69,7 +73,7 @@ cargando = ''
 // ---------------- Servidor ----------------
 const RUTA = /^\/functions\/v1\/([a-z-]+)$/
 
-serveOriginal({ hostname: '127.0.0.1', port: PUERTO, onListen: () => console.log(`funciones listas: ${[...handlers.keys()].join(', ')}`) }, async (req, info) => {
+serveOriginal({ hostname: HOST, port: PUERTO, onListen: () => console.log(`funciones listas: ${[...handlers.keys()].join(', ')}`) }, async (req, info) => {
   const { pathname } = new URL(req.url)
   if (pathname === '/health') return new Response('ok')
 
